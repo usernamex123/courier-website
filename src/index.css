@@ -6,7 +6,6 @@ html {
 
 body {
   margin: 0;
-  background: #0f172a;
-  color: white;
-  font-family: Inter, system-ui, sans-serif;
+  min-width: 320px;
+  background: #020617;
 }

@@ -1,61 +1,209 @@
 import { motion } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search, Package, MapPin, Truck } from "lucide-react";
 
 function Tracking() {
   return (
-    <section className="bg-slate-950 text-white py-28 px-8">
-      <div className="max-w-5xl mx-auto text-center">
+    <section
+      id="tracking"
+      className="
+        bg-slate-900
+        text-white
+        py-28
+        px-8
+      "
+    >
 
-        <motion.h2
-          initial={{ opacity: 0, y: 50 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: .8 }}
-          className="text-5xl font-bold"
-        >
-          Track Your Shipment
-        </motion.h2>
+      <div className="
+        max-w-5xl
+        mx-auto
+      ">
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: .2 }}
-          className="text-gray-400 mt-6"
-        >
-          Enter your tracking number and follow your parcel in real time.
-        </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, scale: .9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: .4 }}
-          className="mt-12 flex flex-col md:flex-row gap-4 justify-center"
+          initial={{
+            opacity:0,
+            y:50
+          }}
+          whileInView={{
+            opacity:1,
+            y:0
+          }}
+          viewport={{
+            once:true
+          }}
+          className="
+            bg-slate-950
+            border
+            border-white/10
+            rounded-3xl
+            p-10
+            md:p-14
+            text-center
+          "
         >
 
-          <div className="relative flex-1">
 
-            <Search
-              className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"
-              size={20}
-            />
+          <div className="
+            w-20
+            h-20
+            mx-auto
+            rounded-3xl
+            bg-blue-500/20
+            flex
+            items-center
+            justify-center
+            mb-8
+          ">
 
-            <input
-              type="text"
-              placeholder="Enter Tracking Number"
-              className="w-full bg-slate-800 border border-white/10 rounded-xl py-4 pl-14 pr-4 outline-none focus:border-blue-500"
+            <Package
+              size={45}
+              className="text-blue-400"
             />
 
           </div>
 
-          <button className="bg-blue-500 hover:bg-blue-600 px-8 rounded-xl transition-all duration-300 font-semibold">
-            Track
-          </button>
+
+
+          <h2 className="
+            text-5xl
+            font-black
+          ">
+            Track Your Shipment
+          </h2>
+
+
+          <p className="
+            text-gray-400
+            text-lg
+            mt-5
+          ">
+            Enter your tracking number to view your delivery status.
+          </p>
+
+
+
+          <div className="
+            mt-10
+            flex
+            flex-col
+            md:flex-row
+            gap-4
+          ">
+
+
+            <input
+              placeholder="Example: SS-000001"
+              className="
+                flex-1
+                px-6
+                py-4
+                rounded-2xl
+                bg-slate-900
+                border
+                border-white/10
+                outline-none
+                focus:border-blue-400
+              "
+            />
+
+
+            <button
+              className="
+                bg-blue-500
+                hover:bg-blue-600
+                px-8
+                py-4
+                rounded-2xl
+                font-bold
+                flex
+                justify-center
+                items-center
+                gap-3
+                transition
+              "
+            >
+
+              <Search size={20}/>
+
+              Track
+
+            </button>
+
+
+          </div>
+
+
+
+          <div className="
+            grid
+            md:grid-cols-3
+            gap-5
+            mt-12
+          ">
+
+
+            <div className="
+              bg-slate-900
+              rounded-2xl
+              p-5
+            ">
+
+              <MapPin
+                className="text-blue-400 mx-auto mb-3"
+              />
+
+              <p className="text-gray-400">
+                Pickup
+              </p>
+
+            </div>
+
+
+
+            <div className="
+              bg-slate-900
+              rounded-2xl
+              p-5
+            ">
+
+              <Truck
+                className="text-blue-400 mx-auto mb-3"
+              />
+
+              <p className="text-gray-400">
+                In Transit
+              </p>
+
+            </div>
+
+
+
+            <div className="
+              bg-slate-900
+              rounded-2xl
+              p-5
+            ">
+
+              <Package
+                className="text-blue-400 mx-auto mb-3"
+              />
+
+              <p className="text-gray-400">
+                Delivered
+              </p>
+
+            </div>
+
+
+          </div>
+
 
         </motion.div>
 
+
       </div>
+
+
     </section>
   );
 }

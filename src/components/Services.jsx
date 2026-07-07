@@ -1,81 +1,187 @@
 import { motion } from "framer-motion";
-import {
-  Truck,
-  PackageCheck,
-  Globe,
-} from "lucide-react";
+import { Truck, Clock, Globe, PackageCheck } from "lucide-react";
 
 const services = [
   {
     icon: Truck,
     title: "Express Delivery",
-    description:
-      "Fast nationwide delivery with real-time tracking.",
+    text: "Fast delivery solutions designed for urgent shipments and time-sensitive packages.",
   },
   {
-    icon: PackageCheck,
-    title: "Secure Shipping",
-    description:
-      "Every parcel is handled with maximum safety.",
+    icon: Clock,
+    title: "Real-Time Tracking",
+    text: "Monitor your shipment status with accurate updates from pickup to delivery.",
   },
   {
     icon: Globe,
-    title: "International",
-    description:
-      "Worldwide logistics with trusted partners.",
+    title: "Nationwide Coverage",
+    text: "Reliable courier services connecting customers and businesses across America.",
+  },
+  {
+    icon: PackageCheck,
+    title: "Secure Handling",
+    text: "Every package is handled carefully with safety and reliability in mind.",
   },
 ];
 
 function Services() {
   return (
-    <section className="bg-slate-900 text-white py-28 px-8">
+    <section
+      id="services"
+      className="
+        bg-slate-900
+        text-white
+        py-28
+        px-8
+      "
+    >
+
       <div className="max-w-7xl mx-auto">
 
-        <motion.h2
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="text-5xl font-bold text-center mb-16"
-        >
-          Our Services
-        </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {services.map((service, index) => {
+        <motion.div
+          initial={{
+            opacity:0,
+            y:40
+          }}
+          whileInView={{
+            opacity:1,
+            y:0
+          }}
+          viewport={{
+            once:true
+          }}
+          className="
+            text-center
+            mb-16
+          "
+        >
+
+          <h2 className="
+            text-5xl
+            font-black
+          ">
+            Our Services
+          </h2>
+
+          <p className="
+            text-gray-400
+            mt-5
+            text-lg
+            max-w-2xl
+            mx-auto
+          ">
+            Complete courier solutions built around speed,
+            transparency, and customer trust.
+          </p>
+
+        </motion.div>
+
+
+
+        <div className="
+          grid
+          md:grid-cols-2
+          gap-8
+        ">
+
+
+          {services.map((service,index)=>{
+
             const Icon = service.icon;
 
             return (
+
               <motion.div
                 key={service.title}
-                initial={{ opacity: 0, y: 80 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                initial={{
+                  opacity:0,
+                  y:60
+                }}
+                whileInView={{
+                  opacity:1,
+                  y:0
+                }}
+                viewport={{
+                  once:true
+                }}
                 transition={{
-                  delay: index * 0.2,
-                  duration: 0.7,
+                  delay:index*0.15
                 }}
                 whileHover={{
-                  y: -10,
-                  scale: 1.03,
+                  y:-10
                 }}
-                className="rounded-3xl bg-slate-800 p-8 border border-white/10 shadow-xl"
+                className="
+                  relative
+                  overflow-hidden
+                  bg-slate-950
+                  border
+                  border-white/10
+                  rounded-3xl
+                  p-10
+                  transition
+                "
               >
-                <Icon className="text-blue-400 mb-6" size={48} />
 
-                <h3 className="text-2xl font-bold mb-4">
+                <div
+                  className="
+                    absolute
+                    w-32
+                    h-32
+                    bg-blue-500/20
+                    rounded-full
+                    blur-3xl
+                    -right-10
+                    -top-10
+                  "
+                />
+
+
+                <Icon
+                  size={50}
+                  className="
+                    text-blue-400
+                    mb-6
+                    relative
+                  "
+                />
+
+
+                <h3
+                  className="
+                    text-3xl
+                    font-bold
+                    mb-4
+                    relative
+                  "
+                >
                   {service.title}
                 </h3>
 
-                <p className="text-gray-400">
-                  {service.description}
+
+                <p
+                  className="
+                    text-gray-400
+                    text-lg
+                    relative
+                  "
+                >
+                  {service.text}
                 </p>
+
+
               </motion.div>
+
             );
+
           })}
+
+
         </div>
 
+
       </div>
+
     </section>
   );
 }
