@@ -3,28 +3,34 @@ import { Truck, Clock, Globe, PackageCheck } from "lucide-react";
 
 const services = [
   {
+    number: "01",
     icon: Truck,
     title: "Express Delivery",
     text: "Fast delivery solutions designed for urgent shipments and time-sensitive packages.",
   },
   {
+    number: "02",
     icon: Clock,
     title: "Real-Time Tracking",
     text: "Monitor your shipment status with accurate updates from pickup to delivery.",
   },
   {
+    number: "03",
     icon: Globe,
     title: "Nationwide Coverage",
     text: "Reliable courier services connecting customers and businesses across America.",
   },
   {
+    number: "04",
     icon: PackageCheck,
     title: "Secure Handling",
     text: "Every package is handled carefully with safety and reliability in mind.",
   },
 ];
 
+
 function Services() {
+
   return (
     <section
       id="services"
@@ -36,7 +42,10 @@ function Services() {
       "
     >
 
-      <div className="max-w-7xl mx-auto">
+      <div className="
+        max-w-7xl
+        mx-auto
+      ">
 
 
         <motion.div
@@ -57,12 +66,23 @@ function Services() {
           "
         >
 
+          <p className="
+            text-blue-400
+            font-bold
+            mb-4
+            tracking-widest
+          ">
+            WHAT WE OFFER
+          </p>
+
+
           <h2 className="
             text-5xl
             font-black
           ">
             Our Services
           </h2>
+
 
           <p className="
             text-gray-400
@@ -90,27 +110,35 @@ function Services() {
 
             const Icon = service.icon;
 
+
             return (
 
               <motion.div
+
                 key={service.title}
+
                 initial={{
                   opacity:0,
                   y:60
                 }}
+
                 whileInView={{
                   opacity:1,
                   y:0
                 }}
+
                 viewport={{
                   once:true
                 }}
+
                 transition={{
-                  delay:index*0.15
+                  delay:index * 0.15
                 }}
+
                 whileHover={{
-                  y:-10
+                  y:-12
                 }}
+
                 className="
                   relative
                   overflow-hidden
@@ -119,55 +147,89 @@ function Services() {
                   border-white/10
                   rounded-3xl
                   p-10
-                  transition
+                  group
                 "
               >
+
+
+                {/* Glow */}
 
                 <div
                   className="
                     absolute
-                    w-32
-                    h-32
+                    w-40
+                    h-40
                     bg-blue-500/20
                     rounded-full
                     blur-3xl
                     -right-10
                     -top-10
+                    group-hover:bg-blue-500/30
+                    transition
                   "
                 />
 
 
-                <Icon
-                  size={50}
-                  className="
-                    text-blue-400
-                    mb-6
-                    relative
-                  "
-                />
+                <div className="
+                  flex
+                  justify-between
+                  items-start
+                  relative
+                ">
 
 
-                <h3
-                  className="
-                    text-3xl
-                    font-bold
-                    mb-4
-                    relative
-                  "
-                >
-                  {service.title}
-                </h3>
+                  <div>
+
+                    <div className="
+                      w-16
+                      h-16
+                      rounded-2xl
+                      bg-blue-500/20
+                      flex
+                      items-center
+                      justify-center
+                      mb-6
+                    ">
+
+                      <Icon
+                        size={35}
+                        className="text-blue-400"
+                      />
+
+                    </div>
 
 
-                <p
-                  className="
-                    text-gray-400
-                    text-lg
-                    relative
-                  "
-                >
-                  {service.text}
-                </p>
+                    <h3 className="
+                      text-3xl
+                      font-bold
+                      mb-4
+                    ">
+                      {service.title}
+                    </h3>
+
+
+                    <p className="
+                      text-gray-400
+                      text-lg
+                      max-w-md
+                    ">
+                      {service.text}
+                    </p>
+
+                  </div>
+
+
+
+                  <span className="
+                    text-5xl
+                    font-black
+                    text-white/10
+                  ">
+                    {service.number}
+                  </span>
+
+
+                </div>
 
 
               </motion.div>
@@ -182,8 +244,10 @@ function Services() {
 
       </div>
 
+
     </section>
   );
 }
+
 
 export default Services;

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Package, Map, Clock, Users } from "lucide-react";
 
+
 const stats = [
   {
     icon: Package,
@@ -24,8 +25,11 @@ const stats = [
   },
 ];
 
+
 function Stats() {
+
   return (
+
     <section
       className="
         bg-slate-900
@@ -35,56 +39,91 @@ function Stats() {
       "
     >
 
-      <div className="max-w-7xl mx-auto">
+      <div className="
+        max-w-7xl
+        mx-auto
+      ">
 
-        <div
-          className="
-            grid
-            md:grid-cols-4
-            gap-6
-          "
-        >
+
+        <div className="
+          grid
+          md:grid-cols-4
+          gap-6
+        ">
+
 
           {stats.map((stat,index)=>{
 
             const Icon = stat.icon;
 
+
             return (
 
               <motion.div
+
                 key={stat.title}
+
                 initial={{
                   opacity:0,
                   y:40
                 }}
+
                 whileInView={{
                   opacity:1,
                   y:0
                 }}
+
                 viewport={{
                   once:true
                 }}
+
                 transition={{
-                  delay:index*0.15
+                  delay:index * 0.15
                 }}
+
                 whileHover={{
-                  scale:1.05
+                  y:-8
                 }}
+
                 className="
+                  relative
+                  overflow-hidden
                   bg-slate-950
                   border
                   border-white/10
                   rounded-3xl
                   p-8
                   text-center
+                  group
                 "
               >
 
+
+                {/* Glow */}
+
+                <div
+                  className="
+                    absolute
+                    w-32
+                    h-32
+                    bg-blue-500/20
+                    rounded-full
+                    blur-3xl
+                    -top-10
+                    -right-10
+                    group-hover:bg-blue-500/30
+                    transition
+                  "
+                />
+
+
+
                 <div className="
-                  w-14
-                  h-14
+                  relative
+                  w-16
+                  h-16
                   mx-auto
-                  mb-5
+                  mb-6
                   rounded-2xl
                   bg-blue-500/20
                   flex
@@ -93,14 +132,16 @@ function Stats() {
                 ">
 
                   <Icon
-                    size={30}
+                    size={32}
                     className="text-blue-400"
                   />
 
                 </div>
 
 
+
                 <h3 className="
+                  relative
                   text-5xl
                   font-black
                   text-blue-400
@@ -109,9 +150,12 @@ function Stats() {
                 </h3>
 
 
+
                 <p className="
+                  relative
                   mt-3
                   text-gray-400
+                  font-medium
                 ">
                   {stat.title}
                 </p>
@@ -123,12 +167,17 @@ function Stats() {
 
           })}
 
+
         </div>
+
 
       </div>
 
+
     </section>
+
   );
 }
+
 
 export default Stats;

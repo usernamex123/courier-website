@@ -1,10 +1,20 @@
-import { Mail, Phone, MapPin } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Package
+} from "lucide-react";
+
 
 function Footer() {
+
   return (
+
     <footer
       id="contact"
       className="
+        relative
+        overflow-hidden
         bg-slate-950
         text-white
         border-t
@@ -14,7 +24,26 @@ function Footer() {
       "
     >
 
+
+      {/* Background Glow */}
+
+      <div
+        className="
+          absolute
+          w-96
+          h-96
+          bg-blue-500/10
+          rounded-full
+          blur-3xl
+          -right-40
+          -bottom-40
+        "
+      />
+
+
+
       <div className="
+        relative
         max-w-7xl
         mx-auto
         grid
@@ -23,27 +52,69 @@ function Footer() {
       ">
 
 
+
+        {/* Brand */}
+
         <div>
 
-          <h2 className="
-            text-3xl
-            font-black
-            text-blue-400
+          <div className="
+            flex
+            items-center
+            gap-3
           ">
-            SwiftShip
-          </h2>
+
+            <div className="
+              w-11
+              h-11
+              rounded-xl
+              bg-blue-500
+              flex
+              items-center
+              justify-center
+            ">
+
+              <Package
+                size={24}
+                className="text-white"
+              />
+
+            </div>
+
+
+            <h2 className="
+              text-3xl
+              font-black
+            ">
+
+              Swift
+              <span className="text-blue-400">
+                Ship
+              </span>
+
+            </h2>
+
+
+          </div>
+
+
 
           <p className="
             text-gray-400
-            mt-4
+            mt-5
+            leading-relaxed
           ">
             Modern logistics solutions built for speed,
             security, and reliability.
           </p>
 
+
         </div>
 
 
+
+
+
+        {/* Company */}
 
         <div>
 
@@ -55,19 +126,43 @@ function Footer() {
             Company
           </h3>
 
+
           <ul className="
             space-y-3
             text-gray-400
           ">
-            <li>About</li>
-            <li>Services</li>
-            <li>Careers</li>
-            <li>Contact</li>
+
+            {[
+              "About",
+              "Services",
+              "Careers",
+              "Contact"
+            ].map(item=>(
+
+              <li
+                key={item}
+                className="
+                  hover:text-blue-400
+                  cursor-pointer
+                  transition
+                "
+              >
+                {item}
+              </li>
+
+            ))}
+
+
           </ul>
+
 
         </div>
 
 
+
+
+
+        {/* Services */}
 
         <div>
 
@@ -79,19 +174,44 @@ function Footer() {
             Services
           </h3>
 
+
           <ul className="
             space-y-3
             text-gray-400
           ">
-            <li>Express Delivery</li>
-            <li>Business Shipping</li>
-            <li>Tracking</li>
-            <li>Worldwide Delivery</li>
+
+
+            {[
+              "Express Delivery",
+              "Business Shipping",
+              "Tracking",
+              "Worldwide Delivery"
+            ].map(item=>(
+
+              <li
+                key={item}
+                className="
+                  hover:text-blue-400
+                  cursor-pointer
+                  transition
+                "
+              >
+                {item}
+              </li>
+
+            ))}
+
+
           </ul>
+
 
         </div>
 
 
+
+
+
+        {/* Contact */}
 
         <div>
 
@@ -104,38 +224,79 @@ function Footer() {
           </h3>
 
 
+
           <div className="
             space-y-4
             text-gray-400
           ">
 
-            <p className="flex gap-3 items-center">
-              <Mail size={20}/>
+
+            <p className="
+              flex
+              gap-3
+              items-center
+            ">
+
+              <Mail
+                size={20}
+                className="text-blue-400"
+              />
+
               support@swiftship.com
+
             </p>
 
 
-            <p className="flex gap-3 items-center">
-              <Phone size={20}/>
+
+            <p className="
+              flex
+              gap-3
+              items-center
+            ">
+
+              <Phone
+                size={20}
+                className="text-blue-400"
+              />
+
               +1 (800) 555-0199
+
             </p>
 
 
-            <p className="flex gap-3 items-center">
-              <MapPin size={20}/>
+
+            <p className="
+              flex
+              gap-3
+              items-center
+            ">
+
+              <MapPin
+                size={20}
+                className="text-blue-400"
+              />
+
               United States
+
             </p>
+
 
 
           </div>
 
+
         </div>
+
 
 
       </div>
 
 
+
+
+
       <div className="
+        relative
         max-w-7xl
         mx-auto
         mt-12
@@ -151,8 +312,12 @@ function Footer() {
       </div>
 
 
+
     </footer>
+
   );
+
 }
+
 
 export default Footer;
