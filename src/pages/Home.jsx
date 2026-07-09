@@ -10,7 +10,12 @@ import BackToTop from "../components/BackToTop";
 
 export default function Home() {
   return (
-    <main className="w-full">
+    <main className="w-full bg-transparent">
+      {/* 
+        Keeping your modular structure exactly as is.
+        Ensure your Hero component does not have a solid background 
+        color, so the drone video from Layout.jsx shows through. 
+      */}
       <Hero />
       <Reveal><Services /></Reveal>
       <Reveal delay={0.1}><Stats /></Reveal>
