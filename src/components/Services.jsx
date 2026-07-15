@@ -1,34 +1,36 @@
-import { useState } from "react";
-
 export default function Services() {
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <section className="w-full bg-slate-950 mt-16">
-      <div 
-        className="relative w-full h-[400px] cursor-pointer group border-y border-white/5 overflow-hidden"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        {/* Background Layer using CSS background utilities */}
+    <section className="w-full">
+      <div className="w-full h-75 bg-[#252222] flex items-center justify-center relative">
+        <h2 className="text-white text-5xl font-semibold uppercase tracking-wide transform scale-y-[1.05]">
+          OUR SERVICES
+        </h2>
+      </div>
+
+      {/* Banner Section */}
+      <div className="group relative w-full h-[400px] cursor-pointer border-y border-white/5 overflow-hidden bg-black">
+        
+        {/* Layer 1: Default Image */}
         <div 
-          className={`absolute inset-0 bg-center bg-no-repeat transition-all duration-700 ease-in-out ${
-            hovered ? "bg-[url('/truck-hover.jpg')] bg-cover" : "bg-[url('/truck-default.jpg')] bg-cover"
-          }`}
+          className="absolute inset-0 z-0 bg-cover bg-center transition-opacity duration-500 ease-in-out opacity-100 group-hover:opacity-0"
+          style={{ backgroundImage: "url('/truck-default.png')" }}
+        />
+
+        {/* Layer 2: Hover Image */}
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center transition-opacity duration-500 ease-in-out opacity-0 group-hover:opacity-100"
+          style={{ backgroundImage: "url('/truck-hover.png')" }}
         />
         
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/50 group-hover:bg-black/30 transition-colors duration-500" />
+        {/* Overlay - Added pointer-events-none */}
+        <div className="absolute inset-0 z-10 bg-black/60 transition-colors duration-500 ease-in-out group-hover:bg-black/20 pointer-events-none" />
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-5">
-          <h2 className="text-white/70 text-xs font-bold tracking-[0.4em] uppercase mb-3">
-            Our Services
-          </h2>
-          <h3 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight">
+        {/* Content - Added pointer-events-none */}
+        <div className="relative z-20 flex flex-col items-center justify-center h-full text-center px-5 pointer-events-none">
+          <h3 className="text-white text-5xl font-semibold uppercase tracking-wide transform scale-y-[1.05]">
             GROUND FREIGHT
           </h3>
-          <div className="mt-6 w-16 h-1 bg-blue-500 rounded-full transition-all duration-500 group-hover:w-32" />
+          <div className="mt-6 h-1 bg-yellow-500 rounded-full transition-all duration-500 ease-in-out w-16 group-hover:w-32" />
         </div>
       </div>
     </section>

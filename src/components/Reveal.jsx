@@ -1,47 +1,24 @@
 import { motion } from "framer-motion";
 
-
-function Reveal({
-  children,
-  delay = 0,
-  y = 50,
-  duration = 0.7,
-}) {
-
+function Reveal({ children, delay = 0, y = 50, duration = 2.0 }) {
   return (
-
     <motion.div
-
-      initial={{
-        opacity: 0,
-        y: y,
-      }}
-
-      whileInView={{
-        opacity: 1,
+      initial={{ opacity: 0, y: y }}
+      whileInView={{ 
+        opacity: 1, 
         y: 0,
+        transition: {
+          type: "tween", // Force no-spring
+          duration: duration,
+          delay: delay,
+          ease: [0.22, 1, 0.36, 1]
+        }
       }}
-
-      viewport={{
-        once: true,
-        amount: 0.2,
-      }}
-
-      transition={{
-        duration: duration,
-        delay: delay,
-        ease: "easeOut",
-      }}
-
+      viewport={{ once: true, amount: 0.2 }}
     >
-
       {children}
-
     </motion.div>
-
   );
-
 }
-
 
 export default Reveal;

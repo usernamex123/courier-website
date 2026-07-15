@@ -1,29 +1,26 @@
 import Hero from "../components/Hero";
 import Services from "../components/Services";
 import WhyChooseUs from "../components/WhyChooseUs";
-import Stats from "../components/Stats";
-import HowItWorks from "../components/HowItWorks";
-import Tracking from "../components/Tracking";
+import GetStarted from "../components/GetStarted";
+import AboutUs from "../components/AboutUs"; // 1. Added Import
+import Contact from "../components/Contact";
 import Footer from "../components/Footer";
 import Reveal from "../components/Reveal";
-import BackToTop from "../components/BackToTop";
 
 export default function Home() {
   return (
     <main className="w-full bg-transparent">
-      {/* 
-        Keeping your modular structure exactly as is.
-        Ensure your Hero component does not have a solid background 
-        color, so the drone video from Layout.jsx shows through. 
-      */}
       <Hero />
       <Reveal><Services /></Reveal>
-      <Reveal delay={0.1}><Stats /></Reveal>
       <Reveal delay={0.2}><WhyChooseUs /></Reveal>
-      <Reveal delay={0.1}><HowItWorks /></Reveal>
-      <Reveal><Tracking /></Reveal>
+      <Reveal delay={0.4}><GetStarted /></Reveal>
+      
+      {/* 2. Added AboutUs component with a reveal animation */}
+      <Reveal delay={0.6}><AboutUs /></Reveal>
+      
+      <Reveal delay={0.8}><Contact /></Reveal>
+      
       <Footer />
-      <BackToTop />
     </main>
   );
 }

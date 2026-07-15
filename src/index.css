@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 
 html {
   scroll-behavior: smooth;
@@ -8,4 +9,11 @@ body {
   margin: 0;
   min-width: 320px;
   background: #020617;
+  /* Font removed from here to restore your site's original look */
+}
+
+/* Class only for the logo */
+.logo-font {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em; 
 }

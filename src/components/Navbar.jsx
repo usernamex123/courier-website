@@ -54,8 +54,8 @@ function Navbar() {
           <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform duration-200">
             <Package size={22} className="transform group-hover:rotate-3 transition-transform" />
           </div>
-          <span className="text-xl font-black tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-            SwiftShip
+          <span className="text-lg font-black text-red-600 tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+            JB Logistics Services
           </span>
         </Link>
 
