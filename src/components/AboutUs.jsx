@@ -1,73 +1,117 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
 export default function AboutUs() {
-  const [isSwapped, setIsSwapped] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const transition = {
-    duration: 1.2,
-    ease: [0.4, 0, 0.2, 1],
-  };
+  const banners = [
+    { 
+      id: "quick", 
+      title: "QUICK SERVICE", 
+      desc: "We prioritize operational efficiency to ensure your time is fully respected.", 
+      img: "/main.jpg" 
+    },
+    { 
+      id: "support", 
+      title: "24/7 SUPPORT", 
+      desc: "Dedicated professional assistance available whenever you require it.", 
+      img: "/2nd.jpg" 
+    },
+    { 
+      id: "reliability", 
+      title: "RELIABILITY", 
+      desc: "We ensure your valuables reach their destination safely and strictly on schedule.", 
+      img: "/3rd.jpg" 
+    }
+  ];
+
+  // Auto-slide effect set to 3000ms (3 seconds)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % banners.length);
+    }, 3000);
+    
+    return () => clearInterval(timer);
+  }, [banners.length]);
+
+  const springConfig = { type: "spring", stiffness: 250, damping: 30, mass: 1 };
 
   return (
-    <section className="relative w-full h-[850px] bg-black flex flex-col items-center overflow-hidden pt-16">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/about-bg.jpg')" }} />
-      <div className="absolute inset-0 bg-black/60" />
-
-      <div className="relative z-20 w-full max-w-6xl px-8 flex flex-col items-center">
-        <h2 className="text-6xl font-black text-white uppercase tracking-tighter mb-12 border-b-4 border-yellow-500 pb-4">
-          About Us
-        </h2>
+    <section className="relative w-full h-[850px] bg-black flex flex-col items-center pt-16 overflow-hidden">
+      <div className="flex flex-col items-center mb-12">
+        <h2 className="text-white text-5xl font-black tracking-wider mb-3">WHY US</h2>
+        <div className="w-30 h-1.5 bg-yellow-400 rounded-full"></div>
       </div>
 
-      <div className="relative z-10 w-full h-[600px] flex items-center justify-center">
-        {/* RELIABILITY BANNER */}
-        <motion.div
-          layoutId="banner-reliability"
-          onClick={() => setIsSwapped(false)}
-          transition={transition}
-          className={`absolute w-full max-w-4xl h-[600px] rounded-2xl overflow-hidden shadow-2xl border border-white/5 
-            ${!isSwapped ? "z-20 scale-100 opacity-100" : "z-10 -translate-x-[40%] scale-75 opacity-40 cursor-pointer"}`}
-        >
-          <img src="/main.jpg" alt="Reliability" className="w-full h-full object-cover" />
-          <div className="absolute bottom-0 left-0 right-0 h-[160px] bg-black/60 p-8 text-center text-white">
-            <h3 className="text-4xl font-black uppercase">RELIABILITY</h3>
-          </div>
-        </motion.div>
+      {/* Main Banner Container */}
+      <div className="relative z-10 w-full max-w-6xl h-[600px] flex items-center justify-center">
+        {banners.map((banner, index) => {
+          const isActive = index === activeIndex;
+          const offset = (index - activeIndex) * 65; 
+          
+          return (
+            <motion.div
+              key={banner.id}
+              layoutId={banner.id}
+              initial={false}
+              animate={{
+                x: `${offset}%`,
+                scale: isActive ? 1 : 0.85,
+                opacity: isActive ? 1 : 0.6,
+                zIndex: isActive ? 20 : 10 - Math.abs(index - activeIndex)
+              }}
+              transition={springConfig}
+              className="absolute rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              style={{ width: "800px", height: "600px" }}
+            >
+              <img src={banner.img} alt={banner.title} className="w-full h-full object-cover" />
+              <div className="absolute bottom-0 w-full h-32 bg-black/50"></div>
+              <div className="absolute bottom-0 w-full h-32 flex flex-col items-center justify-start pt-4 z-20 px-8 text-center">
+                <h3 className="text-3xl font-black text-white mb-1">{banner.title}</h3>
+                <p className="text-lg font-semibold text-white/95 leading-snug max-w-sm">{banner.desc}</p>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
 
-        {/* INNOVATION BANNER */}
-        <motion.div
-          layoutId="banner-innovation"
-          onClick={() => setIsSwapped(true)}
-          transition={transition}
-          className={`absolute w-full max-w-4xl h-[600px] rounded-2xl overflow-hidden shadow-2xl border border-white/5 
-            ${isSwapped ? "z-20 scale-100 opacity-100" : "z-10 translate-x-[40%] scale-75 opacity-40 cursor-pointer"}`}
-        >
-          <img src="/2nd.jpg" alt="Innovation" className="w-full h-full object-cover" />
-          <div className="absolute bottom-0 left-0 right-0 h-[160px] bg-black/60 p-8 text-center text-white">
-            <h3 className="text-4xl font-black uppercase">INNOVATION</h3>
-          </div>
-        </motion.div>
+      {/* Pagination Dots */}
+      <div className="flex gap-4 mt-8 z-20">
+        {banners.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setActiveIndex(index)}
+            className={`transition-all duration-300 rounded-full ${
+              index === activeIndex 
+                ? "w-4 h-4 bg-white" 
+                : "w-3 h-3 bg-white/40 hover:bg-white/60"
+            }`}
+          />
+        ))}
+      </div>
 
-        {/* Right Arrow */}
-        <motion.div 
-          className="absolute top-0 right-0 z-40 w-32 h-[600px] flex items-center justify-center cursor-pointer bg-gradient-to-l from-black/30 to-transparent"
-          animate={{ opacity: !isSwapped ? 1 : 0, pointerEvents: !isSwapped ? "auto" : "none" }}
-          transition={transition}
-          onClick={() => setIsSwapped(true)}
-        >
-          <span className="text-white text-6xl font-thin">→</span>
-        </motion.div>
+      {/* Left Arrow */}
+      <div className="group absolute left-0 top-0 h-full w-[20%] z-[100]">
+        {activeIndex > 0 && (
+          <button 
+            onClick={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
+            className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:text-yellow-400 cursor-pointer outline-none"
+          >
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+        )}
+      </div>
 
-        {/* Left Arrow */}
-        <motion.div 
-          className="absolute top-0 left-0 z-40 w-32 h-[600px] flex items-center justify-center cursor-pointer bg-gradient-to-r from-black/30 to-transparent"
-          animate={{ opacity: isSwapped ? 1 : 0, pointerEvents: isSwapped ? "auto" : "none" }}
-          transition={transition}
-          onClick={() => setIsSwapped(false)}
-        >
-          <span className="text-white text-6xl font-thin">←</span>
-        </motion.div>
+      {/* Right Arrow */}
+      <div className="group absolute right-0 top-0 h-full w-[20%] z-[100]">
+        {activeIndex < banners.length - 1 && (
+          <button 
+            onClick={() => setActiveIndex((prev) => Math.min(banners.length - 1, prev + 1))}
+            className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:text-yellow-400 cursor-pointer outline-none"
+          >
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        )}
       </div>
     </section>
   );

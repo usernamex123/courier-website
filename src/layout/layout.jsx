@@ -41,13 +41,12 @@ export default function Layout() {
       </Link>
       
       <div className="flex items-center gap-8">
-        {/* SERVICES: Wrapper handles the Dropdown trigger (large area), Button handles text color (small area) */}
         <div 
           className="relative h-[60px] flex items-center justify-center cursor-default" 
           onMouseEnter={() => setIsOpen(true)} 
           onMouseLeave={() => setIsOpen(false)}
         >
-          <button className={`flex items-center gap-1 font-semibold tracking-wider text-[15px] uppercase transition-colors duration-1000 ease-in-out ${isOpen ? "text-yellow-400" : "hover:text-yellow-400"}`}>
+          <button className="flex items-center gap-1 font-semibold tracking-wider text-[15px] uppercase transition-colors duration-1000 ease-in-out text-white hover:text-yellow-400 cursor-pointer">
             Services <ChevronDown size={14} className={`transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
           </button>
           
@@ -61,7 +60,7 @@ export default function Layout() {
                 className="absolute top-[60px] left-0 w-64 z-[100]"
               >
                 <div className="bg-black/40 backdrop-blur-lg border border-white/10 p-1 shadow-2xl">
-                  <Link to="/freight" className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-400 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
+                  <Link to="/ground-freight" className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-400 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
                     Ground Freight
                   </Link>
                   <Link to="/international" className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-400 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
