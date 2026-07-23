@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../contexts/AppContext";
 import { User, MapPin, Package, ArrowRight, CheckCircle2, ClipboardList } from "lucide-react";
 
 function Shipping() {

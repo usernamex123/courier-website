@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useApp } from "../contexts/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Package, LayoutDashboard, Truck, ClipboardList, LogOut, LogIn } from "lucide-react";
 

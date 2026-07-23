@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../contexts/AppContext";
 import { motion } from "framer-motion";
 import { LogIn, UserPlus, Mail, Lock, AlertCircle, Eye, EyeOff, User } from "lucide-react";
 
