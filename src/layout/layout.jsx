@@ -46,7 +46,7 @@ export default function Layout() {
           onMouseEnter={() => setIsOpen(true)} 
           onMouseLeave={() => setIsOpen(false)}
         >
-          <button className="flex items-center gap-1 font-semibold tracking-wider text-[15px] uppercase transition-colors duration-1000 ease-in-out text-white hover:text-yellow-400 cursor-pointer">
+          <button className="flex items-center gap-1 text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400 cursor-pointer">
             Services <ChevronDown size={14} className={`transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
           </button>
           
@@ -72,9 +72,9 @@ export default function Layout() {
           </AnimatePresence>
         </div>
         
-        <Link to="/quote" className="font-semibold tracking-wider text-[15px] uppercase transition-colors duration-1000 ease-in-out hover:text-yellow-400">Freight Quote</Link>
-        <Link to="/contact" className="font-semibold tracking-wider text-[15px] uppercase transition-colors duration-1000 ease-in-out hover:text-yellow-400">Contact Us</Link>
-        <Link to="/about" className="font-semibold tracking-wider text-[15px] uppercase transition-colors duration-1000 ease-in-out hover:text-yellow-400">About Us</Link>
+        <Link to="/quote" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400">Freight Quote</Link>
+        <Link to="/contact" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400">Contact Us</Link>
+        <Link to="/about" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400">About Us</Link>
       </div>
     </div>
   );
