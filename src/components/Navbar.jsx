@@ -58,28 +58,31 @@ function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Interface Navigation Lanes */}
+        {/* Desktop Interface Navigation Lanes (Includes Freight Quote) */}
         <nav className="hidden md:flex items-center gap-1 font-medium text-sm text-slate-300">
-          <Link to="/" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Home</Link>
-          <Link to="/tracking" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/tracking" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Track</Link>
-          <Link to="/quote" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/quote" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Calculator</Link>
+          <Link to="/services" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/services" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Services</Link>
+          <Link to="/quote" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/quote" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Freight Quote</Link>
+          <Link to="/contact" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/contact" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Contact Us</Link>
+          <Link to="/about" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/about" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>About Us</Link>
           
           {isLoggedIn && (
-            <>
-              <Link to="/dashboard" className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${location.pathname === "/dashboard" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>
-                <LayoutDashboard size={14} />
-                <span>Dashboard</span>
-              </Link>
-              <Link to="/shipping" className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${location.pathname === "/shipping" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>
-                <Truck size={14} />
-                <span>Ship</span>
-              </Link>
-            </>
+            <Link to="/dashboard" className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${location.pathname === "/dashboard" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>
+              <LayoutDashboard size={14} />
+              <span>Dashboard</span>
+            </Link>
           )}
         </nav>
 
-        {/* Desktop Call To Actions Auth Controls */}
-        <div className="hidden md:flex items-center gap-4">
+        {/* Desktop Call To Actions & Yellow REQUEST A QUOTE Button */}
+        <div className="hidden md:flex items-center gap-3">
+          <Link 
+            to="/quote"
+            className="bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-black px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-yellow-400/20 transition-all shrink-0"
+          >
+            <Truck size={15} />
+            <span>Request A Quote</span>
+          </Link>
+
           {isLoggedIn ? (
             <button 
               onClick={handleSignOut}
@@ -91,9 +94,9 @@ function Navbar() {
           ) : (
             <Link 
               to="/auth"
-              className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-500/10 transition-all"
+              className="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/10 transition-all shrink-0"
             >
-              <LogIn size={15} />
+              <LogIn size={14} />
               <span>Login/Sign Up</span>
             </Link>
           )}
@@ -121,15 +124,26 @@ function Navbar() {
             className="absolute top-full left-0 w-full bg-slate-950 border-b border-slate-900 overflow-hidden md:hidden shadow-2xl"
           >
             <div className="px-5 py-6 space-y-4 flex flex-col text-base font-semibold text-slate-300">
-              <Link to="/" className={`p-2 rounded-lg ${location.pathname === "/" ? "text-blue-400 bg-slate-900/60" : ""}`}>Home Base</Link>
-              <Link to="/tracking" className={`p-2 rounded-lg flex items-center gap-2 ${location.pathname === "/tracking" ? "text-blue-400 bg-slate-900/60" : ""}`}><ClipboardList size={16}/><span>Track Package</span></Link>
-              <Link to="/quote" className={`p-2 rounded-lg flex items-center gap-2 ${location.pathname === "/quote" ? "text-blue-400 bg-slate-900/60" : ""}`}><Truck size={16}/><span>Cost Calculator</span></Link>
+              <Link to="/services" className={`p-2 rounded-lg ${location.pathname === "/services" ? "text-blue-400 bg-slate-900/60" : ""}`}>Services</Link>
+              <Link to="/quote" className={`p-2 rounded-lg ${location.pathname === "/quote" ? "text-blue-400 bg-slate-900/60" : ""}`}>Freight Quote</Link>
+              <Link to="/contact" className={`p-2 rounded-lg ${location.pathname === "/contact" ? "text-blue-400 bg-slate-900/60" : ""}`}>Contact Us</Link>
+              <Link to="/about" className={`p-2 rounded-lg ${location.pathname === "/about" ? "text-blue-400 bg-slate-900/60" : ""}`}>About Us</Link>
               
+              <Link 
+                to="/quote"
+                className="w-full bg-yellow-400 text-black text-center font-extrabold py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider mt-2"
+              >
+                <Truck size={18} />
+                <span>Request A Quote</span>
+              </Link>
+
               {isLoggedIn ? (
                 <>
                   <div className="h-[1px] bg-slate-900 my-2" />
-                  <Link to="/dashboard" className={`p-2 rounded-lg flex items-center gap-2 ${location.pathname === "/dashboard" ? "text-blue-400 bg-slate-900/60" : ""}`}><LayoutDashboard size={16}/><span>User Dashboard</span></Link>
-                  <Link to="/shipping" className={`p-2 rounded-lg flex items-center gap-2 ${location.pathname === "/shipping" ? "text-blue-400 bg-slate-900/60" : ""}`}><Package size={16}/><span>Dispatch Center</span></Link>
+                  <Link to="/dashboard" className={`p-2 rounded-lg flex items-center gap-2 ${location.pathname === "/dashboard" ? "text-blue-400 bg-slate-900/60" : ""}`}>
+                    <LayoutDashboard size={16}/>
+                    <span>User Dashboard</span>
+                  </Link>
                   <button 
                     onClick={handleSignOut}
                     className="w-full text-left p-2 rounded-lg text-red-400 hover:bg-red-500/5 transition flex items-center gap-2 mt-4"
@@ -141,7 +155,7 @@ function Navbar() {
               ) : (
                 <Link 
                   to="/auth"
-                  className="w-full mt-4 bg-blue-500 text-white text-center font-bold py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2"
+                  className="w-full mt-2 bg-blue-500 text-white text-center font-bold py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2"
                 >
                   <LogIn size={16} />
                   <span>Login/Sign Up</span>

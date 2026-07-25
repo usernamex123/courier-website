@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Services() {
+  const navigate = useNavigate();
+  
   // Initialize with 'ocean' so it locks onto Sea Freight by default
   const [activeService, setActiveService] = useState('ocean');
   
@@ -11,38 +14,30 @@ export default function Services() {
     {
       id: 'air',
       title: 'Air Freight',
-      bgImage: '/air-hover.png',
-      type: 'image',
+      bgMedia: '/airfreight.mp4',
+      type: 'video',
+      path: '/air-freight', // Route path reference
     },
     {
       id: 'ground',
       title: 'Ground Freight',
       bgMedia: '/groundfreight.mp4',
       type: 'video',
+      path: '/ground-freight', // Route path reference
     },
     {
       id: 'ocean',
       title: 'Sea Freight',
       bgMedia: '/ocean.mp4',
       type: 'video',
-    },
-    {
-      id: 'customs',
-      title: 'Customs Brokerage',
-      bgImage: '/customs-hover.png',
-      type: 'image',
-    },
-    {
-      id: 'tpl',
-      title: '3PL Logistics Service',
-      bgImage: '/3pl-hover.png',
-      type: 'image',
+      path: '/sea-freight', // Route path reference (adjust if needed)
     },
     {
       id: 'warehousing',
       title: 'Warehousing Services',
       bgImage: '/warehouse-hover.png',
       type: 'image',
+      path: '/warehousing', // Route path reference
     },
   ];
 
@@ -54,9 +49,12 @@ export default function Services() {
     if (activeData.type === 'video' && videoRef.current) {
       videoRef.current.load();
       videoRef.current.currentTime = 0;
-      videoRef.current.play().catch((err) => {
-        console.log("Video playback intercepted:", err);
-      });
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.log("Video playback safely handled:", err.name);
+        });
+      }
     }
   }, [activeService]);
 
@@ -113,7 +111,7 @@ export default function Services() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 z-20 pointer-events-none" />
 
         {/* Navigation Bar at the Top */}
-        <div className="absolute top-0 left-0 right-0 z-30 w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-0 p-0 m-0">
+        <div className="absolute top-0 left-0 right-0 z-30 w-full grid grid-cols-2 md:grid-cols-4 gap-0 p-0 m-0">
           {services.map((service) => {
             const isActive = activeService === service.id;
             const isHovered = hoveredTab === service.id;
@@ -143,14 +141,16 @@ export default function Services() {
                   </div>
                 </div>
 
-                {/* Dropdown Container */}
-                <div className={`absolute top-full left-0 right-0 bg-black/95 border border-white/10 border-t-0 p-3 transition-opacity duration-200 shadow-2xl flex flex-col items-center justify-center z-40 ${
-                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                {/* Dropdown Container with smooth dropping and routing execution */}
+                <div className={`absolute top-full left-0 right-0 bg-black/95 border border-white/10 border-t-0 p-3 shadow-2xl flex flex-col items-center justify-center z-40 transform-gpu origin-top transition-all duration-300 ease-out ${
+                  isHovered 
+                    ? 'opacity-100 translate-y-0 scale-y-100 pointer-events-auto' 
+                    : 'opacity-0 -translate-y-2 scale-y-95 pointer-events-none'
                 }`}>
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      alert(`Navigating to details for ${service.title}`);
+                      navigate(service.path);
                     }}
                     className="group relative w-full py-2.5 px-3 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black text-sm md:text-base font-black uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-yellow-500/30 flex items-center justify-center gap-2 cursor-pointer overflow-hidden rounded-sm"
                   >

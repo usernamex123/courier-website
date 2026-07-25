@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ArrowUp } from "lucide-react";
-import { Link, Outlet } from "react-router-dom";
+import { ChevronDown, ArrowUp, Home } from "lucide-react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Layout() {
@@ -8,10 +8,23 @@ export default function Layout() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const lastScrollY = useRef(0);
+  const location = useLocation();
 
+  // Check if we are currently on a sub-page (e.g., ground-freight, international, etc., anything other than home)
+  const isSubPage = location.pathname !== "/" && location.pathname !== "";
+
+  // Automatically close dropdown when changing pages via routing
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  // Close dropdown immediately if the user starts scrolling the page
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+      
+      setIsOpen(false);
+
       if (currentScrollY > lastScrollY.current) {
         if (currentScrollY > 100) setIsScrolled(true);
       } else {
@@ -32,7 +45,7 @@ export default function Layout() {
         <div className="border-2 border-yellow-500/50 px-1 py-0.5 rounded-[4px] leading-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
           <div className="text-3xl font-bold tracking-tight flex items-center leading-none">
             <span className="text-yellow-500">J</span>
-            <span className="text-white">B LOGISTICS</span>
+            <span className="text-white">JB LOGISTICS</span>
           </div>
           <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-white text-center border-t border-yellow-500/30 mt-0.5 leading-none">
             Services
@@ -40,13 +53,28 @@ export default function Layout() {
         </div>
       </Link>
       
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-6 md:gap-8">
+        {/* Dynamic Home Option wrapped in a group so hover transitions both text and icon together */}
+        {isSubPage && (
+          <Link 
+            to="/" 
+            className="group flex items-center gap-1.5 text-sm md:text-base font-black uppercase tracking-wider text-white hover:text-yellow-500 transition-colors duration-1000 ease-in-out"
+          >
+            <Home size={16} className="text-white group-hover:text-yellow-500 transition-colors duration-1000 ease-in-out" />
+            <span>Home</span>
+          </Link>
+        )}
+
+        {/* Services Dropdown Container */}
         <div 
-          className="relative h-[60px] flex items-center justify-center cursor-default" 
-          onMouseEnter={() => setIsOpen(true)} 
+          className="relative h-[60px] flex items-center justify-center" 
           onMouseLeave={() => setIsOpen(false)}
         >
-          <button className="flex items-center gap-1 text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400 cursor-pointer">
+          <button 
+            onClick={() => setIsOpen(!isOpen)}
+            onMouseEnter={() => setIsOpen(true)}
+            className="flex items-center gap-1 text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500 cursor-pointer h-full"
+          >
             Services <ChevronDown size={14} className={`transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
           </button>
           
@@ -56,14 +84,14 @@ export default function Layout() {
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, y: 10 }} 
-                transition={{ duration: 0.4 }} 
+                transition={{ duration: 0.2 }} 
                 className="absolute top-[60px] left-0 w-64 z-[100]"
               >
                 <div className="bg-black/40 backdrop-blur-lg border border-white/10 p-1 shadow-2xl">
-                  <Link to="/ground-freight" className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-400 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
+                  <Link to="/ground-freight" onClick={() => setIsOpen(false)} className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
                     Ground Freight
                   </Link>
-                  <Link to="/international" className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-400 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
+                  <Link to="/international" onClick={() => setIsOpen(false)} className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
                     International
                   </Link>
                 </div>
@@ -72,9 +100,17 @@ export default function Layout() {
           </AnimatePresence>
         </div>
         
-        <Link to="/quote" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400">Freight Quote</Link>
-        <Link to="/contact" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400">Contact Us</Link>
-        <Link to="/about" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white/80 hover:text-yellow-400">About Us</Link>
+        <Link to="/quote" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500">Freight Quote</Link>
+        <Link to="/contact" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500">Contact Us</Link>
+        <Link to="/about" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500">About Us</Link>
+
+        {/* Request A Quote Button */}
+        <Link 
+          to="/quote" 
+          className="bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-black px-6 py-3 rounded-none font-black text-sm uppercase tracking-wider inline-flex items-center justify-center text-center transition-all duration-300 shrink-0 ml-2"
+        >
+          <span>Request A Quote</span>
+        </Link>
       </div>
     </div>
   );
