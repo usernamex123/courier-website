@@ -1,6 +1,6 @@
 export default function Contact() {
   return (
-    <section id="contact-us" className="w-full bg-black text-white py-16 px-6 md:px-24 font-sans">
+    <section id="contact-us" className="w-full bg-[#1c1917] text-white py-16 px-6 md:px-24 font-sans">
       <div className="max-w-7xl mx-auto">
         
         {/* Main Heading */}

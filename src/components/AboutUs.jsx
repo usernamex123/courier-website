@@ -37,7 +37,7 @@ export default function AboutUs() {
   const springConfig = { type: "spring", stiffness: 250, damping: 30, mass: 1 };
 
   return (
-    <section id="about-us" className="relative w-full h-[720px] bg-black flex flex-col items-center pt-28 overflow-hidden font-sans">
+    <section id="about-us" className="relative w-full h-[720px] bg-[#1c1917] flex flex-col items-center pt-28 overflow-hidden font-sans">
       <div className="flex flex-col items-center mb-8">
         <h2 className="text-white text-4xl md:text-6xl font-extrabold tracking-tighter mb-2">WHY US</h2>
         <div className="w-20 h-1 bg-yellow-400 rounded-full"></div>

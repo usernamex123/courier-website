@@ -35,25 +35,23 @@ export default function Services() {
     {
       id: 'warehousing',
       title: 'Warehousing Services',
-      bgImage: '/warehouse-hover.png',
+      bgImage: '/warehouse.jpg',
       type: 'image',
       path: '/warehousing',
     },
   ];
 
-  const videoRefs = useRef({});
+  const activeData = services.find((s) => s.id === activeService) || services[0];
+  const videoRef = useRef(null);
 
-  // Ensure all videos play smoothly in the background
+  // Auto-play the single active video smoothly upon mount or switch
   useEffect(() => {
-    Object.keys(videoRefs.current).forEach((id) => {
-      const video = videoRefs.current[id];
-      if (video) {
-        video.play().catch((err) => {
-          console.log("Video playback safely handled:", err.name);
-        });
-      }
-    });
-  }, []);
+    if (activeData.type === 'video' && videoRef.current) {
+      videoRef.current.play().catch((err) => {
+        console.log("Video playback safely handled:", err.name);
+      });
+    }
+  }, [activeService]);
 
   return (
     <section className="w-full min-h-screen relative flex flex-col bg-black text-white overflow-hidden">
@@ -68,40 +66,29 @@ export default function Services() {
       {/* Main Interactive Banner Area */}
       <div className="flex-grow relative w-full flex items-stretch overflow-hidden min-h-[600px]">
         
-        {/* Pre-render ALL media layers simultaneously with smooth opacity crossfades to prevent black flashes */}
+        {/* Single Dynamic Media Layer (Zero background resource waste) */}
         <div className="absolute inset-0 z-0 transform-gpu backface-hidden">
-          {services.map((service) => {
-            const isCurrentActive = service.id === activeService;
-
-            return (
-              <div
-                key={service.id}
-                className={`absolute inset-0 transition-opacity duration-500 ease-in-out transform-gpu backface-hidden ${
-                  isCurrentActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                }`}
-              >
-                {service.type === 'video' ? (
-                  <video 
-                    ref={(el) => (videoRefs.current[service.id] = el)}
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline 
-                    preload="auto"
-                    className="w-full h-full object-cover transform-gpu"
-                  >
-                    <source src={service.bgMedia} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <div 
-                    className="w-full h-full bg-cover bg-center bg-no-repeat transform-gpu"
-                    style={{ backgroundImage: `url(${service.bgImage})` }}
-                  />
-                )}
-              </div>
-            );
-          })}
+          {activeData.type === 'video' ? (
+            <video 
+              ref={videoRef}
+              key={activeData.id}
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              preload="auto"
+              className="w-full h-full object-cover transform-gpu backface-hidden animate-fade-in"
+            >
+              <source src={activeData.bgMedia} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <div 
+              key={activeData.id}
+              className="w-full h-full bg-cover bg-center bg-no-repeat transform-gpu transition-opacity duration-500"
+              style={{ backgroundImage: `url(${activeData.bgImage})` }}
+            />
+          )}
         </div>
 
         {/* Cinematic Gradient Overlay */}
