@@ -63,15 +63,16 @@ export default function Layout() {
 
   const HeaderContent = ({ height }) => (
     <div className={`max-w-7xl mx-auto px-5 flex justify-between items-center w-full ${height}`}>
-      <Link to="/" className="flex flex-col items-center font-brand ml-2">
-        <div className="px-1 py-0.5 rounded-[4px] leading-none">
-          <div className="text-3xl font-bold tracking-tight flex items-center leading-none">
-            <span className="text-yellow-500">J</span>
-            <span className="text-white">B LOGISTICS</span>
-          </div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-white text-center border-t border-yellow-500/30 mt-0.5 pt-0.5 leading-none">
-            Services
-          </div>
+      {/* Brand Identity Logo with reduced spacing around the line */}
+      <Link to="/" className="flex flex-col items-center font-brand ml-2 group">
+        <div className="flex items-center text-3xl font-black tracking-tight leading-none text-white">
+          <span className="text-yellow-500">J</span>
+          <span className="text-yellow-500">B</span>
+          <span className="text-white ml-2">LOGISTICS</span>
+        </div>
+        <div className="w-full h-[2.5px] bg-yellow-500 my-0.5 rounded-full"></div>
+        <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-300 leading-none">
+          Services
         </div>
       </Link>
       

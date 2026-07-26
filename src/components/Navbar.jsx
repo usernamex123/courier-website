@@ -72,13 +72,16 @@ function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-5 md:px-8 flex items-center justify-between">
         
-        {/* Brand Identity Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group !outline-none !ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform duration-200">
-            <Package size={22} className="transform group-hover:rotate-3 transition-transform" />
+        {/* Brand Identity Logo with updated B color and bolder thick divider line */}
+        <Link to="/" className="flex flex-col items-start group !outline-none !ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
+          <div className="flex items-center text-lg md:text-xl font-black tracking-tight text-white !outline-none !ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
+            <span className="text-yellow-400">J</span>
+            <span className="text-yellow-400">B</span>
+            <span className="text-white ml-2">LOGISTICS</span>
           </div>
-          <span className="text-lg font-black tracking-tight text-white !outline-none !ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
-            <span className="text-yellow-500">J</span>B LOGISTICS SERVICES
+          <div className="w-full h-[2.5px] bg-yellow-400 my-1 rounded-full"></div>
+          <span className="text-[10px] tracking-[0.3em] font-bold text-stone-300 uppercase">
+            SERVICES
           </span>
         </Link>
 
