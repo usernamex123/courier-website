@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ArrowUp, Home } from "lucide-react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Layout() {
@@ -9,8 +9,9 @@ export default function Layout() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const lastScrollY = useRef(0);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Check if we are currently on a sub-page (e.g., ground-freight, international, etc., anything other than home)
+  // Check if we are currently on a sub-page (anything other than home)
   const isSubPage = location.pathname !== "/" && location.pathname !== "";
 
   // Automatically close dropdown when changing pages via routing
@@ -39,15 +40,36 @@ export default function Layout() {
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
+  // Custom handler to scroll to sections on the homepage or navigate home first if on a subpage
+  const handleHomeScroll = (e, id) => {
+    e.preventDefault();
+    setIsOpen(false);
+
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 150);
+    } else {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
   const HeaderContent = ({ height }) => (
     <div className={`max-w-7xl mx-auto px-5 flex justify-between items-center w-full ${height}`}>
       <Link to="/" className="flex flex-col items-center font-brand ml-2">
-        <div className="border-2 border-yellow-500/50 px-1 py-0.5 rounded-[4px] leading-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
+        <div className="px-1 py-0.5 rounded-[4px] leading-none">
           <div className="text-3xl font-bold tracking-tight flex items-center leading-none">
             <span className="text-yellow-500">J</span>
-            <span className="text-white">JB LOGISTICS</span>
+            <span className="text-white">B LOGISTICS</span>
           </div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-white text-center border-t border-yellow-500/30 mt-0.5 leading-none">
+          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-white text-center border-t border-yellow-500/30 mt-0.5 pt-0.5 leading-none">
             Services
           </div>
         </div>
@@ -88,29 +110,35 @@ export default function Layout() {
                 className="absolute top-[60px] left-0 w-64 z-[100]"
               >
                 <div className="bg-black/40 backdrop-blur-lg border border-white/10 p-1 shadow-2xl">
-                  <Link to="/ground-freight" onClick={() => setIsOpen(false)} className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
+                  <a href="#ground-freight" onClick={(e) => handleHomeScroll(e, 'ground-freight')} className="block px-6 py-4 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide cursor-pointer">
                     Ground Freight
-                  </Link>
-                  <Link to="/international" onClick={() => setIsOpen(false)} className="block px-6 py-5 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide">
-                    International
-                  </Link>
+                  </a>
+                  <a href="#air-freight" onClick={(e) => handleHomeScroll(e, 'air-freight')} className="block px-6 py-4 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide cursor-pointer">
+                    Air Freight
+                  </a>
+                  <a href="#sea-freight" onClick={(e) => handleHomeScroll(e, 'sea-freight')} className="block px-6 py-4 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide cursor-pointer">
+                    Sea Freight
+                  </a>
+                  <a href="#warehousing" onClick={(e) => handleHomeScroll(e, 'warehousing')} className="block px-6 py-4 text-white transition-colors duration-1000 ease-in-out hover:text-yellow-500 hover:bg-white/5 text-sm font-semibold uppercase tracking-wide cursor-pointer">
+                    Warehousing
+                  </a>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        
-        <Link to="/quote" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500">Freight Quote</Link>
-        <Link to="/contact" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500">Contact Us</Link>
-        <Link to="/about" className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500">About Us</Link>
+
+        <a href="#about-us" onClick={(e) => handleHomeScroll(e, 'about-us')} className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500 cursor-pointer">About Us</a>
+        <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm md:text-base font-black uppercase tracking-wider transition-colors duration-1000 ease-in-out text-white hover:text-yellow-500 cursor-pointer">Contact Us</a>
 
         {/* Request A Quote Button */}
-        <Link 
-          to="/quote" 
-          className="bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-black px-6 py-3 rounded-none font-black text-sm uppercase tracking-wider inline-flex items-center justify-center text-center transition-all duration-300 shrink-0 ml-2"
+        <a 
+          href="#get-started" 
+          onClick={(e) => handleHomeScroll(e, 'get-started')}
+          className="bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-black px-6 py-3 rounded-none font-black text-sm uppercase tracking-wider inline-flex items-center justify-center text-center transition-all duration-300 shrink-0 ml-2 cursor-pointer"
         >
           <span>Request A Quote</span>
-        </Link>
+        </a>
       </div>
     </div>
   );
@@ -146,7 +174,7 @@ export default function Layout() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             onClick={scrollToTop} 
-            className="fixed bottom-8 right-8 z-[100] bg-yellow-600 p-3 shadow-lg hover:bg-yellow-700 transition-all duration-300 text-white"
+            className="fixed bottom-8 right-8 z-[100] bg-yellow-600 p-3 shadow-lg hover:bg-yellow-700 transition-all duration-300 text-white cursor-pointer"
           >
             <ArrowUp size={24} />
           </motion.button>

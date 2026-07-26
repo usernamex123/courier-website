@@ -25,12 +25,14 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter uppercase leading-[0.95]"
+          style={{ 
+            WebkitTextStroke: "2px #fff" 
+          }}
+          className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight uppercase leading-[0.95] text-white"
         >
           SMART SHIPPING <br />
           LOGISTICS COMPANY
         </motion.h1>
-
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

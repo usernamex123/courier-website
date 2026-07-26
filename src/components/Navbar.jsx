@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Package, LayoutDashboard, Truck, ClipboardList, LogOut, LogIn } from "lucide-react";
+import { Menu, X, Package, LayoutDashboard, Truck, LogOut, LogIn, ChevronDown } from "lucide-react";
 
 function Navbar() {
   const { isLoggedIn, logout } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   
   const navigate = useNavigate();
@@ -24,9 +25,10 @@ function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-collapse mobile drawer upon routing execution
+  // Auto-collapse mobile drawer and dropdown upon routing execution
   useEffect(() => {
     setMobileOpen(false);
+    setServicesOpen(false);
   }, [location]);
 
   async function handleSignOut() {
@@ -38,32 +40,132 @@ function Navbar() {
     }
   }
 
+  // Smooth scroll handler function for anchor sections, with fallback navigation if on another route
+  const handleScrollTo = (e, id) => {
+    e.preventDefault();
+    setMobileOpen(false);
+    setServicesOpen(false);
+    
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+    } else {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   return (
     <header 
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-b ${
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
         scrolled 
-          ? "bg-slate-950/70 backdrop-blur-xl border-slate-900/80 py-4 shadow-lg shadow-slate-950/20" 
-          : "bg-transparent border-transparent py-6"
+          ? "bg-slate-950/70 backdrop-blur-xl border-b border-slate-900/80 py-4 shadow-lg shadow-slate-950/20" 
+          : "bg-transparent border-b border-transparent py-6"
       }`}
     >
       <div className="max-w-7xl mx-auto px-5 md:px-8 flex items-center justify-between">
         
         {/* Brand Identity Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group outline-none">
+        <Link to="/" className="flex items-center gap-2.5 group !outline-none !ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
           <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform duration-200">
             <Package size={22} className="transform group-hover:rotate-3 transition-transform" />
           </div>
-          <span className="text-lg font-black text-red-600 tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-            JB Logistics Services
+          <span className="text-lg font-black tracking-tight text-white !outline-none !ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
+            <span className="text-yellow-500">J</span>B LOGISTICS SERVICES
           </span>
         </Link>
 
-        {/* Desktop Interface Navigation Lanes (Includes Freight Quote) */}
+        {/* Desktop Interface Navigation Lanes */}
         <nav className="hidden md:flex items-center gap-1 font-medium text-sm text-slate-300">
-          <Link to="/services" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/services" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Services</Link>
-          <Link to="/quote" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/quote" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Freight Quote</Link>
-          <Link to="/contact" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/contact" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>Contact Us</Link>
-          <Link to="/about" className={`px-4 py-2 rounded-xl transition ${location.pathname === "/about" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>About Us</Link>
+          
+          {/* Services Dropdown Container */}
+          <div 
+            className="relative" 
+            onMouseLeave={() => setServicesOpen(false)}
+          >
+            <button 
+              onClick={() => setServicesOpen(!servicesOpen)}
+              onMouseEnter={() => setServicesOpen(true)}
+              className="px-4 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer hover:text-white"
+            >
+              <span>Services</span>
+              <ChevronDown size={14} className={`transition-transform duration-300 ${servicesOpen ? "rotate-180" : ""}`} />
+            </button>
+            
+            <AnimatePresence>
+              {servicesOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  exit={{ opacity: 0, y: 10 }} 
+                  transition={{ duration: 0.2 }} 
+                  className="absolute top-full left-0 w-56 z-[100] pt-2"
+                >
+                  <div className="bg-slate-950/90 backdrop-blur-xl border border-slate-900 p-1.5 shadow-2xl rounded-2xl flex flex-col space-y-1">
+                    <a 
+                      href="#ground-freight" 
+                      onClick={(e) => handleScrollTo(e, 'ground-freight')}
+                      className="px-4 py-2.5 rounded-xl transition text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-900/40 cursor-pointer"
+                    >
+                      Ground Freight
+                    </a>
+                    <a 
+                      href="#air-freight" 
+                      onClick={(e) => handleScrollTo(e, 'air-freight')}
+                      className="px-4 py-2.5 rounded-xl transition text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-900/40 cursor-pointer"
+                    >
+                      Air Freight
+                    </a>
+                    <a 
+                      href="#sea-freight" 
+                      onClick={(e) => handleScrollTo(e, 'sea-freight')}
+                      className="px-4 py-2.5 rounded-xl transition text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-900/40 cursor-pointer"
+                    >
+                      Sea Freight
+                    </a>
+                    <a 
+                      href="#warehousing" 
+                      onClick={(e) => handleScrollTo(e, 'warehousing')}
+                      className="px-4 py-2.5 rounded-xl transition text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-900/40 cursor-pointer"
+                    >
+                      Warehousing
+                    </a>
+                    <a 
+                      href="#get-started" 
+                      onClick={(e) => handleScrollTo(e, 'get-started')}
+                      className="px-4 py-2.5 rounded-xl transition text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-900/40 cursor-pointer"
+                    >
+                      Freight Quote
+                    </a>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <a 
+            href="#contact-us" 
+            onClick={(e) => handleScrollTo(e, 'contact-us')}
+            className="px-4 py-2 rounded-xl transition hover:text-white cursor-pointer"
+          >
+            Contact Us
+          </a>
+          
+          {/* Desktop About Us Link */}
+          <a 
+            href="#about-us" 
+            onClick={(e) => handleScrollTo(e, 'about-us')}
+            className="px-4 py-2 rounded-xl transition hover:text-white cursor-pointer"
+          >
+            About Us
+          </a>
           
           {isLoggedIn && (
             <Link to="/dashboard" className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${location.pathname === "/dashboard" ? "text-blue-400 bg-slate-900/40" : "hover:text-white"}`}>
@@ -75,18 +177,19 @@ function Navbar() {
 
         {/* Desktop Call To Actions & Yellow REQUEST A QUOTE Button */}
         <div className="hidden md:flex items-center gap-3">
-          <Link 
-            to="/quote"
-            className="bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-black px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-yellow-400/20 transition-all shrink-0"
+          <a 
+            href="#get-started"
+            onClick={(e) => handleScrollTo(e, 'get-started')}
+            className="bg-yellow-400 hover:bg-yellow-500 active:scale-95 text-black px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-yellow-400/20 transition-all shrink-0 cursor-pointer"
           >
             <Truck size={15} />
             <span>Request A Quote</span>
-          </Link>
+          </a>
 
           {isLoggedIn ? (
             <button 
               onClick={handleSignOut}
-              className="px-4 py-2.5 rounded-xl border border-slate-900 bg-slate-900/30 hover:bg-slate-900 hover:border-red-500/30 text-slate-400 hover:text-red-400 transition-all font-bold text-xs uppercase tracking-wider flex items-center gap-2"
+              className="px-4 py-2.5 rounded-xl border border-slate-900 bg-slate-900/30 hover:bg-slate-900 hover:border-red-500/30 text-slate-400 hover:text-red-400 transition-all font-bold text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer"
             >
               <LogOut size={14} />
               <span>Sign Out</span>
@@ -105,7 +208,7 @@ function Navbar() {
         {/* Mobile Sidebar Trigger Key Toggle */}
         <button 
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 md:hidden hover:border-slate-700 transition focus:outline-none text-slate-200"
+          className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 md:hidden hover:border-slate-700 transition focus:outline-none text-slate-200 cursor-pointer"
           aria-label="Toggle Menu"
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -123,19 +226,75 @@ function Navbar() {
             transition={{ duration: 0.25 }}
             className="absolute top-full left-0 w-full bg-slate-950 border-b border-slate-900 overflow-hidden md:hidden shadow-2xl"
           >
-            <div className="px-5 py-6 space-y-4 flex flex-col text-base font-semibold text-slate-300">
-              <Link to="/services" className={`p-2 rounded-lg ${location.pathname === "/services" ? "text-blue-400 bg-slate-900/60" : ""}`}>Services</Link>
-              <Link to="/quote" className={`p-2 rounded-lg ${location.pathname === "/quote" ? "text-blue-400 bg-slate-900/60" : ""}`}>Freight Quote</Link>
-              <Link to="/contact" className={`p-2 rounded-lg ${location.pathname === "/contact" ? "text-blue-400 bg-slate-900/60" : ""}`}>Contact Us</Link>
-              <Link to="/about" className={`p-2 rounded-lg ${location.pathname === "/about" ? "text-blue-400 bg-slate-900/60" : ""}`}>About Us</Link>
+            <div className="px-5 py-6 space-y-3 flex flex-col text-base font-semibold text-slate-300">
               
-              <Link 
-                to="/quote"
-                className="w-full bg-yellow-400 text-black text-center font-extrabold py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider mt-2"
+              {/* Mobile Submenu for Services */}
+              <div className="space-y-1">
+                <div className="p-2 text-xs font-bold uppercase tracking-wider text-slate-500">Services Navigation</div>
+                <a 
+                  href="#ground-freight" 
+                  onClick={(e) => handleScrollTo(e, 'ground-freight')}
+                  className="block p-2 rounded-lg hover:text-white cursor-pointer"
+                >
+                  Ground Freight
+                </a>
+                <a 
+                  href="#air-freight" 
+                  onClick={(e) => handleScrollTo(e, 'air-freight')}
+                  className="block p-2 rounded-lg hover:text-white cursor-pointer"
+                >
+                  Air Freight
+                </a>
+                <a 
+                  href="#sea-freight" 
+                  onClick={(e) => handleScrollTo(e, 'sea-freight')}
+                  className="block p-2 rounded-lg hover:text-white cursor-pointer"
+                >
+                  Sea Freight
+                </a>
+                <a 
+                  href="#warehousing" 
+                  onClick={(e) => handleScrollTo(e, 'warehousing')}
+                  className="block p-2 rounded-lg hover:text-white cursor-pointer"
+                >
+                  Warehousing
+                </a>
+                <a 
+                  href="#get-started" 
+                  onClick={(e) => handleScrollTo(e, 'get-started')}
+                  className="block p-2 rounded-lg hover:text-white cursor-pointer"
+                >
+                  Freight Quote
+                </a>
+              </div>
+
+              <div className="h-[1px] bg-slate-900 my-1" />
+
+              <a 
+                href="#contact-us" 
+                onClick={(e) => handleScrollTo(e, 'contact-us')}
+                className="p-2 rounded-lg hover:text-white cursor-pointer"
+              >
+                Contact Us
+              </a>
+              
+              {/* Mobile About Us Link */}
+              <a 
+                href="#about-us" 
+                onClick={(e) => handleScrollTo(e, 'about-us')}
+                className="p-2 rounded-lg hover:text-white cursor-pointer"
+              >
+                About Us
+              </a>
+              
+              <a 
+                href="#get-started"
+                onClick={(e) => handleScrollTo(e, 'get-started')}
+                className="w-full bg-yellow-400 text-black text-center font-extrabold py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider mt-2 cursor-pointer"
               >
                 <Truck size={18} />
                 <span>Request A Quote</span>
-              </Link>
+              </a>
 
               {isLoggedIn ? (
                 <>
@@ -146,7 +305,7 @@ function Navbar() {
                   </Link>
                   <button 
                     onClick={handleSignOut}
-                    className="w-full text-left p-2 rounded-lg text-red-400 hover:bg-red-500/5 transition flex items-center gap-2 mt-4"
+                    className="w-full text-left p-2 rounded-lg text-red-400 hover:bg-red-500/5 transition flex items-center gap-2 mt-4 cursor-pointer"
                   >
                     <LogOut size={16} />
                     <span>Terminate Session</span>

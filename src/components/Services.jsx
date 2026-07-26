@@ -12,58 +12,55 @@ export default function Services() {
 
   const services = [
     {
+      id: 'ocean',
+      title: 'Sea Freight',
+      bgMedia: '/ocean.mp4',
+      type: 'video',
+      path: '/sea-freight',
+    },
+    {
       id: 'air',
       title: 'Air Freight',
       bgMedia: '/airfreight.mp4',
       type: 'video',
-      path: '/air-freight', // Route path reference
+      path: '/air-freight',
     },
     {
       id: 'ground',
       title: 'Ground Freight',
       bgMedia: '/groundfreight.mp4',
       type: 'video',
-      path: '/ground-freight', // Route path reference
-    },
-    {
-      id: 'ocean',
-      title: 'Sea Freight',
-      bgMedia: '/ocean.mp4',
-      type: 'video',
-      path: '/sea-freight', // Route path reference (adjust if needed)
+      path: '/ground-freight',
     },
     {
       id: 'warehousing',
       title: 'Warehousing Services',
       bgImage: '/warehouse-hover.png',
       type: 'image',
-      path: '/warehousing', // Route path reference
+      path: '/warehousing',
     },
   ];
 
-  const activeData = services.find((s) => s.id === activeService) || services[2];
-  const videoRef = useRef(null);
+  const videoRefs = useRef({});
 
-  // Force video play and explicit source load when the active service changes
+  // Ensure all videos play smoothly in the background
   useEffect(() => {
-    if (activeData.type === 'video' && videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.currentTime = 0;
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
+    Object.keys(videoRefs.current).forEach((id) => {
+      const video = videoRefs.current[id];
+      if (video) {
+        video.play().catch((err) => {
           console.log("Video playback safely handled:", err.name);
         });
       }
-    }
-  }, [activeService]);
+    });
+  }, []);
 
   return (
     <section className="w-full min-h-screen relative flex flex-col bg-black text-white overflow-hidden">
       
       {/* Header Section */}
-      <div className="w-full h-64 md:h-80 bg-[#1c1917] flex items-center justify-center relative z-25 border-b border-white/10 shrink-0">
-        <h2 className="text-white text-5xl md:text-7xl font-extrabold uppercase tracking-tighter">
+      <div className="w-full h-48 md:h-56 bg-[#1c1917] flex items-center justify-center relative z-25 border-b border-white/10 shrink-0">
+        <h2 className="text-white text-4xl md:text-6xl font-extrabold uppercase tracking-tighter">
           OUR SERVICES
         </h2>
       </div>
@@ -71,7 +68,7 @@ export default function Services() {
       {/* Main Interactive Banner Area */}
       <div className="flex-grow relative w-full flex items-stretch overflow-hidden min-h-[600px]">
         
-        {/* Pre-render ALL media layers simultaneously in the DOM with crossfade transitions to eliminate pop-in lag */}
+        {/* Pre-render ALL media layers simultaneously with smooth opacity crossfades to prevent black flashes */}
         <div className="absolute inset-0 z-0 transform-gpu backface-hidden">
           {services.map((service) => {
             const isCurrentActive = service.id === activeService;
@@ -79,13 +76,13 @@ export default function Services() {
             return (
               <div
                 key={service.id}
-                className={`absolute inset-0 transition-opacity duration-700 ease-in-out transform-gpu backface-hidden ${
+                className={`absolute inset-0 transition-opacity duration-500 ease-in-out transform-gpu backface-hidden ${
                   isCurrentActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                 }`}
               >
                 {service.type === 'video' ? (
                   <video 
-                    ref={service.id === activeService ? videoRef : null}
+                    ref={(el) => (videoRefs.current[service.id] = el)}
                     autoPlay 
                     loop 
                     muted 
@@ -141,7 +138,7 @@ export default function Services() {
                   </div>
                 </div>
 
-                {/* Dropdown Container with smooth dropping and routing execution */}
+                {/* Dropdown Container */}
                 <div className={`absolute top-full left-0 right-0 bg-black/95 border border-white/10 border-t-0 p-3 shadow-2xl flex flex-col items-center justify-center z-40 transform-gpu origin-top transition-all duration-300 ease-out ${
                   isHovered 
                     ? 'opacity-100 translate-y-0 scale-y-100 pointer-events-auto' 
@@ -154,7 +151,6 @@ export default function Services() {
                     }}
                     className="group relative w-full py-2.5 px-3 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black text-sm md:text-base font-black uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-yellow-500/30 flex items-center justify-center gap-2 cursor-pointer overflow-hidden rounded-sm"
                   >
-                    {/* Subtle internal shine animation */}
                     <span className="absolute inset-0 w-full h-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                     
                     <span className="truncate">Learn More</span>

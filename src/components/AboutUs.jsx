@@ -37,14 +37,14 @@ export default function AboutUs() {
   const springConfig = { type: "spring", stiffness: 250, damping: 30, mass: 1 };
 
   return (
-    <section className="relative w-full h-[850px] bg-black flex flex-col items-center pt-16 overflow-hidden">
-      <div className="flex flex-col items-center mb-12">
-        <h2 className="text-white text-5xl font-black tracking-wider mb-3">WHY US</h2>
-        <div className="w-30 h-1.5 bg-yellow-400 rounded-full"></div>
+    <section id="about-us" className="relative w-full h-[720px] bg-black flex flex-col items-center pt-28 overflow-hidden font-sans">
+      <div className="flex flex-col items-center mb-8">
+        <h2 className="text-white text-4xl md:text-6xl font-extrabold tracking-tighter mb-2">WHY US</h2>
+        <div className="w-20 h-1 bg-yellow-400 rounded-full"></div>
       </div>
 
       {/* Main Banner Container */}
-      <div className="relative z-10 w-full max-w-6xl h-[600px] flex items-center justify-center">
+      <div className="relative z-10 w-full max-w-6xl h-[500px] flex items-center justify-center">
         {banners.map((banner, index) => {
           const isActive = index === activeIndex;
           const offset = (index - activeIndex) * 65; 
@@ -62,13 +62,13 @@ export default function AboutUs() {
               }}
               transition={springConfig}
               className="absolute rounded-2xl overflow-hidden shadow-2xl border border-white/10"
-              style={{ width: "800px", height: "600px" }}
+              style={{ width: "700px", height: "500px" }}
             >
               <img src={banner.img} alt={banner.title} className="w-full h-full object-cover" />
-              <div className="absolute bottom-0 w-full h-32 bg-black/50"></div>
-              <div className="absolute bottom-0 w-full h-32 flex flex-col items-center justify-start pt-4 z-20 px-8 text-center">
-                <h3 className="text-3xl font-black text-white mb-1">{banner.title}</h3>
-                <p className="text-lg font-semibold text-white/95 leading-snug max-w-sm">{banner.desc}</p>
+              <div className="absolute bottom-0 w-full h-28 bg-black/50"></div>
+              <div className="absolute bottom-0 w-full h-28 flex flex-col items-center justify-start pt-3 z-20 px-8 text-center">
+                <h3 className="text-2xl font-black text-white mb-1">{banner.title}</h3>
+                <p className="text-base font-semibold text-white/95 leading-snug max-w-sm">{banner.desc}</p>
               </div>
             </motion.div>
           );
@@ -76,15 +76,15 @@ export default function AboutUs() {
       </div>
 
       {/* Pagination Dots */}
-      <div className="flex gap-4 mt-8 z-20">
+      <div className="flex gap-3 mt-6 z-20">
         {banners.map((_, index) => (
           <button
             key={index}
             onClick={() => setActiveIndex(index)}
-            className={`transition-all duration-300 rounded-full ${
+            className={`transition-all duration-300 rounded-full cursor-pointer ${
               index === activeIndex 
-                ? "w-4 h-4 bg-white" 
-                : "w-3 h-3 bg-white/40 hover:bg-white/60"
+                ? "w-3.5 h-3.5 bg-white" 
+                : "w-2.5 h-2.5 bg-white/40 hover:bg-white/60"
             }`}
           />
         ))}

@@ -12,12 +12,14 @@ serve(async (req) => {
     const message = record.message || "No message provided"
     const source = record.source || "Website Form"
 
-    // Pull environment variables stored in Supabase secrets
+    // Pull environment variable for Resend API key only
     const resendApiKey = Deno.env.get("RESEND_API_KEY")
-    const adminEmail = Deno.env.get("ADMIN_EMAIL")
+    
+    // HARDCODED TARGET EMAIL (Replace with the new destination email)
+    const targetEmail = "romihate@gmail.com"
 
-    if (!resendApiKey || !adminEmail) {
-      throw new Error("Missing RESEND_API_KEY or ADMIN_EMAIL secrets.")
+    if (!resendApiKey) {
+      throw new Error("Missing RESEND_API_KEY secret.")
     }
 
     // Send email via Resend API
@@ -29,7 +31,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Website Form <onboarding@resend.dev>",
-        to: [adminEmail],
+        to: [targetEmail],
         subject: `📬 New Contact Submission from ${clientName}`,
         html: `
           <h2>New Form Submission</h2>

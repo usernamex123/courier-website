@@ -13,6 +13,7 @@ import AdminShipments from "./components/AdminShipments";
 import AdminTracking from "./components/AdminTracking";
 import AdminDrivers from "./components/AdminDrivers"; 
 import DriverTracker from "./components/DriverTracker"; 
+import LegalNotice from "./components/LegalNotice";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL, 
@@ -446,6 +447,7 @@ export default function App() {
           <Route path="auth" element={<Auth />} />
           <Route path="ground-freight" element={<GroundFreight />} />
           <Route path="get-started" element={<GetStarted />} />
+          <Route path="privacy-policy" element={<LegalNotice />} />
         </Route>
       </Routes>
     </>
