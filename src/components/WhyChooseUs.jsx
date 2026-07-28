@@ -1,4 +1,13 @@
 export default function WhyChooseUs() {
+  const handleEmailClick = (email) => {
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${email}`, '_blank');
+  };
+
+  const handlePhoneClick = (phone) => {
+    navigator.clipboard.writeText(phone);
+    alert("Phone number copied to clipboard!");
+  };
+
   return (
     <section id="about-us" className="bg-[#1c1917] py-12 text-stone-100 overflow-hidden font-sans">
       {/* Container with standard padding */}
@@ -26,7 +35,7 @@ export default function WhyChooseUs() {
 
           {/* Image */}
           <div className="lg:col-span-6 relative">
-            <div className="absolute -top-7 -left-7 w-26 h-26 border-l-2 border-t-2 border-amber-500"></div>
+            <div className="absolute -top-7 -left-7 w-26 h-26 border-l-2 border-t-2 border-yellow-500"></div>
             <div className="w-full h-[320px] overflow-hidden rounded-sm">
               <img 
                 src="/modern.jpg" 
@@ -34,22 +43,26 @@ export default function WhyChooseUs() {
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="absolute -bottom-7 -right-7 w-26 h-26 border-r-2 border-b-2 border-amber-500"></div>
+            <div className="absolute -bottom-7 -right-7 w-26 h-26 border-r-2 border-b-2 border-yellow-500"></div>
           </div>
         </div>
 
         {/* Footer Info - Balanced spacing */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-16 border-t border-stone-800 pt-10">
-          {[
-            { label: "Call", value: "+123-456-7890" },
-            { label: "Email", value: "hello@reallygreatsite.com" },
-            { label: "Visit", value: "123 Anywhere St., Any City" }
-          ].map((item, i) => (
-            <div key={i} className="group">
-              <p className="text-amber-500 text-xs uppercase tracking-widest mb-1.5">{item.label}</p>
-              <p className="text-lg font-medium group-hover:text-amber-500 transition-colors cursor-pointer">{item.value}</p>
-            </div>
-          ))}
+          <div className="group cursor-pointer" onClick={() => handlePhoneClick("+1 (216) 569-5350")}>
+            <p className="text-yellow-500 text-xs uppercase tracking-widest mb-1.5">Call</p>
+            <p className="text-lg font-medium group-hover:text-yellow-500 transition-colors">+1 (216) 569-5350</p>
+          </div>
+
+          <div className="group cursor-pointer" onClick={() => handleEmailClick("customer_care@jblogisticsservices.com")}>
+            <p className="text-yellow-500 text-xs uppercase tracking-widest mb-1.5">Email</p>
+            <p className="text-lg font-medium group-hover:text-yellow-500 transition-colors">customer_care@jblogisticsservices.com</p>
+          </div>
+
+          <div className="group">
+            <p className="text-yellow-500 text-xs uppercase tracking-widest mb-1.5">Visit</p>
+            <p className="text-lg font-medium group-hover:text-yellow-500 transition-colors cursor-pointer">850 Euclid Ave, Cleveland, OH 44114, USA</p>
+          </div>
         </div>
       </div>
     </section>

@@ -113,8 +113,9 @@ export default function GetStarted() {
     if (allValid) {
       setIsSubmitting(true);
       
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       const payload = { 
-        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        name: fullName,
         email: formData.email,
         phone: formData.phone,
         state: formData.state,
@@ -122,6 +123,8 @@ export default function GetStarted() {
         source: 'Get Started Form'
       };
 
+      // Insert submission into Supabase messages table. 
+      // The Supabase Database Webhook will automatically trigger your Edge Function to send the email.
       const { error } = await supabase.from('messages').insert([payload]);
 
       if (error) {

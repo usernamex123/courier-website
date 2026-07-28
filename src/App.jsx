@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, NavLink, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { Toaster, toast } from 'sonner';
 import { Lock, ShieldCheck, LogOut, FileText, Database, Truck, Navigation, Users, AlertCircle, ArrowUpRight } from 'lucide-react';
@@ -14,6 +14,7 @@ import AdminTracking from "./components/AdminTracking";
 import AdminDrivers from "./components/AdminDrivers"; 
 import DriverTracker from "./components/DriverTracker"; 
 import LegalNotice from "./components/LegalNotice";
+import UserLayout from "./layout/user";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL, 
@@ -441,6 +442,25 @@ export default function App() {
         />
         
         <Route path="/driver-portal" element={<DriverTracker />} />
+
+        {/* User Profile Layout Container */}
+        <Route element={<UserLayout />}>
+          <Route path="/profile" element={
+            <div className="max-w-4xl mx-auto px-5 py-12 text-white">
+              <div className="">
+              
+              </div>
+            </div>
+          } />
+          <Route path="/settings" element={
+            <div className="max-w-4xl mx-auto px-5 py-12 text-white">
+              <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
+                <h1 className="text-3xl font-black uppercase tracking-wider text-yellow-500 mb-4">Account Settings</h1>
+                <p className="text-stone-300">Configure your account security and preferences here.</p>
+              </div>
+            </div>
+          } />
+        </Route>
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
