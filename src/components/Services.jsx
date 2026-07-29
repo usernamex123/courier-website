@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ChevronDown } from 'lucide-react';
 
 export default function Services() {
   const navigate = useNavigate();
+  const location = useLocation();
   
-  // Initialize with 'ocean' so it locks onto Sea Freight by default
   const [activeService, setActiveService] = useState('ocean');
-  
-  // Track hovered tab for the popup dropdown menu
-  const [hoveredTab, setHoveredTab] = useState(null);
+  const servicesTopRef = useRef(null);
+  const videoRef = useRef(null);
 
   const services = [
     {
       id: 'ocean',
       title: 'Sea Freight',
+      subtitle: 'Global container shipping, port-to-port coordination, and custom ocean logistics.',
       bgMedia: '/ocean.mp4',
       type: 'video',
       path: '/sea-freight',
@@ -21,6 +22,7 @@ export default function Services() {
     {
       id: 'air',
       title: 'Air Freight',
+      subtitle: 'High-speed cargo transportation with guaranteed time-sensitive delivery schedules.',
       bgMedia: '/airfreight.mp4',
       type: 'video',
       path: '/air-freight',
@@ -28,6 +30,7 @@ export default function Services() {
     {
       id: 'ground',
       title: 'Ground Freight',
+      subtitle: 'Reliable truckload, LTL shipping, and secure cross-country interstate transit.',
       bgMedia: '/groundfreight.mp4',
       type: 'video',
       path: '/ground-freight',
@@ -35,14 +38,28 @@ export default function Services() {
     {
       id: 'warehousing',
       title: 'Warehousing Services',
+      subtitle: 'Secure state-of-the-art storage facilities with advanced inventory control systems.',
       bgImage: '/warehouse.jpg',
       type: 'image',
       path: '/warehousing',
     },
   ];
 
+  // Listen for the custom event from the dropdown without changing the URL
+  useEffect(() => {
+    const handleServiceChange = (e) => {
+      if (e.detail) {
+        setActiveService(e.detail);
+        if (servicesTopRef.current) {
+          servicesTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    };
+    window.addEventListener('change-service-tab', handleServiceChange);
+    return () => window.removeEventListener('change-service-tab', handleServiceChange);
+  }, []);
+
   const activeData = services.find((s) => s.id === activeService) || services[0];
-  const videoRef = useRef(null);
 
   // Auto-play the single active video smoothly upon mount or switch
   useEffect(() => {
@@ -54,20 +71,19 @@ export default function Services() {
   }, [activeService]);
 
   return (
-    <section className="w-full min-h-screen relative flex flex-col bg-black text-white overflow-hidden">
+    <section ref={servicesTopRef} className="w-full min-h-screen relative flex flex-col bg-black text-white overflow-hidden font-brand scroll-mt-24">
       
       {/* Header Section */}
-      <div className="w-full h-48 md:h-56 bg-[#1c1917] flex items-center justify-center relative z-25 border-b border-white/10 shrink-0">
-        <h2 className="text-white text-4xl md:text-6xl font-extrabold uppercase tracking-tighter">
-          OUR SERVICES
+      <div className="w-full h-48 md:h-56 bg-[#1c1917] flex items-center justify-center relative z-25 border-b border-white/10 shrink-0 px-6">
+        <h2 className="text-white text-4xl md:text-6xl font-black tracking-tight uppercase drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]">
+          Our <span className="text-yellow-500">Services</span>
         </h2>
       </div>
 
       {/* Main Interactive Banner Area */}
-      <div className="flex-grow relative w-full flex items-stretch overflow-hidden min-h-[600px]">
+      <div className="flex-grow relative w-full flex items-center overflow-hidden min-h-[650px]">
         
-        {/* Single Dynamic Media Layer (Zero background resource waste) */}
-        <div className="absolute inset-0 z-0 transform-gpu backface-hidden">
+        <div className="absolute inset-0 z-0 transform-gpu backface-hidden scale-105">
           {activeData.type === 'video' ? (
             <video 
               ref={videoRef}
@@ -77,7 +93,7 @@ export default function Services() {
               muted 
               playsInline 
               preload="auto"
-              className="w-full h-full object-cover transform-gpu backface-hidden animate-fade-in"
+              className="w-full h-full object-cover transform-gpu backface-hidden translate-x-[2%]"
             >
               <source src={activeData.bgMedia} type="video/mp4" />
               Your browser does not support the video tag.
@@ -91,76 +107,56 @@ export default function Services() {
           )}
         </div>
 
-        {/* Cinematic Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 z-20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30 z-10 pointer-events-none" />
 
         {/* Navigation Bar at the Top */}
-        <div className="absolute top-0 left-0 right-0 z-30 w-full grid grid-cols-2 md:grid-cols-4 gap-0 p-0 m-0">
+        <div className="absolute top-0 left-0 right-0 z-30 w-full grid grid-cols-2 md:grid-cols-4 gap-0 p-0 m-0 bg-black/40 backdrop-blur-md border-b border-white/10">
           {services.map((service) => {
             const isActive = activeService === service.id;
-            const isHovered = hoveredTab === service.id;
 
             return (
               <div 
                 key={service.id}
-                onMouseEnter={() => {
-                  setActiveService(service.id);
-                  setHoveredTab(service.id);
-                }}
-                onMouseLeave={() => setHoveredTab(null)}
+                onMouseEnter={() => setActiveService(service.id)}
+                onClick={() => navigate(service.path)}
                 className="relative cursor-pointer"
               >
-                {/* Main Navigation Item Box */}
-                <div className={`py-5 px-3 transition-colors duration-300 border-0 text-center flex flex-col items-center justify-center ${
+                <div className={`py-5 px-4 transition-all duration-300 border-0 text-center flex flex-col items-center justify-center ${
                   isActive 
-                    ? 'bg-white/10 backdrop-blur-md border-b-2 border-yellow-500 shadow-lg shadow-black/40' 
+                    ? 'bg-white/10 backdrop-blur-md border-b-4 border-yellow-500 shadow-lg' 
                     : 'bg-transparent hover:bg-white/5'
                 }`}>
-                  <div className="flex flex-col items-center w-full select-none">
-                    <h3 className={`text-sm md:text-base font-black uppercase tracking-wider truncate w-full transition-colors duration-300 ${
-                      isActive ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' : 'text-white/80 hover:text-white'
+                  <div className="flex items-center justify-center gap-2 w-full select-none">
+                    <h3 className={`text-sm md:text-base font-bold tracking-normal truncate w-full transition-colors duration-300 ${
+                      isActive ? 'text-white' : 'text-white/80 hover:text-white'
                     }`}>
                       {service.title}
                     </h3>
+                    <ChevronDown size={14} className={`transition-transform duration-300 shrink-0 text-yellow-500 ${isActive ? "rotate-180" : ""}`} />
                   </div>
                 </div>
-
-                {/* Dropdown Container */}
-                <div className={`absolute top-full left-0 right-0 bg-black/95 border border-white/10 border-t-0 p-3 shadow-2xl flex flex-col items-center justify-center z-40 transform-gpu origin-top transition-all duration-300 ease-out ${
-                  isHovered 
-                    ? 'opacity-100 translate-y-0 scale-y-100 pointer-events-auto' 
-                    : 'opacity-0 -translate-y-2 scale-y-95 pointer-events-none'
-                }`}>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(service.path);
-                    }}
-                    className="group relative w-full py-2.5 px-3 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black text-sm md:text-base font-black uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-yellow-500/30 flex items-center justify-center gap-2 cursor-pointer overflow-hidden rounded-sm"
-                  >
-                    <span className="absolute inset-0 w-full h-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                    
-                    <span className="truncate">Learn More</span>
-                    
-                    <svg 
-                      className="w-4 h-4 transform transition-transform duration-300 group-hover:translate-x-1 shrink-0" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-
               </div>
             );
           })}
         </div>
 
+        {/* Dynamic Content Display Area */}
+        <div className="relative z-20 w-full max-w-4xl px-6 md:px-16 lg:px-24 flex flex-col items-start text-left mt-20">
+          <span className="text-yellow-500 font-bold uppercase tracking-widest text-xs md:text-sm mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            Core Service Offerings
+          </span>
+          
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] leading-[1.1] mb-6">
+            {activeData.title}
+          </h1>
+          
+          <p className="text-slate-200 text-base sm:text-lg md:text-xl max-w-xl font-normal leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+            {activeData.subtitle}
+          </p>
+        </div>
+
       </div>
       
-      {/* Footer Spacing */}
       <div className="w-full h-20 bg-[#1c1917] border-t border-white/10 z-25 shrink-0" />
     </section>
   );

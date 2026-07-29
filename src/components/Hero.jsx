@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 function Hero() {
   const location = useLocation();
@@ -26,7 +27,7 @@ function Hero() {
   };
 
   return (
-    <section className="relative min-h-[calc(90vh+189px)] flex items-start justify-center pt-36 overflow-hidden bg-black font-brand">
+    <section className="relative min-h-[calc(90vh+189px)] flex items-start justify-start pt-40 px-6 md:px-16 lg:px-24 overflow-hidden bg-black font-brand">
       {/* Video Background */}
       <video
         autoPlay
@@ -39,29 +40,31 @@ function Hero() {
         <source src="/video.mp4" type="video/mp4" />
       </video>
       
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-black/60" />
+      {/* Dark Overlay with subtle gradient for depth */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/30" />
 
       {/* Content */}
-      <div className="w-full max-w-4xl px-6 relative z-10 text-center flex flex-col items-center text-white">
+      <div className="w-full max-w-4xl relative z-10 text-left flex flex-col items-start text-white">
         
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight uppercase leading-[1.1] text-white"
+          style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", fontWeight: 800 }}
+          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95] text-white normal-case drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
         >
-          Your Trusted <br />
-          <span className="text-yellow-500">Moving Partner</span>
+          Delivering <br />
+          <span className="text-yellow-500 drop-shadow-[0_0_25px_rgba(234,179,8,0.4)]">Trust</span> Across <br />
+          America<span className="text-yellow-500">.</span>
         </motion.h1>
         
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-slate-200 text-base sm:text-lg md:text-xl max-w-2xl font-medium leading-relaxed mt-4"
+          className="text-slate-200 text-base sm:text-lg md:text-xl max-w-xl font-normal leading-relaxed mt-6 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
         >
-          Seamless shipping solutions for every destination.
+          End-to-end logistics and courier solutions that connect businesses and people across the nation.
         </motion.p>
         
         {/* Request A Quote Button */}
@@ -69,14 +72,15 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-8"
+          className="mt-8 flex items-center gap-4"
         >
           <a 
             href="#get-started" 
             onClick={(e) => handleHomeScroll(e, 'get-started')}
-            className="bg-yellow-500 hover:bg-yellow-600 active:scale-95 text-black px-8 py-4 rounded-none font-black text-base uppercase tracking-wider inline-flex items-center justify-center text-center transition-all duration-300 shrink-0 cursor-pointer shadow-2xl"
+            className="bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black px-8 py-4 rounded-none font-bold text-sm md:text-base tracking-wider inline-flex items-center gap-3 text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.4)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
           >
-            <span>Request A Quote</span>
+            <span>REQUEST A QUOTE</span>
+            <ArrowRight size={18} className="transition-transform duration-300 hover:translate-x-1" />
           </a>
         </motion.div>
       </div>

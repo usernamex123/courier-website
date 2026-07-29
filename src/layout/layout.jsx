@@ -54,12 +54,10 @@ export default function Layout() {
   const isSubPage = location.pathname !== "/" && location.pathname !== "";
 
   useEffect(() => {
-    // Check active session on initial load
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
-    // Listen for changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -67,7 +65,6 @@ export default function Layout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
@@ -114,19 +111,21 @@ export default function Layout() {
     e.preventDefault();
     setIsOpen(false);
 
+    let serviceKey = 'ocean';
+    if (id === 'ground-freight') serviceKey = 'ground';
+    else if (id === 'air-freight') serviceKey = 'air';
+    else if (id === 'warehousing') serviceKey = 'warehousing';
+    else if (id === 'sea-freight') serviceKey = 'ocean';
+
+    // If we are not on the home page, navigate to root first, then trigger event
     if (location.pathname !== "/") {
       navigate("/");
       setTimeout(() => {
-        const element = document.getElementById(id);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
-      }, 150);
+        window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
+      }, 100);
     } else {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
+      // Dispatch custom event to switch tab and scroll smoothly without changing the URL
+      window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
     }
   };
 

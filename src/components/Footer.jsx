@@ -1,6 +1,8 @@
-function Footer() {
+import React from 'react';
+
+export default function Footer() {
   return (
-    <footer id="contact" className="bg-black text-white border-t border-white/10 px-8 py-16 relative overflow-hidden">
+    <footer id="contact" className="bg-black text-white border-t border-white/10 px-8 py-16 relative overflow-hidden font-brand">
       {/* Subtle background glow effect for modern styling */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-amber-500/10 blur-[120px] pointer-events-none rounded-full" />
 
@@ -27,5 +29,3 @@ function Footer() {
     </footer>
   );
 }
-
-export default Footer;

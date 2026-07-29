@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@maptiler/leaflet-maptilersdk": "^4.1.1",
     "@react-oauth/google": "^0.13.5",
     "@supabase/supabase-js": "^2.110.9",
     "@tailwindcss/vite": "^4.3.2",
