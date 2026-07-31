@@ -67,16 +67,15 @@ app.post('/api/admin/login', (req, res) => {
   console.log('Provided:', providedSecret, '| Expected:', adminPassword);
 
   if (providedSecret === adminPassword) {
-    // Dynamic secure flag: true if request is secure (HTTPS) or explicitly set in env
-    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
-
+    // FORCE cross-site compatibility for separate frontend/backend hosting environments & private windows
     res.cookie('jb_admin_session', 'authenticated_true', {
       httpOnly: true,
-      secure: isSecure, 
-      sameSite: isSecure ? 'none' : 'lax',
+      secure: true,        // Required by modern browsers for cross-site cookies
+      sameSite: 'none',    // Required if frontend and backend are on different URLs/domains or strict private contexts
       maxAge: 24 * 60 * 60 * 1000 // 1 day
     });
-    console.log('Authentication SUCCESS. Cookie set with secure:', isSecure);
+    
+    console.log('Authentication SUCCESS. Cross-site cookie set.');
     return res.status(200).json({ success: true, message: 'Authenticated successfully' });
   }
 
@@ -93,11 +92,10 @@ app.get('/api/admin/verify', (req, res) => {
 });
 
 app.post('/api/admin/logout', (req, res) => {
-  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
   res.clearCookie('jb_admin_session', {
     httpOnly: true,
-    sameSite: isSecure ? 'none' : 'lax',
-    secure: isSecure
+    sameSite: 'none',
+    secure: true
   });
   return res.status(200).json({ success: true, message: 'Logged out successfully' });
 });
