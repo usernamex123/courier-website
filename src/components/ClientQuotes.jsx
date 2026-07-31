@@ -15,14 +15,18 @@ export default function ClientQuotes() {
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
-    // 1. Fetch initial messages securely from your backend API
-    fetch('http://localhost:5000/api/admin/messages', { credentials: 'include' })
-      .then((res) => {
-        if (!res.ok) throw new Error('Unauthorized or failed to fetch messages');
+    // 1. Fetch using relative path through Vite proxy with credentials included
+    fetch('/api/admin/messages', { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Failed to fetch messages (${res.status}): ${errorText || 'Unauthorized'}`);
+        }
         return res.json();
       })
-      .then((data) => {
-        if (Array.isArray(data)) setQuotes(data);
+      .then((resData) => {
+        const messageList = Array.isArray(resData) ? resData : (resData.data || []);
+        setQuotes(messageList);
         setLoading(false);
       })
       .catch((err) => {
@@ -131,7 +135,6 @@ export default function ClientQuotes() {
             const messageContent = quote.message || quote.service || 'No message content provided.';
             const timestamp = quote.created_at ? new Date(quote.created_at).toLocaleString() : 'Just now';
 
-            // Construct direct Gmail compose link with pre-filled recipient and subject line
             const gmailLink = clientEmail !== 'No email provided' 
               ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(clientEmail)}&su=${encodeURIComponent(`Inquiry Follow-up: JB Logistics`)}`
               : '#';

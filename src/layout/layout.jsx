@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, ArrowUp, Home, UserCheck, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ArrowUp, Home, UserCheck, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../supabase";
 
-const InputField = ({ label, placeholder, type, value, onChange, error, autoComplete, name }) => {
+const InputField = ({ label, placeholder, type, value, onChange, error, autoComplete, name, showPasswordToggle, showPassword, onTogglePassword }) => {
   const [isFocused, setIsFocused] = useState(false);
   return (
     <div className="flex flex-col gap-1.5 w-full text-left">
       <label className="text-sm font-bold uppercase tracking-wider text-white">
         {label}
       </label>
-      <div className={`relative border ${error ? 'border-red-500' : 'border-white'} bg-[#1c1917] p-3 shadow-[0_0_4px_rgba(255,255,255,0.2)] transition-all`}>
+      <div className={`relative border ${error ? 'border-red-500' : 'border-white'} bg-[#1c1917] p-3 shadow-[0_0_4px_rgba(255,255,255,0.2)] transition-all flex items-center`}>
         <input
           type={type}
           name={name}
@@ -23,6 +23,15 @@ const InputField = ({ label, placeholder, type, value, onChange, error, autoComp
           autoComplete={autoComplete}
           className="w-full bg-transparent text-white outline-none placeholder-white/70"
         />
+        {showPasswordToggle && (
+          <button
+            type="button"
+            onClick={onTogglePassword}
+            className="text-white/70 hover:text-white focus:outline-none ml-2 cursor-pointer"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
       </div>
       {error && <span className="text-red-500 text-xs">{error}</span>}
     </div>
@@ -41,6 +50,7 @@ export default function Layout() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
 
   // --- USER SESSION STATE ---
   const [user, setUser] = useState(null);
@@ -111,20 +121,34 @@ export default function Layout() {
     e.preventDefault();
     setIsOpen(false);
 
+    // If it's a standard section like about-us or contact-us, scroll to it directly
+    if (id === 'about-us' || id === 'contact-us') {
+      if (location.pathname !== "/") {
+        navigate("/");
+        setTimeout(() => {
+          const element = document.getElementById(id);
+          if (element) element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        const element = document.getElementById(id);
+        if (element) element.scrollIntoView({ behavior: 'smooth' });
+      }
+      return;
+    }
+
+    // Otherwise, handle service tab transitions
     let serviceKey = 'ocean';
     if (id === 'ground-freight') serviceKey = 'ground';
     else if (id === 'air-freight') serviceKey = 'air';
     else if (id === 'warehousing') serviceKey = 'warehousing';
     else if (id === 'sea-freight') serviceKey = 'ocean';
 
-    // If we are not on the home page, navigate to root first, then trigger event
     if (location.pathname !== "/") {
       navigate("/");
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
       }, 100);
     } else {
-      // Dispatch custom event to switch tab and scroll smoothly without changing the URL
       window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
     }
   };
@@ -136,6 +160,7 @@ export default function Layout() {
       setErrors({});
       setSuccessMessage(null);
       setFormData({ name: '', email: '', password: '' });
+      setShowPassword(false);
       setTimeout(() => setIsModalOpen(true), 10);
     } else {
       setIsModalOpen(false);
@@ -441,11 +466,14 @@ export default function Layout() {
                   label="Password"
                   name="password"
                   placeholder="Enter the Password" 
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   value={formData.password} 
                   onChange={(e) => setFormData({...formData, password: e.target.value})} 
                   error={errors.password}
                   autoComplete={isSignUp ? "new-password" : "current-password"}
+                  showPasswordToggle={true}
+                  showPassword={showPassword}
+                  onTogglePassword={() => setShowPassword(!showPassword)}
                 />
                 {!isSignUp && (
                   <div className="text-right mt-1">
@@ -493,6 +521,7 @@ export default function Layout() {
                     setIsSignUp(!isSignUp);
                     setErrors({});
                     setFormData({ name: '', email: '', password: '' });
+                    setShowPassword(false);
                   }} 
                   className="text-yellow-600 font-bold hover:underline cursor-pointer ml-1"
                 >
