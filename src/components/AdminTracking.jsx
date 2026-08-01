@@ -9,6 +9,8 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 // Custom marker icon fix for Leaflet in React
 const customIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -24,8 +26,14 @@ export default function AdminTracking() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Fetch initial driver locations from backend API
-    fetch('http://localhost:5000/api/admin/drivers', { credentials: 'include' })
+    const token = localStorage.getItem('admin_token');
+
+    // 1. Fetch initial driver locations from backend API with Bearer token
+    fetch(`${API_URL}/api/admin/drivers`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setDrivers(data);

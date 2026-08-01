@@ -519,6 +519,10 @@ export default function User() {
     return "G";
   };
 
+  // Helper check for admin status (normalized to lowercase to prevent mismatch issues)
+  const currentEmail = (profileData.email || user?.email || '').trim().toLowerCase();
+  const isAdmin = currentEmail === 'admin@jblogisticsservices.com';
+
   const HeaderContent = ({ height }) => (
     <div className={`max-w-7xl mx-auto px-6 flex justify-between items-center w-full ${height} font-['Inter',sans-serif]`}>
       <Link to="/" className="flex flex-col items-center font-brand ml-2 group">
@@ -654,7 +658,7 @@ export default function User() {
               <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-md">
                 {profileData.name || user?.user_metadata?.full_name || (user ? "Valued Client" : "Guest Account")}
               </h1>
-              {(user?.email === 'admin@jblogisticsservices.com' || profileData.email === 'admin@jblogisticsservices.com') && (
+              {isAdmin && (
                 <span className="px-3 py-1 bg-yellow-500 text-black font-extrabold text-xs rounded-full uppercase tracking-wider shadow-[0_0_15px_rgba(234,179,8,0.5)]">
                   Admin
                 </span>
@@ -666,20 +670,35 @@ export default function User() {
           </div>
 
           {/* --- ACCESS ADMIN DASHBOARD BUTTON --- */}
-          {(user?.email === 'admin@jblogisticsservices.com' || profileData.email === 'admin@jblogisticsservices.com') && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                const tempKey = 'jb_admin_' + Math.random().toString(36).substring(2) + '_' + Date.now();
-                sessionStorage.setItem('jb_admin_temp_key', tempKey);
-                navigate('/admin/login');
-              }}
-              className="mt-2 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black px-8 py-4 rounded-2xl font-extrabold text-base tracking-wide flex items-center gap-3 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.3)] transition-all z-10"
-            >
-              <ShieldAlert size={20} className="text-black" />
-              <span>Access Admin Dashboard</span>
-            </motion.button>
+          {isAdmin && (
+           <motion.button
+           whileHover={{ scale: 1.03 }}
+           whileTap={{ scale: 0.97 }}
+           onClick={async (e) => {
+             e.stopPropagation();
+             try {
+               const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/request-ticket`, { 
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' }
+               });
+               const data = await response.json();
+               
+               if (response.ok && data.success && data.ticket) {
+                 sessionStorage.setItem('admin_login_ticket', data.ticket);
+                 navigate('/admin/login');
+               } else {
+                 showToast('Failed to generate security clearance.');
+               }
+             } catch (err) {
+               console.error('Error generating ticket:', err);
+               showToast('Network error generating clearance.');
+             }
+           }}
+           className="mt-2 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black px-8 py-4 rounded-2xl font-extrabold text-base tracking-wide flex items-center gap-3 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.3)] transition-all z-30 pointer-events-auto relative"
+         >
+           <ShieldAlert size={20} className="text-black" />
+           <span>Access Admin Dashboard</span>
+         </motion.button>
           )}
         </div>
 

@@ -7,6 +7,8 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function ClientQuotes() {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,8 +17,14 @@ export default function ClientQuotes() {
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
-    // 1. Fetch using relative path through Vite proxy with credentials included
-    fetch('/api/admin/messages', { credentials: 'include' })
+    const token = localStorage.getItem('admin_token');
+
+    // 1. Fetch using full API path with Authorization Bearer token header
+    fetch(`${API_URL}/api/admin/messages`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
       .then(async (res) => {
         if (!res.ok) {
           const errorText = await res.text();

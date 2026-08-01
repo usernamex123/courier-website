@@ -10,8 +10,11 @@ import DriverTracker from "./components/DriverTracker";
 import LegalNotice from "./components/LegalNotice";
 import UserLayout from "./layout/user";
 
-// Import everything neatly from your existing file
-import AdminRoute, { GuestOnlyRoute, AdminLogin, AdminDashboardContainer } from "./components/AdminRoute";
+// Import AdminRoute and container from AdminRoute.jsx
+import AdminRoute, { GuestOnlyRoute, AdminDashboardContainer } from "./components/AdminRoute";
+
+// Import your interactive AdminLogin form component from your layout folder
+import AdminLogin from "./layout/AdminLogin";
 
 export default function App() {
   return (
@@ -30,11 +33,19 @@ export default function App() {
       `}</style>
 
       <Routes>
-        {/* STANDALONE LOGIN ROUTE */}
-        <Route path="/admin/login" element={<AdminLogin />} />
+        {/* STANDALONE LOGIN ROUTE: Protected by GuestOnlyRoute so logged-in admins go straight to dashboard */}
+        <Route 
+          path="/admin/login" 
+          element={
+            <GuestOnlyRoute>
+              <AdminLogin />
+            </GuestOnlyRoute>
+          } 
+        />
         
-        {/* Protects dashboard sub-routes using a clean wildcard catch */}
+        {/* Protects dashboard sub-routes using explicit paths for nesting */}
         <Route element={<AdminRoute />}>
+          <Route path="/admin/dashboard" element={<AdminDashboardContainer />} />
           <Route path="/admin/dashboard/*" element={<AdminDashboardContainer />} />
         </Route>
         

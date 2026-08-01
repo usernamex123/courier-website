@@ -2,22 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, Link, useNavigate, useLocation, Routes, Route } from 'react-router-dom';
 import { Loader2, LogOut, FileText, Database, Truck, Navigation, Users, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
 import ClientQuotes from "./ClientQuotes"; 
 import AdminShipments from "./AdminShipments";
 import AdminTracking from "./AdminTracking";
 import AdminDrivers from "./AdminDrivers"; 
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL, 
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// Dynamic multi-host URL resolution (fixes network error across different hosts/IPs)
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const hostname = window.location.hostname || 'localhost';
+  return `http://${hostname}:5000`;
+};
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = getApiUrl();
 const ADMIN_EMAIL = 'admin@jblogisticsservices.com';
 
 // ==========================================
-// 1. SECURE CROSS-DEVICE SERVER AUTH GUARD
+// 1. SECURE TOKEN-BASED SERVER AUTH GUARD
 // ==========================================
 export default function AdminRoute() {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
@@ -29,10 +32,23 @@ export default function AdminRoute() {
 
     const verifyServerSession = async () => {
       try {
+        const token = localStorage.getItem('admin_token');
+        if (!token) {
+          if (isMounted) {
+            setIsAuthenticated(false);
+            setIsChecking(false);
+          }
+          return;
+        }
+
         const verifyRes = await fetch(`${API_URL}/api/admin/verify`, {
           method: 'GET',
-          credentials: 'include'
+          headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        console.log("Verify HTTP Status:", verifyRes.status);
+        const verifyData = await verifyRes.json().catch(() => ({}));
+        console.log("Verify JSON Response Body:", verifyData);
 
         if (!verifyRes.ok) {
           if (isMounted) {
@@ -42,16 +58,10 @@ export default function AdminRoute() {
           return;
         }
 
-        const verifyData = await verifyRes.json();
-        const userEmail = (verifyData.email || '').toLowerCase();
-        
-        const isAuthed = verifyData.isAuthenticated === true || verifyData.isAdmin === true;
-        const emailMatchesIfProvided = userEmail ? userEmail === ADMIN_EMAIL.toLowerCase() : true;
-        
-        const finalAuthorization = isAuthed && emailMatchesIfProvided;
+        const isAuthed = verifyData.isAuthenticated === true;
 
         if (isMounted) {
-          setIsAuthenticated(finalAuthorization);
+          setIsAuthenticated(isAuthed);
           setIsChecking(false);
         }
       } catch (err) {
@@ -87,61 +97,61 @@ export default function AdminRoute() {
 }
 
 // ==========================================
-// 2. SECURE ADMIN NAVIGATION HANDSHAKE TRIGGER
+// 2. SECURE ADMIN NAVIGATION HANDSHAKE TRIGGER (Temporary Ticket System)
 // ==========================================
 export const handleAdminHandshakeNavigation = async (navigate) => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 150));
+    toast.loading('Requesting security clearance ticket...', { id: 'admin-handshake' });
+    console.log(`[Handshake] Requesting ticket from: ${API_URL}/api/admin/request-ticket`);
 
-    const verifyRes = await fetch(`${API_URL}/api/admin/verify`, {
-      method: 'GET',
-      credentials: 'include'
+    const res = await fetch(`${API_URL}/api/admin/request-ticket`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     });
 
-    if (verifyRes.ok) {
-      const verifyData = await verifyRes.json();
-      const userEmail = (verifyData.email || '').toLowerCase();
-      const isAuthed = verifyData.isAuthenticated === true || verifyData.isAdmin === true;
-      const emailMatchesIfProvided = userEmail ? userEmail === ADMIN_EMAIL.toLowerCase() : true;
+    console.log("[Handshake] Response status:", res.status);
+    
+    const textResponse = await res.text();
+    console.log("[Handshake] Raw response text:", textResponse);
 
-      if (isAuthed && emailMatchesIfProvided) {
-        toast.success('Security clearance granted. Entering command center...');
-        navigate('/admin/dashboard', { replace: true });
-        return;
-      }
+    let data;
+    try {
+      data = JSON.parse(textResponse);
+    } catch (parseErr) {
+      console.error("[Handshake] Failed to parse JSON from server:", parseErr);
+      toast.dismiss('admin-handshake');
+      toast.error('Server returned invalid data format.');
+      navigate('/', { replace: true });
+      return;
+    }
+
+    if (res.ok && data.success && data.ticket) {
+      // Store temporary 1-minute ticket securely in session storage
+      sessionStorage.setItem('admin_login_ticket', data.ticket);
+      
+      toast.dismiss('admin-handshake');
+      toast.success('Security ticket issued. Opening verification gate...');
+      
+      navigate('/admin/login', { replace: true });
+      return;
     }
     
-    toast.error('Active admin session not found. Please log in first.');
+    toast.dismiss('admin-handshake');
+    toast.error(data.message || 'Failed to issue security clearance ticket.');
     navigate('/', { replace: true });
   } catch (err) {
-    console.error("Navigation security handshake failed", err);
-    toast.error('Failed to verify secure credentials.');
+    toast.dismiss('admin-handshake');
+    console.error("[Handshake] Network or fetch execution failed:", err);
+    toast.error('Network error: Could not reach backend server.');
     navigate('/', { replace: true });
   }
 };
 
 // ==========================================
-// 3. ADMIN LOGIN COMPONENT
-// ==========================================
-export function AdminLogin() {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    navigate('/admin/dashboard', { replace: true });
-  }, [navigate]);
-
-  return (
-    <div className="min-h-screen w-full bg-[#070605] flex items-center justify-center text-white font-['Inter',sans-serif]">
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 size={32} className="animate-spin text-yellow-500" />
-        <span className="text-sm font-bold text-stone-400">Initializing secure portal...</span>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================
-// 4. GUEST ONLY ROUTE COMPONENT
+// 3. GUEST ONLY ROUTE COMPONENT
 // ==========================================
 export function GuestOnlyRoute({ children }) {
   const [isChecking, setIsChecking] = useState(true);
@@ -150,14 +160,17 @@ export function GuestOnlyRoute({ children }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/auth/verify`, {
-          method: 'GET',
-          credentials: 'include'
-        }).catch(() => ({ ok: false }));
-        
-        if (res.ok) {
-          const data = await res.json();
-          setIsLoggedIn(!!data.isAuthenticated || !!data.user);
+        const token = localStorage.getItem('admin_token');
+        if (token) {
+          const res = await fetch(`${API_URL}/api/admin/verify`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+          }).catch(() => ({ ok: false }));
+          
+          if (res.ok) {
+            const data = await res.json();
+            setIsLoggedIn(data.isAuthenticated === true);
+          }
         }
       } catch {
         setIsLoggedIn(false);
@@ -177,14 +190,14 @@ export function GuestOnlyRoute({ children }) {
   }
 
   if (isLoggedIn) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return children;
 }
 
 // ==========================================
-// 5. ADMIN OVERVIEW SUB-VIEW COMPONENT
+// 4. ADMIN OVERVIEW SUB-VIEW COMPONENT
 // ==========================================
 function AdminOverview() {
   const [stats, setStats] = useState({
@@ -199,18 +212,32 @@ function AdminOverview() {
   useEffect(() => {
     const fetchOverviewData = async () => {
       try {
-        const quotesRes = await fetch(`${API_URL}/api/admin/messages`, { credentials: 'include' }).catch(() => ({ ok: false }));
+        const token = localStorage.getItem('admin_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        // 1. Securely fetch quotes through backend
+        const quotesRes = await fetch(`${API_URL}/api/admin/messages`, { headers }).catch(() => ({ ok: false }));
         let quotesData = [];
         if (quotesRes.ok) {
           const json = await quotesRes.json();
           quotesData = Array.isArray(json) ? json : (json.data || json.messages || []);
         }
 
-        const { data: driversData } = await supabase.from('drivers').select('*');
-        const { data: shipmentsData } = await supabase.from('shipments').select('*');
+        // 2. Securely fetch drivers through backend
+        const driversRes = await fetch(`${API_URL}/api/admin/drivers`, { headers }).catch(() => ({ ok: false }));
+        let drivers = [];
+        if (driversRes.ok) {
+          const json = await driversRes.json();
+          drivers = Array.isArray(json) ? json : (json.data || json.drivers || []);
+        }
 
-        const drivers = driversData || [];
-        const shipments = shipmentsData || [];
+        // 3. Securely fetch shipments through backend
+        const shipmentsRes = await fetch(`${API_URL}/api/admin/shipments`, { headers }).catch(() => ({ ok: false }));
+        let shipments = [];
+        if (shipmentsRes.ok) {
+          const json = await shipmentsRes.json();
+          shipments = Array.isArray(json) ? json : (json.data || json.shipments || []);
+        }
 
         const totalQuotes = quotesData.length;
         const activeDrivers = drivers.length;
@@ -303,7 +330,7 @@ function AdminOverview() {
 }
 
 // ==========================================
-// 6. ADMIN DASHBOARD CONTAINER & LAYOUT
+// 5. ADMIN DASHBOARD CONTAINER & LAYOUT
 // ==========================================
 export function AdminDashboardContainer() {
   const navigate = useNavigate();
@@ -311,11 +338,13 @@ export function AdminDashboardContainer() {
 
   const handleExitAction = async () => {
     try {
+      const token = localStorage.getItem('admin_token');
       await fetch(`${API_URL}/api/admin/logout`, {
         method: 'POST',
-        credentials: 'include'
+        headers: { 'Authorization': `Bearer ${token}` }
       });
     } catch {}
+    localStorage.removeItem('admin_token');
     toast.info('Exited admin terminal securely');
     navigate('/', { replace: true });
   };
@@ -400,8 +429,9 @@ export function AdminDashboardContainer() {
           </div>
           
           <button 
+            type="button"
             onClick={handleExitAction}
-            className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 py-3 rounded-lg font-black text-xs uppercase tracking-wider transition-all border border-red-500/20 cursor-pointer shadow-lg"
+            className="w-full flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 py-3 rounded-lg font-black text-xs uppercase tracking-wider transition-all border border-red-500/20 cursor-pointer shadow-lg"
           >
             <LogOut className="w-4 h-4" /> Exit to Public Site
           </button>
@@ -410,11 +440,11 @@ export function AdminDashboardContainer() {
 
       <main className="flex-grow p-6 md:p-10 overflow-y-auto bg-transparent">
         <Routes>
-          <Route path="/admin/dashboard" element={<AdminOverview />} />
-          <Route path="/admin/dashboard/quotes" element={<ClientQuotes />} />
-          <Route path="/admin/dashboard/shipments" element={<AdminShipments />} />
-          <Route path="/admin/dashboard/drivers" element={<AdminDrivers />} />
-          <Route path="/admin/dashboard/tracking" element={<AdminTracking />} />
+          <Route path="/" element={<AdminOverview />} />
+          <Route path="quotes" element={<ClientQuotes />} />
+          <Route path="shipments" element={<AdminShipments />} />
+          <Route path="drivers" element={<AdminDrivers />} />
+          <Route path="tracking" element={<AdminTracking />} />
         </Routes>
       </main>
     </div>

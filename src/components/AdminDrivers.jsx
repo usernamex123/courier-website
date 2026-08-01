@@ -8,6 +8,8 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function AdminDrivers() {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);

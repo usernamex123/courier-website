@@ -2,12 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { Truck, Search, CheckCircle, Clock, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function AdminShipments() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/admin/shipments', { credentials: 'include' })
+    const token = localStorage.getItem('admin_token');
+    
+    fetch(`${API_URL}/api/admin/shipments`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setShipments(data);
@@ -18,16 +26,22 @@ export default function AdminShipments() {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/shipments/${id}`, {
+      const token = localStorage.getItem('admin_token');
+      
+      const res = await fetch(`${API_URL}/api/admin/shipments/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-        credentials: 'include'
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
       if (data.success) {
         setShipments(shipments.map(s => s.id === id ? { ...s, status: newStatus } : s));
         toast.success('Shipment status updated');
+      } else {
+        toast.error(data.message || 'Failed to update status');
       }
     } catch {
       toast.error('Failed to update status');
@@ -69,7 +83,7 @@ export default function AdminShipments() {
                   <select 
                     value={s.status}
                     onChange={(e) => updateStatus(s.id, e.target.value)}
-                    className="bg-black border border-white/20 text-white px-2 py-1 uppercase font-bold focus:outline-none focus:border-yellow-500"
+                    className="bg-black border border-white/20 text-white px-2 py-1 uppercase font-bold focus:outline-none focus:border-yellow-500 cursor-pointer"
                   >
                     <option value="Pending">Pending</option>
                     <option value="Dispatched">Dispatched</option>
