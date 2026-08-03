@@ -56,7 +56,7 @@ export default function UserFeatures({ onOpenTab }) {
             Active Shipments
           </h3>
           <p className="text-xs font-medium text-stone-400 leading-relaxed">
-            Monitor real-time status updates and delivery logs for your active cargo.
+            Monitor real-time status updates and delivery logs for your active cargo....
           </p>
         </div>
       </motion.div>
