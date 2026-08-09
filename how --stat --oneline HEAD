@@ -1,0 +1,72 @@
+[33m6582ab1[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m update
+ .gitignore                           |    1 [32m+[m
+ package-lock.json                    |  794 [32m++++++++++++++++++++++++++++++++++++[m[31m-[m
+ package.json                         |   16 [32m+[m[31m-[m
+ public/modern.jpg                    |  Bin [31m111659[m -> [32m122078[m bytes
+ server.js                            |  296 [32m++++++[m[31m--------[m
+ src/App.jsx                          |   23 [32m+[m[31m-[m
+ src/components/AboutUs.jsx           |  251 [32m++++++[m[31m------[m
+ src/components/AdminBilling.jsx      |  388 [32m++++++++++++++++++[m
+ src/components/AdminCustomers.jsx    |  297 [32m++++++++++++++[m
+ src/components/AdminDashboard.jsx    |  342 [32m++++++++++++++++[m
+ src/components/AdminDrivers.jsx      |  748 [32m++++++++++++[m[31m-----------------------[m
+ src/components/AdminLayout.jsx       |  146 [32m+++++++[m
+ src/components/AdminReports.jsx      |  176 [32m+++++++++[m
+ src/components/AdminRoute.jsx        |  792 [32m+++++++++++++++++++[m[31m------------------[m
+ src/components/AdminSecure.jsx       |   60 [32m+++[m
+ src/components/AdminShipments.jsx    |  468 [32m++++++++++++++++++[m[31m----[m
+ src/components/AdminTracking.jsx     |  341 [32m+++++++++++[m[31m-----[m
+ src/components/AdminVehicles.jsx     |  281 [32m+++++++++++++[m
+ src/components/AdminWarehouses.jsx   |  305 [32m++++++++++++++[m
+ src/components/BulkActionBar.jsx     |   22 [32m++[m
+ src/components/ClientQuotes.jsx      |  309 [32m++++++++++[m[31m-----[m
+ src/components/Contact.jsx           |   88 [32m++[m[31m---[m
+ src/components/DriverTracker.jsx     |  356 [32m+++++++++++[m[31m------[m
+ src/components/Footer.jsx            |  144 [32m++++++[m[31m-[m
+ src/components/Separator.jsx         |   23 [32m++[m
+ src/components/Services.jsx          |   30 [32m+[m[31m-[m
+ src/components/ShipmentTracker.jsx   |   82 [32m++++[m
+ src/components/WhyChooseUs.jsx       |  133 [32m++[m[31m-----[m
+ src/components/admin/StatCard.jsx    |   33 [32m++[m
+ src/components/admin/StatusBadge.jsx |   43 [32m++[m
+ src/components/ui/Button.jsx         |   50 [32m+++[m
+ src/components/ui/use-toast.jsx      |  164 [32m++++++++[m
+ src/layout/AdminLogin.jsx            |  322 [32m++++++++[m[31m-------[m
+ src/layout/AuthContext.jsx           |   79 [32m++++[m
+ src/layout/Login.jsx                 |  262 [32m++++++++++++[m
+ src/layout/layout.jsx                |  473 [32m+++++[m[31m-----------------[m
+ src/layout/user.jsx                  | 1248 [32m+++[m[31m-------------------------------------------------------[m
+ src/utils/utils.js                   |   10 [32m+[m
+ 38 files changed, 6100 insertions(+), 3496 deletions(-)
+[33m4675413[m Update userfeatures.jsx
+ src/layout/userfeatures.jsx | 4 [32m++[m[31m--[m
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+[33m61abd2f[m update
+ package-lock.json                 | 113 [32m+++++++++++++++++++++++++++++++[m
+ package.json                      |   1 [32m+[m
+ server.js                         | 161 [32m+++++++++++++++++++++++++++++++++++[m[31m----------[m
+ src/App.jsx                       |  21 [32m++++[m[31m--[m
+ src/components/AdminDrivers.jsx   |   2 [32m+[m
+ src/components/AdminRoute.jsx     | 188 [32m++++++++++++++++++++++++++++++[m[31m----------------------[m
+ src/components/AdminShipments.jsx |  26 [32m++++++[m[31m--[m
+ src/components/AdminTracking.jsx  |  12 [32m+++[m[31m-[m
+ src/components/ClientQuotes.jsx   |  12 [32m+++[m[31m-[m
+ src/layout/AdminLogin.jsx         | 177 [32m+++++++++++++++++++++++++++++++++++[m[31m--------------[m
+ src/layout/MobileLayout.jsx       | 203 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m
+ src/layout/layout.jsx             | 223 [32m++++++++++++++++++++++++++++++++++++[m[31m--------------------------[m
+ src/layout/user.jsx               |  49 [32m+++++++++[m[31m-----[m
+ 13 files changed, 904 insertions(+), 284 deletions(-)
+[33mfc60eaa[m update
+ server.js | 16 [32m+++++++[m[31m---------[m
+ 1 file changed, 7 insertions(+), 9 deletions(-)
+[33m303851d[m update
+ server.js                       |  244 [32m+++++[m[31m-----------[m
+ src/App.jsx                     |  433 [32m+[m[31m--------------------------[m
+ src/components/AdminRoute.jsx   |  422 [32m+++++++++++++++++++++++++++[m
+ src/components/ClientQuotes.jsx |   17 [32m+[m[31m-[m
+ src/layout/AdminLogin.jsx       |  130 [32m+++++++++[m
+ src/layout/layout.jsx           |   41 [32m++[m[31m-[m
+ src/layout/user.jsx             | 1003 [32m++++++++++++++++++++++++++++++++++++[m[31m---------------------------[m
+ src/layout/userfeatures.jsx     |   65 [32m+++++[m
+ vite.config.js                  |    9 [32m+[m
+ 9 files changed, 1334 insertions(+), 1030 deletions(-)

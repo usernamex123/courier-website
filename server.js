@@ -154,6 +154,9 @@ app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+app.get('/health', (req, res) => {
+    res.status(200).send('Server is alive!');
+});
 app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);
 });
