@@ -61,6 +61,16 @@ function requireAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Admin session required.' });
 }
 
+// ==================== ROOT & HEALTH ENDPOINTS ====================
+
+app.get('/', (req, res) => {
+    res.status(200).send('JB Logistics Backend is live!');
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).send('Server is alive!');
+});
+
 // ==================== AUTH ENDPOINTS ====================
 
 /**
@@ -154,9 +164,6 @@ app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.get('/health', (req, res) => {
-    res.status(200).send('Server is alive!');
-});
 app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);
 });
