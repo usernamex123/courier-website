@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
+import ShipmentTracker from '../components/ShipmentTracker'; // Adjust the import path as needed
 
 export default function Services() {
   const navigate = useNavigate();
@@ -50,7 +51,12 @@ export default function Services() {
     const handleServiceChange = (e) => {
       if (e.detail) {
         setActiveService(e.detail);
-        if (servicesTopRef.current) {
+        // Find the banner element and scroll to it, accounting for fixed header
+        const bannerElement = document.getElementById('service-banner');
+        if (bannerElement) {
+          bannerElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (servicesTopRef.current) {
+          // Fallback to top of section if banner not found
           servicesTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }
@@ -71,17 +77,20 @@ export default function Services() {
   }, [activeService]);
 
   return (
-    <section ref={servicesTopRef} className="w-full min-h-screen relative flex flex-col bg-black text-white overflow-hidden font-brand scroll-mt-24">
+    <section ref={servicesTopRef} className="w-full relative flex flex-col bg-black text-white overflow-hidden font-brand">
       
-      {/* Header Section */}
-      <div className="w-full h-48 md:h-56 bg-[#1c1917] flex items-center justify-center relative z-25 border-b border-white/10 shrink-0 px-6">
-        <h2 className="text-white text-4xl md:text-6xl font-black tracking-tight uppercase drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]">
-          Our <span className="text-yellow-500">Services</span>
+      {/* Render the Shipment Tracker from its separate component file */}
+      <ShipmentTracker />
+
+      {/* Header Section ("Our Services") */}
+      <div className="w-full h-20 md:h-24 bg-[#f3f6fb] flex items-center justify-center relative z-25 border-b border-gray-200 shrink-0 px-6">
+        <h2 className="text-yellow-600 text-xl md:text-2xl font-black tracking-tight uppercase">
+          Our Services
         </h2>
       </div>
 
-      {/* Main Interactive Banner Area */}
-      <div className="flex-grow relative w-full flex items-center overflow-hidden min-h-[650px]">
+      {/* Main Interactive Banner Area: Added ID and scroll margin */}
+      <div id="service-banner" className="relative w-full flex items-center overflow-hidden min-h-[650px] scroll-mt-20">
         
         <div className="absolute inset-0 z-0 transform-gpu backface-hidden scale-105">
           {activeData.type === 'video' ? (
@@ -141,7 +150,7 @@ export default function Services() {
         </div>
 
         {/* Dynamic Content Display Area */}
-        <div className="relative z-20 w-full max-w-4xl px-6 md:px-16 lg:px-24 flex flex-col items-start text-left mt-20">
+        <div className="relative z-20 w-full max-w-4xl px-6 md:px-16 lg:px-24 flex flex-col items-start text-left my-20">
           <span className="text-yellow-500 font-bold uppercase tracking-widest text-xs md:text-sm mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             Core Service Offerings
           </span>
@@ -156,8 +165,7 @@ export default function Services() {
         </div>
 
       </div>
-      
-      <div className="w-full h-20 bg-[#1c1917] border-t border-white/10 z-25 shrink-0" />
+
     </section>
   );
 }

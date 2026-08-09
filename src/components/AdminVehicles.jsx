@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Search, Phone, Star, Truck, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { Plus, Search, Fuel, Gauge, Pencil, Trash2, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const getApiUrl = () => {
@@ -9,16 +9,15 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 
 const FIELDS = [
-  { name: "full_name", label: "Full Name", required: true },
-  { name: "email", label: "Email", type: "email" },
-  { name: "phone", label: "Phone", required: true },
-  { name: "license_number", label: "License Number" },
-  { name: "license_expiry", label: "License Expiry", type: "date" },
-  { name: "status", label: "Status", type: "select", options: ["available", "on_delivery", "off_duty", "on_leave"] },
-  { name: "rating", label: "Rating", type: "number" },
-  { name: "total_deliveries", label: "Total Deliveries", type: "number" },
-  { name: "city", label: "Base City" },
-  { name: "join_date", label: "Join Date", type: "date" },
+  { name: "registration", label: "Registration Number", required: true },
+  { name: "type", label: "Type", type: "select", options: ["Truck", "Van", "Container Truck", "Refrigerated Truck", "Flatbed", "Box Truck", "Motorbike", "Semi-Trailer"], required: true },
+  { name: "capacity_kg", label: "Capacity (kg)", type: "number" },
+  { name: "fuel_type", label: "Fuel Type", type: "select", options: ["Diesel", "Petrol", "Electric", "Hybrid"] },
+  { name: "status", label: "Status", type: "select", options: ["active", "maintenance", "idle", "retired"] },
+  { name: "current_location", label: "Current Location" },
+  { name: "mileage_km", label: "Mileage (km)", type: "number" },
+  { name: "insurance_expiry", label: "Insurance Expiry", type: "date" },
+  { name: "last_service", label: "Last Service Date", type: "date" },
 ];
 
 // --- Inline UI Components ---
@@ -26,9 +25,9 @@ const FIELDS = [
 const StatusBadge = ({ status }) => {
   const s = (status || "").toLowerCase();
   let colors = "bg-gray-100 text-gray-700 border-gray-200";
-  if (s === "available") colors = "bg-green-50 text-green-700 border-green-200";
-  if (s === "on_delivery") colors = "bg-blue-50 text-blue-700 border-blue-200";
-  if (s === "off_duty" || s === "on_leave") colors = "bg-yellow-50 text-yellow-800 border-yellow-200";
+  if (s === "active") colors = "bg-green-50 text-green-700 border-green-200";
+  if (s === "maintenance" || s === "retired") colors = "bg-amber-50 text-amber-800 border-amber-200";
+  if (s === "idle") colors = "bg-yellow-50 text-yellow-800 border-yellow-200";
   
   return (
     <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider border ${colors}`}>
@@ -44,7 +43,7 @@ const ConfirmDialog = ({ message, onConfirm, onClose }) => (
       <p className="text-sm text-gray-600 mb-6">{message}</p>
       <div className="flex gap-3 justify-end">
         <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">Delete Driver</button>
+        <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">Delete Vehicle</button>
       </div>
     </div>
   </div>
@@ -59,9 +58,10 @@ const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
     setSaving(true);
     try {
       const method = initial ? 'PUT' : 'POST';
-      const idStr = initial ? `/${initial._id || initial.id}` : '';
+      const id = initial ? (initial._id || initial.id) : '';
+      const idStr = id ? `/${id}` : '';
       
-      const res = await fetch(`${API_URL}/api/admin/drivers${idStr}`, {
+      const res = await fetch(`${API_URL}/api/admin/vehicles${idStr}`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -91,7 +91,7 @@ const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {fields.map(f => (
-              <div key={f.name} className={f.name === 'full_name' || f.name === 'email' ? 'col-span-2' : 'col-span-1'}>
+              <div key={f.name} className={f.name === 'registration' || f.name === 'current_location' ? 'col-span-2' : 'col-span-1'}>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{f.label}</label>
                 {f.type === 'select' ? (
                   <select
@@ -101,7 +101,7 @@ const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
                     required={f.required}
                   >
                     <option value="">Select {f.label}</option>
-                    {f.options.map(o => <option key={o} value={o}>{o.replace('_', ' ').toUpperCase()}</option>)}
+                    {f.options.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 ) : (
                   <input
@@ -129,7 +129,7 @@ const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
 
 // --- Main Component ---
 
-export default function AdminDrivers() {
+export default function AdminVehicles() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -140,38 +140,38 @@ export default function AdminDrivers() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/drivers`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/admin/vehicles`, { credentials: 'include' });
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : data.drivers || []);
+      setItems(Array.isArray(data) ? data : data.vehicles || []);
     } catch (err) {
-      toast.error("Failed to fetch drivers data");
+      toast.error("Failed to fetch fleet data");
     } finally {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => { load(); }, []);
 
-  const filtered = items.filter((d) => { 
+  const filtered = items.filter((v) => { 
     const q = query.toLowerCase(); 
-    return !q || (d.full_name || "").toLowerCase().includes(q) || (d.city || "").toLowerCase().includes(q); 
+    return !q || (v.registration || "").toLowerCase().includes(q) || (v.type || "").toLowerCase().includes(q); 
   });
-  
+
   const stats = { 
     total: items.length, 
-    available: items.filter((d) => d.status === "available").length, 
-    onDelivery: items.filter((d) => d.status === "on_delivery").length 
+    active: items.filter((v) => v.status === "active").length, 
+    maintenance: items.filter((v) => v.status === "maintenance").length 
   };
 
   const handleDelete = async () => {
     try {
       const id = deleting._id || deleting.id;
-      await fetch(`${API_URL}/api/admin/drivers/${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success("Driver deleted successfully");
+      await fetch(`${API_URL}/api/admin/vehicles/${id}`, { method: 'DELETE', credentials: 'include' });
+      toast.success("Vehicle deleted successfully");
       setDeleting(null);
       load();
     } catch (err) {
-      toast.error("Failed to delete driver");
+      toast.error("Failed to delete vehicle");
     }
   };
 
@@ -180,16 +180,16 @@ export default function AdminDrivers() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Roster</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Fleet</div>
           <div className="text-3xl font-black font-mono text-gray-900 mt-2">{stats.total}</div>
         </div>
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Available</div>
-          <div className="text-3xl font-black font-mono text-green-600 mt-2">{stats.available}</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Active</div>
+          <div className="text-3xl font-black font-mono text-green-600 mt-2">{stats.active}</div>
         </div>
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">On Delivery</div>
-          <div className="text-3xl font-black font-mono text-blue-600 mt-2">{stats.onDelivery}</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">In Maintenance</div>
+          <div className="text-3xl font-black font-mono text-amber-600 mt-2">{stats.maintenance}</div>
         </div>
       </div>
 
@@ -200,7 +200,7 @@ export default function AdminDrivers() {
           <input 
             value={query} 
             onChange={(e) => setQuery(e.target.value)} 
-            placeholder="Search drivers by name or city..." 
+            placeholder="Search by registration or type..." 
             className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400" 
           />
         </div>
@@ -208,73 +208,60 @@ export default function AdminDrivers() {
           className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-5 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2" 
           onClick={() => { setEditing(null); setShowForm(true); }}
         >
-          <Plus className="w-4 h-4" /> Add Driver
+          <Plus className="w-4 h-4" /> Register Vehicle
         </button>
       </div>
 
-      {/* Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <div className="col-span-full flex justify-center py-16 text-gray-500 font-sans">
-            <Loader2 className="w-6 h-6 text-yellow-600 animate-spin mx-auto mb-2" />
-            Loading drivers...
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-16 text-gray-500 font-sans">
-            No drivers found matching criteria.
-          </div>
-        ) : (
-          filtered.map((d) => (
-            <div key={d._id || d.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all group">
-              <div className="flex items-start gap-4 mb-5">
-                <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center font-bold text-yellow-700 text-lg shrink-0">
-                  {(d.full_name || "D")[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 text-base truncate">{d.full_name}</h3>
-                  <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
-                    <Truck className="w-3.5 h-3.5 text-yellow-600" /> {d.city || "Unassigned"}
-                  </p>
-                </div>
-                <div className="shrink-0"><StatusBadge status={d.status} /></div>
-              </div>
-              
-              <div className="space-y-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-gray-400" /> 
-                  <span className="font-mono text-gray-800">{d.phone || "—"}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="w-4 h-4 flex items-center justify-center text-[10px] font-black bg-gray-200 rounded-sm text-gray-600">ID</span>
-                  <span>License: <span className="text-gray-900 font-mono">{d.license_number || "—"}</span></span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-1.5 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-200">
-                  <Star className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
-                  <span className="text-xs font-bold text-yellow-800">{d.rating || "5.0"}</span>
-                </div>
-                <div className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">
-                  {d.total_deliveries || 0} Trips
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => { setEditing(d); setShowForm(true); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setDeleting(d)} className="p-1.5 rounded-lg bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto shadow-sm">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-gray-500 border-b border-gray-200 bg-gray-50/50 text-[10px] uppercase font-bold tracking-wider">
+              <th className="px-4 py-3">Registration</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Capacity</th>
+              <th className="px-4 py-3">Fuel</th>
+              <th className="px-4 py-3">Mileage</th>
+              <th className="px-4 py-3">Location</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={8} className="text-center py-16 text-gray-500">Loading fleet data...</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={8} className="text-center py-16 text-gray-500">No vehicles found matching criteria.</td></tr>
+            ) : (
+              filtered.map((v) => (
+                <tr key={v._id || v.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/80 transition-colors">
+                  <td className="px-4 py-3.5 font-bold text-gray-900">{v.registration}</td>
+                  <td className="px-4 py-3.5 text-gray-600 font-medium">{v.type}</td>
+                  <td className="px-4 py-3.5 text-gray-600 font-mono text-xs">{(v.capacity_kg || 0).toLocaleString()} kg</td>
+                  <td className="px-4 py-3.5 text-gray-600"><span className="flex items-center gap-1.5"><Fuel className="w-3.5 h-3.5 text-yellow-600" /> {v.fuel_type || "—"}</span></td>
+                  <td className="px-4 py-3.5 text-gray-600"><span className="flex items-center gap-1.5 font-mono text-xs"><Gauge className="w-3.5 h-3.5 text-yellow-600" /> {((v.mileage_km || 0) / 1000).toFixed(0)}k km</span></td>
+                  <td className="px-4 py-3.5 text-gray-600 text-xs">{v.current_location || "—"}</td>
+                  <td className="px-4 py-3.5"><StatusBadge status={v.status} /></td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex gap-1 justify-end">
+                      <button onClick={() => { setEditing(v); setShowForm(true); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setDeleting(v)} className="p-1.5 rounded-lg bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {showForm && (
         <EntityFormModal 
-          title="Driver" 
+          title="Vehicle" 
           fields={FIELDS} 
           initial={editing} 
           onClose={() => setShowForm(false)} 
@@ -284,7 +271,7 @@ export default function AdminDrivers() {
       
       {deleting && (
         <ConfirmDialog 
-          message={`Are you sure you want to remove ${deleting.full_name} from the roster? This cannot be undone.`} 
+          message={`Are you sure you want to delete vehicle ${deleting.registration}? This action cannot be undone.`} 
           onConfirm={handleDelete} 
           onClose={() => setDeleting(null)} 
         />

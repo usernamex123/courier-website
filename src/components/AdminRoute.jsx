@@ -1,13 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, Outlet, Link, useNavigate, useLocation, Routes, Route } from 'react-router-dom';
-import { Loader2, LogOut, FileText, Database, Truck, Navigation, Users, AlertCircle } from 'lucide-react';
+import { Navigate, Outlet, Link, useNavigate, useLocation, Routes, Route, NavLink } from 'react-router-dom';
+import { 
+  Loader2, LogOut, LayoutDashboard, Package, Users, Truck, 
+  Car, Warehouse, FileText, BarChart3, Building2, Settings, ChevronLeft, Menu, Bell, 
+  RefreshCw, Search, Mail, Clock, Trash2, ExternalLink, ChevronUp, ChevronDown 
+} from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import ClientQuotes from "./ClientQuotes"; 
-import AdminShipments from "./AdminShipments";
-import AdminTracking from "./AdminTracking";
-import AdminDrivers from "./AdminDrivers"; 
 
-// Dynamic multi-host URL resolution (fixes network error across different hosts/IPs)
+// Import your admin view components
+import AdminOverview from "./AdminDashboard";
+import AdminShipments from "./AdminShipments";
+import AdminCustomers from "./AdminCustomers";
+import AdminDrivers from "./AdminDrivers";
+import AdminBilling from "./AdminBilling";
+import ClientQuotes from "./ClientQuotes";
+import AdminTracking from "./AdminTracking";
+import AdminVehicles from "./AdminVehicles";
+import AdminWarehouses from "./AdminWarehouses";
+import AdminReports from "./AdminReports";
+// Placeholder components for navigation items if not created yet
+
+const AdminBranches = () => <div className="p-6 text-gray-900"><h2 className="text-xl font-bold">Branches Management</h2></div>;
+const AdminSettings = () => <div className="p-6 text-gray-900"><h2 className="text-xl font-bold">Admin Settings</h2></div>;
+
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
@@ -17,315 +33,393 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
-const ADMIN_EMAIL = 'admin@jblogisticsservices.com';
+
+// Initialize Supabase Client with fail-safe fallbacks
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder'
+);
+
+// Helper to fetch with Express session cookies attached automatically
+export const authenticatedFetch = async (url, options = {}) => {
+  return fetch(url, {
+    ...options,
+    credentials: 'include'
+  });
+};
 
 // ==========================================
-// 1. SECURE TOKEN-BASED SERVER AUTH GUARD
+// 1. ADMIN ROUTE GUARDS
 // ==========================================
 export default function AdminRoute() {
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [isChecking, setIsChecking] = useState(true);
-  const location = useLocation();
+  return <Outlet />;
+}
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const verifyServerSession = async () => {
-      try {
-        const token = localStorage.getItem('admin_token');
-        if (!token) {
-          if (isMounted) {
-            setIsAuthenticated(false);
-            setIsChecking(false);
-          }
-          return;
-        }
-
-        const verifyRes = await fetch(`${API_URL}/api/admin/verify`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        console.log("Verify HTTP Status:", verifyRes.status);
-        const verifyData = await verifyRes.json().catch(() => ({}));
-        console.log("Verify JSON Response Body:", verifyData);
-
-        if (!verifyRes.ok) {
-          if (isMounted) {
-            setIsAuthenticated(false);
-            setIsChecking(false);
-          }
-          return;
-        }
-
-        const isAuthed = verifyData.isAuthenticated === true;
-
-        if (isMounted) {
-          setIsAuthenticated(isAuthed);
-          setIsChecking(false);
-        }
-      } catch (err) {
-        console.error("[AdminRoute] Critical network/server error during verification:", err);
-        if (isMounted) {
-          setIsAuthenticated(false);
-          setIsChecking(false);
-        }
-      }
-    };
-
-    verifyServerSession();
-
-    return () => { isMounted = false; };
-  }, [location.pathname]);
-
-  if (isChecking) {
-    return (
-      <div className="min-h-screen w-full bg-[#070605] flex items-center justify-center text-white font-['Inter',sans-serif]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-yellow-500" />
-          <span className="text-sm font-bold text-stone-400">Verifying secure multi-device session...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
+export function GuestOnlyRoute() {
   return <Outlet />;
 }
 
 // ==========================================
-// 2. SECURE ADMIN NAVIGATION HANDSHAKE TRIGGER (Temporary Ticket System)
+// 2. ADMIN SIDEBAR COMPONENT
 // ==========================================
-export const handleAdminHandshakeNavigation = async (navigate) => {
-  try {
-    toast.loading('Requesting security clearance ticket...', { id: 'admin-handshake' });
-    console.log(`[Handshake] Requesting ticket from: ${API_URL}/api/admin/request-ticket`);
+const navItems = [
+  { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/admin/dashboard/shipments", label: "Shipments", icon: Package },
+  { to: "/admin/dashboard/customers", label: "Customers", icon: Users },
+  { to: "/admin/dashboard/drivers", label: "Drivers", icon: Truck },
+  { to: "/admin/dashboard/vehicles", label: "Fleet", icon: Car },
+  { to: "/admin/dashboard/warehouses", label: "Warehouses", icon: Warehouse },
+  { to: "/admin/dashboard/billing", label: "Billing & Finance", icon: FileText },
+  { to: "/admin/dashboard/branches", label: "Branches", icon: Building2 },
+  { to: "/admin/dashboard/reports", label: "Reports", icon: BarChart3 },
+  { to: "/admin/dashboard/quotes", label: "Quotes & Messages", icon: FileText },
+  { to: "/admin/dashboard/tracking", label: "Live Tracking", icon: FileText },
+  { to: "/admin/dashboard/settings", label: "Settings", icon: Settings },
+];
 
-    const res = await fetch(`${API_URL}/api/admin/request-ticket`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    console.log("[Handshake] Response status:", res.status);
-    
-    const textResponse = await res.text();
-    console.log("[Handshake] Raw response text:", textResponse);
-
-    let data;
-    try {
-      data = JSON.parse(textResponse);
-    } catch (parseErr) {
-      console.error("[Handshake] Failed to parse JSON from server:", parseErr);
-      toast.dismiss('admin-handshake');
-      toast.error('Server returned invalid data format.');
-      navigate('/', { replace: true });
-      return;
-    }
-
-    if (res.ok && data.success && data.ticket) {
-      // Store temporary 1-minute ticket securely in session storage
-      sessionStorage.setItem('admin_login_ticket', data.ticket);
-      
-      toast.dismiss('admin-handshake');
-      toast.success('Security ticket issued. Opening verification gate...');
-      
-      navigate('/admin/login', { replace: true });
-      return;
-    }
-    
-    toast.dismiss('admin-handshake');
-    toast.error(data.message || 'Failed to issue security clearance ticket.');
-    navigate('/', { replace: true });
-  } catch (err) {
-    toast.dismiss('admin-handshake');
-    console.error("[Handshake] Network or fetch execution failed:", err);
-    toast.error('Network error: Could not reach backend server.');
-    navigate('/', { replace: true });
-  }
-};
-
-// ==========================================
-// 3. GUEST ONLY ROUTE COMPONENT
-// ==========================================
-export function GuestOnlyRoute({ children }) {
-  const [isChecking, setIsChecking] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem('admin_token');
-        if (token) {
-          const res = await fetch(`${API_URL}/api/admin/verify`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).catch(() => ({ ok: false }));
+function AdminSidebar({ open, onClose }) {
+  return (
+    <>
+      {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
+      <aside className={`fixed lg:sticky top-0 z-40 h-screen w-64 bg-white text-gray-600 border-r border-gray-200 flex flex-col justify-between transition-transform shadow-sm ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        <div>
+          <div className="h-16 flex items-center px-5 border-b border-gray-200 font-bold text-lg shrink-0">
+            <span className="text-yellow-600">JB</span>
+            <span className="text-gray-900 ml-1.5">Logistics</span>
+          </div>
           
-          if (res.ok) {
-            const data = await res.json();
-            setIsLoggedIn(data.isAuthenticated === true);
-          }
-        }
-      } catch {
-        setIsLoggedIn(false);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-    checkAuth();
-  }, []);
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 max-h-[calc(100vh-120px)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "hover:bg-gray-100 hover:text-gray-900"}`
+                }
+              >
+                <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
 
-  if (isChecking) {
-    return (
-      <div className="min-h-screen w-full bg-[#070605] flex items-center justify-center text-white font-['Inter',sans-serif]">
-        <Loader2 size={32} className="animate-spin text-yellow-500" />
-      </div>
-    );
-  }
-
-  if (isLoggedIn) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
-
-  return children;
+        <div className="p-3 border-t border-gray-200 shrink-0 bg-gray-50">
+          <NavLink to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:text-gray-900 font-medium">
+            <ChevronLeft className="w-4 h-4" /> Back to Site
+          </NavLink>
+        </div>
+      </aside>
+    </>
+  );
 }
 
 // ==========================================
-// 4. ADMIN OVERVIEW SUB-VIEW COMPONENT
+// 3. NOTIFICATION BANNER / QUOTES DROPDOWN
 // ==========================================
-function AdminOverview() {
-  const [stats, setStats] = useState({
-    totalQuotes: 0,
-    activeDrivers: 0,
-    driversOnField: 0,
-    ongoingShipments: 0,
-    unassignedShipments: 0
-  });
+function NotificationQuotesBanner({ isOpen, onClose }) {
+  const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const fetchMessages = async (isManualRefresh = false) => {
+    if (isManualRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    setError(null);
+    const token = localStorage.getItem('admin_token');
+
+    try {
+      const res = await fetch(`${API_URL}/api/admin/messages`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch messages (${res.status}): ${errorText || 'Unauthorized'}`);
+      }
+
+      const resData = await res.json();
+      const messageList = Array.isArray(resData) ? resData : (resData.data || resData.messages || []);
+      setQuotes(messageList);
+    } catch (err) {
+      console.error('Failed to load quotes:', err);
+      if (supabaseUrl && supabaseAnonKey) {
+        const { data, error: sbErr } = await supabase
+          .from('messages')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!sbErr && data) {
+          setQuotes(data);
+          setError(null);
+        } else {
+          setError(err.message || 'Error communicating with server');
+        }
+      } else {
+        setError(err.message || 'Failed to load client messages');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchOverviewData = async () => {
-      try {
-        const token = localStorage.getItem('admin_token');
-        const headers = { 'Authorization': `Bearer ${token}` };
+    if (isOpen) {
+      fetchMessages();
+    }
+  }, [isOpen]);
 
-        // 1. Securely fetch quotes through backend
-        const quotesRes = await fetch(`${API_URL}/api/admin/messages`, { headers }).catch(() => ({ ok: false }));
-        let quotesData = [];
-        if (quotesRes.ok) {
-          const json = await quotesRes.json();
-          quotesData = Array.isArray(json) ? json : (json.data || json.messages || []);
-        }
+  const handleDeleteMessage = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this message?')) return;
 
-        // 2. Securely fetch drivers through backend
-        const driversRes = await fetch(`${API_URL}/api/admin/drivers`, { headers }).catch(() => ({ ok: false }));
-        let drivers = [];
-        if (driversRes.ok) {
-          const json = await driversRes.json();
-          drivers = Array.isArray(json) ? json : (json.data || json.drivers || []);
-        }
+    setDeletingId(id);
+    const token = localStorage.getItem('admin_token');
 
-        // 3. Securely fetch shipments through backend
-        const shipmentsRes = await fetch(`${API_URL}/api/admin/shipments`, { headers }).catch(() => ({ ok: false }));
-        let shipments = [];
-        if (shipmentsRes.ok) {
-          const json = await shipmentsRes.json();
-          shipments = Array.isArray(json) ? json : (json.data || json.shipments || []);
-        }
+    try {
+      await fetch(`${API_URL}/api/admin/messages/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      }).catch(() => null);
 
-        const totalQuotes = quotesData.length;
-        const activeDrivers = drivers.length;
-        const driversOnField = drivers.filter(d => d.status === 'On Field').length;
-
-        const ongoingShipments = shipments.filter(s => {
-          const isNotCompleted = s.status !== 'Delivered' && s.status !== 'Cancelled';
-          const hasDriverAssigned = drivers.some(d => d.assigned_shipment === s.tracking_number);
-          const hasDirectDriver = s.driverId || s.driverName || s.assignedDriver;
-          return isNotCompleted && (hasDriverAssigned || hasDirectDriver);
-        }).length;
-
-        const unassignedShipments = shipments.filter(s => {
-          const isNotCompleted = s.status !== 'Delivered' && s.status !== 'Cancelled';
-          const hasDriverAssigned = drivers.some(d => d.assigned_shipment === s.tracking_number);
-          const hasDirectDriver = s.driverId || s.driverName || s.assignedDriver;
-          return isNotCompleted && !hasDriverAssigned && !hasDirectDriver;
-        }).length;
-
-        setStats({ totalQuotes, activeDrivers, driversOnField, ongoingShipments, unassignedShipments });
-      } catch (err) {
-        console.error("Failed to load overview statistics", err);
-      } finally {
-        setLoading(false);
+      if (supabaseUrl && supabaseAnonKey) {
+        await supabase.from('messages').delete().eq('id', id);
       }
-    };
 
-    fetchOverviewData();
-  }, []);
+      setQuotes(prev => prev.filter(q => q.id !== id));
+      toast.success('Message deleted successfully');
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast.error('Failed to delete message');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const filteredQuotes = quotes.filter((q) => {
+    const name = q.client_name || q.name || '';
+    const message = q.message || q.service || q.content || '';
+    const email = q.email || '';
+    const query = searchTerm.toLowerCase();
+    return (
+      name.toLowerCase().includes(query) ||
+      message.toLowerCase().includes(query) ||
+      email.toLowerCase().includes(query)
+    );
+  });
+
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      <div className="bg-gradient-to-r from-[#100e0c] to-[#171412] border border-white/10 p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-500/5 blur-[80px] pointer-events-none"></div>
-        <span className="text-yellow-500 font-mono text-[11px] font-bold uppercase tracking-widest block mb-1">JB Logistics Command</span>
-        <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">System Control Center</h3>
-        <p className="text-xs text-white/50 uppercase tracking-wider mt-2">Real-time overview of your logistics network and operations</p>
+    <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 md:w-[480px] bg-white border border-gray-200 shadow-2xl z-50 rounded-2xl overflow-hidden max-h-[80vh] flex flex-col animate-fadeIn">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-gray-50 border-b border-gray-200 p-4 shrink-0">
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wider text-gray-900">Client Quotes & Messages</h3>
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Incoming inquiries & follow-ups</p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button 
+            onClick={() => fetchMessages(true)}
+            disabled={refreshing}
+            className="p-1.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 rounded-lg shadow-sm"
+            title="Refresh list"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-yellow-600' : ''}`} />
+            <span>Refresh</span>
+          </button>
+          <button 
+            onClick={onClose}
+            className="px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-[#0e0c0b]/90 border border-white/10 p-6 relative overflow-hidden group hover:border-yellow-500/50 transition-all duration-300 shadow-xl backdrop-blur-sm">
-          <span className="text-[11px] uppercase tracking-widest text-white/50 block mb-2 font-bold">Total Quotes Requested</span>
-          <span className="text-5xl font-black text-yellow-500 tracking-tight font-mono">
-            {loading ? <span className="animate-pulse">...</span> : stats.totalQuotes}
-          </span>
-          <p className="text-[11px] text-white/40 uppercase tracking-wider mt-4 pt-4 border-t border-white/5">Awaiting review & auto-responses</p>
+      {/* Search Bar Toolbar */}
+      <div className="p-3 bg-gray-50/50 border-b border-gray-200 shrink-0">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search messages..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white border border-gray-300 pl-10 pr-4 py-2 text-gray-900 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-400 rounded-xl shadow-sm"
+          />
         </div>
+      </div>
 
-        <div className="bg-[#0e0c0b]/90 border border-white/10 p-6 relative overflow-hidden group hover:border-yellow-500/50 transition-all duration-300 shadow-xl backdrop-blur-sm">
-          <span className="text-[11px] uppercase tracking-widest text-white/50 block mb-2 font-bold">Ongoing Shipments</span>
-          <span className="text-5xl font-black text-yellow-500 tracking-tight font-mono">
-            {loading ? <span className="animate-pulse">...</span> : stats.ongoingShipments}
-          </span>
-          <p className="text-[11px] text-white/40 uppercase tracking-wider mt-4 pt-4 border-t border-white/5">In-transit with assigned driver</p>
-        </div>
-
-        <div className="bg-[#0e0c0b]/90 border border-white/10 p-6 relative overflow-hidden group hover:border-red-500/50 transition-all duration-300 shadow-xl backdrop-blur-sm">
-          <span className="text-[11px] uppercase tracking-widest text-white/50 block mb-2 font-bold">Unassigned Shipments</span>
-          <div className="flex items-center justify-between">
-            <span className="text-5xl font-black text-red-400 tracking-tight font-mono">
-              {loading ? <span className="animate-pulse">...</span> : stats.unassignedShipments}
-            </span>
-            {stats.unassignedShipments > 0 && (
-              <span className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full animate-pulse">
-                <AlertCircle className="w-5 h-5" />
-              </span>
-            )}
+      {/* Scrollable List Container */}
+      <div className="overflow-y-auto p-3 space-y-2.5 flex-grow max-h-[45vh] bg-white">
+        {loading ? (
+          <div className="flex justify-center items-center py-10 text-yellow-600 font-black tracking-wider uppercase text-xs gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading messages...
           </div>
-          <p className="text-[11px] text-white/40 uppercase tracking-wider mt-4 pt-4 border-t border-white/5">Active shipments needing dispatch</p>
-        </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-600 p-3 font-bold uppercase tracking-wider text-xs flex items-center justify-between rounded-xl">
+            <span>Error: {error}</span>
+            <button onClick={() => fetchMessages()} className="underline hover:text-red-800 cursor-pointer">Retry</button>
+          </div>
+        ) : filteredQuotes.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 text-xs font-black uppercase tracking-widest">
+            {searchTerm ? 'No messages match search.' : 'No client messages received yet.'}
+          </div>
+        ) : (
+          filteredQuotes.map((quote) => {
+            const id = quote.id || Math.random();
+            const isExpanded = expandedId === id;
+            const isDeleting = deletingId === id;
+            const clientName = quote.client_name || quote.name || 'Unnamed Client';
+            const clientEmail = quote.email || 'No email provided';
+            const messageContent = quote.message || quote.service || quote.content || 'No message content.';
+            const timestamp = quote.created_at ? new Date(quote.created_at).toLocaleString() : 'Recently';
 
-        <div className="bg-[#0e0c0b]/90 border border-white/10 p-6 relative overflow-hidden group hover:border-yellow-500/50 transition-all duration-300 shadow-xl backdrop-blur-sm">
-          <span className="text-[11px] uppercase tracking-widest text-white/50 block mb-2 font-bold">Total Active Drivers</span>
-          <span className="text-5xl font-black text-yellow-500 tracking-tight font-mono">
-            {loading ? <span className="animate-pulse">...</span> : stats.activeDrivers}
-          </span>
-          <p className="text-[11px] text-white/40 uppercase tracking-wider mt-4 pt-4 border-t border-white/5">Registered drivers in roster</p>
-        </div>
+            const gmailLink = clientEmail !== 'No email provided' 
+              ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(clientEmail)}&su=${encodeURIComponent(`Inquiry Follow-up: JB Logistics`)}`
+              : '#';
 
-        <div className="bg-[#0e0c0b]/90 border border-white/10 p-6 relative overflow-hidden group hover:border-green-500/50 transition-all duration-300 shadow-xl backdrop-blur-sm">
-          <span className="text-[11px] uppercase tracking-widest text-white/50 block mb-2 font-bold">Drivers on Field</span>
-          <span className="text-5xl font-black text-green-400 tracking-tight font-mono">
-            {loading ? <span className="animate-pulse">...</span> : stats.driversOnField}
-          </span>
-          <p className="text-[11px] text-white/40 uppercase tracking-wider mt-4 pt-4 border-t border-white/5">Actively broadcasting GPS location</p>
-        </div>
+            return (
+              <div 
+                key={id}
+                className="bg-white border border-gray-200 rounded-xl transition-all duration-200 overflow-hidden shadow-sm hover:shadow-md"
+              >
+                <div 
+                  onClick={() => toggleExpand(id)}
+                  className="px-3.5 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors gap-3"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-7 h-7 bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 font-black text-xs flex items-center justify-center shrink-0 uppercase rounded-lg">
+                      {clientName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-xs uppercase tracking-wider text-gray-900 truncate">{clientName}</span>
+                        {quote.service && (
+                          <span className="hidden sm:inline-block text-[9px] bg-yellow-50 text-yellow-800 px-1.5 py-0.5 border border-yellow-200 font-bold uppercase tracking-wider rounded">
+                            {quote.service}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-gray-600 font-medium tracking-wide block truncate mt-0.5">
+                        {messageContent}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="text-[10px] text-gray-400 hidden md:inline-block font-mono">{timestamp}</span>
+                    <button 
+                      onClick={(e) => handleDeleteMessage(e, id)}
+                      disabled={isDeleting}
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer rounded"
+                      title="Delete Message"
+                    >
+                      {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </button>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-yellow-600" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="px-3.5 py-3 bg-gray-50 border-t border-gray-200 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-yellow-600" />
+                        {clientEmail !== 'No email provided' ? (
+                          <a 
+                            href={gmailLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={(e) => e.stopPropagation()} 
+                            className="text-yellow-700 hover:text-yellow-800 font-mono text-[11px] font-bold flex items-center gap-1.5 hover:underline"
+                          >
+                            <span>{clientEmail}</span>
+                            <span className="inline-flex items-center gap-1 text-[9px] bg-yellow-100 px-1.5 py-0.5 border border-yellow-300 uppercase tracking-wider text-yellow-800 rounded">
+                              Gmail <ExternalLink className="w-2.5 h-2.5" />
+                            </span>
+                          </a>
+                        ) : (
+                          <span className="font-mono text-gray-500 text-[11px]">{clientEmail}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 font-mono text-[10px] text-gray-500">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span>{timestamp}</span>
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 border border-gray-200 rounded shadow-sm">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 block mb-1">Message Body</span>
+                      <p className="text-xs text-gray-800 font-medium tracking-wide whitespace-pre-wrap leading-relaxed">
+                        {messageContent}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
+  );
+}
+
+// ==========================================
+// 4. ADMIN TOPBAR COMPONENT
+// ==========================================
+function AdminTopbar({ onMenuClick, title, onToggleNotifications, notificationOpen }) {
+  return (
+    <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 gap-4 shrink-0 shadow-sm">
+      <div className="flex items-center gap-3">
+        <button onClick={onMenuClick} className="lg:hidden text-gray-600 hover:text-gray-900 cursor-pointer">
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-base md:text-lg font-bold text-gray-900 uppercase tracking-wider">{title}</h1>
+      </div>
+
+      {/* Bell icon wrapper set to relative so the dropdown anchors correctly and moves with scroll */}
+      <div className="flex items-center gap-3 relative">
+        <button 
+          onClick={onToggleNotifications}
+          className={`relative w-9 h-9 rounded-xl border flex items-center justify-center transition-colors cursor-pointer ${notificationOpen ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}
+          title="Client Quotes & Messages"
+        >
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+        </button>
+
+        {/* Client Quotes Dropdown / Modal Banner anchored directly inside bell button container */}
+        <NotificationQuotesBanner 
+          isOpen={notificationOpen} 
+          onClose={onToggleNotifications} 
+        />
+      </div>
+    </header>
   );
 }
 
@@ -333,120 +427,48 @@ function AdminOverview() {
 // 5. ADMIN DASHBOARD CONTAINER & LAYOUT
 // ==========================================
 export function AdminDashboardContainer() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
 
-  const handleExitAction = async () => {
-    try {
-      const token = localStorage.getItem('admin_token');
-      await fetch(`${API_URL}/api/admin/logout`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-    } catch {}
-    localStorage.removeItem('admin_token');
-    toast.info('Exited admin terminal securely');
-    navigate('/', { replace: true });
+  const getPageTitle = () => {
+    const path = location.pathname;
+    const currentItem = navItems.find(item => item.to === path || (item.end === false && path.startsWith(item.to)));
+    return currentItem ? currentItem.label : "Admin Portal";
   };
 
-  const currentPath = location.pathname;
-  const isOverviewActive = currentPath === '/admin/dashboard' || currentPath === '/admin/dashboard/';
-
   return (
-    <div className="min-h-screen bg-[#050505] tech-grid text-white flex flex-col md:flex-row">
-      <aside className="w-full md:w-72 bg-[#0c0a09] border-r border-white/10 p-6 flex flex-col justify-between shrink-0 shadow-2xl">
-        <div className="space-y-8">
-          <div className="px-2 pt-2">
-            <h1 className="text-2xl font-black uppercase tracking-wider text-yellow-500">JB Logistics</h1>
-            <p className="text-[10px] tracking-widest uppercase text-white/40 font-mono mt-1">Admin Operations Terminal</p>
-          </div>
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col lg:flex-row relative">
+      <AdminSidebar 
+        open={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
 
-          <nav className="space-y-2">
-            <Link 
-              to="/admin/dashboard" 
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border ${
-                isOverviewActive 
-                  ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-lg shadow-yellow-500/5' 
-                  : 'bg-transparent text-white/60 hover:text-white hover:bg-white/[0.03] border-transparent'
-              }`}
-            >
-              <Database className="w-4 h-4 text-yellow-500" /> Overview
-            </Link>
+      <div className="flex-grow flex flex-col min-w-0">
+        <AdminTopbar 
+          onMenuClick={() => setSidebarOpen(true)} 
+          title={getPageTitle()} 
+          onToggleNotifications={() => setNotificationOpen(!notificationOpen)}
+          notificationOpen={notificationOpen}
+        />
 
-            <Link 
-              to="/admin/dashboard/quotes" 
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border ${
-                location.pathname.includes('/quotes') 
-                  ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-lg shadow-yellow-500/5' 
-                  : 'text-white/60 hover:text-white hover:bg-white/[0.03] border-transparent'
-              }`}
-            >
-              <FileText className="w-4 h-4 text-yellow-500" /> Quotes & Messages
-            </Link>
-
-            <Link 
-              to="/admin/dashboard/shipments" 
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border ${
-                location.pathname.includes('/shipments') 
-                  ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-lg shadow-yellow-500/5' 
-                  : 'text-white/60 hover:text-white hover:bg-white/[0.03] border-transparent'
-              }`}
-            >
-              <Truck className="w-4 h-4 text-yellow-500" /> Active Shipments
-            </Link>
-
-            <Link 
-              to="/admin/dashboard/drivers" 
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border ${
-                location.pathname.includes('/drivers') 
-                  ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-lg shadow-yellow-500/5' 
-                  : 'text-white/60 hover:text-white hover:bg-white/[0.03] border-transparent'
-              }`}
-            >
-              <Users className="w-4 h-4 text-yellow-500" /> Drivers Dispatch
-            </Link>
-
-            <Link 
-              to="/admin/dashboard/tracking" 
-              className={`flex items-center gap-3.5 px-4 py-3.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border ${
-                location.pathname.includes('/tracking') 
-                  ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-lg shadow-yellow-500/5' 
-                  : 'text-white/60 hover:text-white hover:bg-white/[0.03] border-transparent'
-              }`}
-            >
-              <Navigation className="w-4 h-4 text-yellow-500" /> Live Tracking
-            </Link>
-          </nav>
-        </div>
-
-        <div className="pt-6 border-t border-white/10 space-y-4">
-          <div className="px-2 flex items-center gap-3 bg-[#13100e] p-3 border border-white/5 rounded-lg">
-            <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0"></div>
-            <div className="overflow-hidden">
-              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Logged in as</span>
-              <span className="text-xs font-bold text-white uppercase tracking-wider truncate block">Administrator</span>
-            </div>
-          </div>
-          
-          <button 
-            type="button"
-            onClick={handleExitAction}
-            className="w-full flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 py-3 rounded-lg font-black text-xs uppercase tracking-wider transition-all border border-red-500/20 cursor-pointer shadow-lg"
-          >
-            <LogOut className="w-4 h-4" /> Exit to Public Site
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-grow p-6 md:p-10 overflow-y-auto bg-transparent">
-        <Routes>
-          <Route path="/" element={<AdminOverview />} />
-          <Route path="quotes" element={<ClientQuotes />} />
-          <Route path="shipments" element={<AdminShipments />} />
-          <Route path="drivers" element={<AdminDrivers />} />
-          <Route path="tracking" element={<AdminTracking />} />
-        </Routes>
-      </main>
+        <main className="flex-grow p-6 md:p-10 overflow-y-auto bg-transparent">
+          <Routes>
+            <Route path="/" element={<AdminOverview />} />
+            <Route path="shipments" element={<AdminShipments />} />
+            <Route path="customers" element={<AdminCustomers />} />
+            <Route path="drivers" element={<AdminDrivers />} />
+            <Route path="vehicles" element={<AdminVehicles />} />
+            <Route path="warehouses" element={<AdminWarehouses />} />
+            <Route path="billing" element={<AdminBilling />} />
+            <Route path="branches" element={<AdminBranches />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="quotes" element={<ClientQuotes />} />
+            <Route path="tracking" element={<AdminTracking />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 }

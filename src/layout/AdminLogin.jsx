@@ -1,211 +1,229 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from "react-router-dom";
-import { ShieldCheck, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { motion } from "framer-motion";
+import { useNavigate, Link } from 'react-router-dom';
+import { Shield, Mail, Lock, ArrowRight, ArrowLeft, Loader2, ShieldCheck, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname || 'localhost' : 'localhost';
+  return `${protocol}//${hostname}:5000`;
+};
+
+const API_URL = getApiUrl();
 
 export default function AdminLogin() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isVerifyingTicket, setIsVerifyingTicket] = useState(true);
-  const [isValidTicket, setIsValidTicket] = useState(false); // Prevention guard state
+  const [loading, setLoading] = useState(false);
+  const [isAdminAuth, setIsAdminAuth] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
 
-  // Verify temporary security ticket on component mount
   useEffect(() => {
-    const verifyTicket = async () => {
-      const ticket = sessionStorage.getItem('admin_login_ticket');
-      
-      if (!ticket) {
-        setIsVerifyingTicket(false);
-        setIsValidTicket(false);
-        setError('Unauthorized access: No security clearance ticket found. Please use the profile link.');
-        return;
-      }
-
+    const checkAdminSession = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/admin/verify-ticket`, {
-          method: 'POST',
+        const res = await fetch(`${API_URL}/api/admin/session`, {
+          method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticket })
+          credentials: 'include'
         });
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          setIsValidTicket(true); // Ticket is valid, allow login form
-        } else {
-          setIsValidTicket(false);
-          setError('Security ticket has expired or is invalid. Return to profile to try again.');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.authenticated) {
+            setIsAdminAuth(true);
+          }
         }
       } catch (err) {
-        console.error('Ticket verification network error:', err);
-        setIsValidTicket(false);
-        setError('Network error validating security ticket.');
+        console.error('Admin session check error:', err);
       } finally {
-        setIsVerifyingTicket(false);
-        // Clear ticket immediately so it can never be reused
-        sessionStorage.removeItem('admin_login_ticket');
+        setCheckingSession(false);
       }
     };
 
-    verifyTicket();
+    checkAdminSession();
   }, []);
 
-  const handleDirectLogin = async () => {
-    setError('');
+  const handleLogin = async (e) => {
+    e.preventDefault();
 
-    if (!password.trim()) {
-      setError('Please enter the admin passcode.');
+    if (!email.trim() || !password) {
+      toast.error('Please enter both email and password');
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      console.log("Sending login request to:", `${API_URL}/api/admin/login`);
-      
-      const response = await fetch(`${API_URL}/api/admin/login`, {
+      const res = await fetch(`${API_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim(), password })
       });
-      
-      const data = await response.json();
-      console.log("Server Response:", data);
 
-      if (response.ok && data.success) {
-        const tokenToSave = data.token || data.accessToken || data.access_token;
-        
-        if (tokenToSave) {
-          localStorage.setItem('admin_token', tokenToSave);
-          toast.success('Successfully authenticated');
-          navigate('/admin/dashboard', { replace: true });
-        } else {
-          setError('Server authenticated successfully, but no token was returned.');
-          setIsLoading(false);
-        }
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
+        toast.success('Welcome back, Admin!');
+        setIsAdminAuth(true);
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        setError(data.message || 'Invalid passcode. Access denied.');
-        setIsLoading(false);
+        toast.error(data.error || data.message || 'Invalid admin credentials');
       }
     } catch (err) {
-      console.error('Login connection error:', err);
-      setError('Server connection failed. Ensure backend is running.');
-      setIsLoading(false);
+      console.error('Login error:', err);
+      toast.error('Unable to connect to login service');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (isVerifyingTicket) {
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/api/admin/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      setIsAdminAuth(false);
+      toast.success('Admin session terminated');
+    } catch (err) {
+      console.error('Server logout error:', err);
+      toast.error('Logout failed');
+    }
+  };
+
+  if (checkingSession) {
     return (
-      <div className="min-h-screen bg-[#070605] flex items-center justify-center text-white font-['Inter',sans-serif]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin text-yellow-500" />
-          <span className="text-sm font-bold text-stone-400">Inspecting security clearance...</span>
-        </div>
+      <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen w-full text-white bg-[#070605] flex items-center justify-center px-6 font-['Inter',sans-serif] selection:bg-yellow-500 selection:text-black">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-[500px] bg-gradient-to-b from-yellow-500/10 via-amber-500/0 to-transparent blur-[120px] pointer-events-none"></div>
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md bg-[#12100e] border border-white/10 rounded-[2.5rem] p-8 md:p-10 shadow-2xl z-10 overflow-hidden"
-      >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400 mb-4 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
-            <ShieldCheck size={32} />
+    <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+      <div className="w-full max-w-md bg-[#0d0c0b] border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl shadow-yellow-500/5 relative">
+        
+        <div className="flex justify-center mb-6">
+          <div className="w-14 h-14 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-500/20">
+            <Shield className="w-7 h-7 text-yellow-500" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-            Admin Verification
-          </h1>
-          <p className="text-xs md:text-sm font-semibold text-stone-400 mt-2">
-            Enter your secure admin passcode to proceed to the dashboard.
-          </p>
         </div>
 
-        {/* Prevent rendering the login form unless isValidTicket is explicitly true */}
-        {!isValidTicket ? (
-          <div className="p-4 mb-6 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 flex flex-col gap-3">
-            <div className="flex items-center gap-2.5">
-              <AlertCircle size={18} className="shrink-0" />
-              <span>{error || 'Unauthorized access detected.'}</span>
-            </div>
-            <button 
-              type="button"
-              onClick={() => navigate('/')} 
-              className="mt-2 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-white rounded-xl font-extrabold uppercase tracking-wider text-[11px] transition-colors cursor-pointer"
-            >
-              Return to Home
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {error && (
-              <div className="p-3 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-2.5">
-                <AlertCircle size={16} className="shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-            
-            <div className="flex flex-col gap-2 w-full text-left">
-              <label className="text-xs font-bold uppercase tracking-wider text-stone-400">
-                Admin Passcode
-              </label>
-              <div className="relative border border-white/10 bg-[#141210]/90 px-5 py-4 transition-all duration-300 rounded-2xl flex items-center focus-within:border-yellow-500 focus-within:shadow-[0_0_15px_rgba(234,179,8,0.15)]">
-                <Lock size={18} className="text-stone-500 mr-3 shrink-0" />
-                <input
-                  type="password"
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleDirectLogin(); }}
-                  autoComplete="current-password"
-                  className="w-full bg-transparent text-white outline-none placeholder-stone-600 text-base font-medium tracking-normal"
-                />
-              </div>
+        {isAdminAuth ? (
+          <div className="text-center space-y-6">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-black tracking-tight text-white">
+                Admin Session Active
+              </h1>
+              <p className="text-sm text-white/50">
+                You are currently logged in with administrative privileges.
+              </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleDirectLogin}
-              disabled={isLoading}
-              className="w-full mt-2 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black py-4 rounded-2xl font-extrabold text-base tracking-wide transition-all duration-300 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.25)] flex items-center justify-center gap-2.5 active:scale-95 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span>Verifying Access...</span>
-                </>
-              ) : (
-                <>
-                  <span>Continue to Dashboard</span>
-                  <ArrowRight size={18} />
-                </>
-              )}
-            </button>
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={() => navigate('/admin/dashboard')}
+                className="w-full bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-black font-extrabold text-sm py-4 rounded-2xl transition-all shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <ShieldCheck className="w-5 h-5" />
+                <span>Go to Admin Dashboard</span>
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="w-full bg-white/5 hover:bg-white/10 text-red-400 font-bold text-sm py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/10"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out Admin</span>
+              </button>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="text-center space-y-1 mb-8">
+              <h1 className="text-3xl font-black tracking-tight text-white">
+                Admin Portal
+              </h1>
+              <p className="text-sm text-white/50">
+                Please enter admin credentials below
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-white/70">
+                  ADMIN EMAIL
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter admin email"
+                    className="w-full bg-[#050505] border border-white/15 rounded-xl pl-12 pr-4 py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-white/70">
+                  PASSWORD
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter admin password"
+                    className="w-full bg-[#050505] border border-white/15 rounded-xl pl-12 pr-4 py-3.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-black font-extrabold text-sm py-4 rounded-2xl transition-all shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-4"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In to Dashboard</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </form>
+          </>
         )}
 
         <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="text-xs font-bold text-stone-500 hover:text-white transition-colors cursor-pointer"
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors font-medium"
           >
-            ← Back to Public Website
-          </button>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Public Website</span>
+          </Link>
         </div>
-      </motion.div>
+
+      </div>
     </div>
   );
 }

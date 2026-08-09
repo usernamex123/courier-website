@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from 'sonner';
 import Layout from "./layout/layout";
 import Auth from "./pages/Auth";
@@ -10,10 +10,11 @@ import DriverTracker from "./components/DriverTracker";
 import LegalNotice from "./components/LegalNotice";
 import UserLayout from "./layout/user";
 
-// Import AdminRoute and container from AdminRoute.jsx
-import AdminRoute, { GuestOnlyRoute, AdminDashboardContainer } from "./components/AdminRoute";
+// Import AdminSecure guard and dashboard container components
+import AdminSecure from "./components/AdminSecure";
+import { GuestOnlyRoute, AdminDashboardContainer } from "./components/AdminRoute";
 
-// Import your interactive AdminLogin form component from your layout folder
+// Import interactive AdminLogin form component
 import AdminLogin from "./layout/AdminLogin";
 
 export default function App() {
@@ -33,7 +34,10 @@ export default function App() {
       `}</style>
 
       <Routes>
-        {/* STANDALONE LOGIN ROUTE: Protected by GuestOnlyRoute so logged-in admins go straight to dashboard */}
+        {/* Redirect base /admin to /admin/dashboard */}
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+
+        {/* STANDALONE LOGIN ROUTE: Protected by GuestOnlyRoute so authenticated admins are redirected */}
         <Route 
           path="/admin/login" 
           element={
@@ -43,14 +47,16 @@ export default function App() {
           } 
         />
         
-        {/* Protects dashboard sub-routes using explicit paths for nesting */}
-        <Route element={<AdminRoute />}>
+        {/* PROTECTED ADMIN ROUTE: Secured by AdminSecure to block direct URL access */}
+        <Route element={<AdminSecure />}>
           <Route path="/admin/dashboard" element={<AdminDashboardContainer />} />
           <Route path="/admin/dashboard/*" element={<AdminDashboardContainer />} />
         </Route>
         
+        {/* DRIVER PORTAL */}
         <Route path="/driver-portal" element={<DriverTracker />} />
 
+        {/* USER LAYOUT ROUTES */}
         <Route element={<UserLayout />}>
           <Route path="/profile" element={
             <div className="max-w-4xl mx-auto px-5 py-12 text-white">
@@ -70,7 +76,8 @@ export default function App() {
           } />
         </Route>
 
-        <Route path="/" element={<Layout />}>
+        {/* PUBLIC SITE LAYOUT ROUTES */}
+        <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="auth" element={<Auth />} />
           <Route path="ground-freight" element={<GroundFreight />} />

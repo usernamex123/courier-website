@@ -1,227 +1,159 @@
 import dotenv from 'dotenv';
-import express from 'express';
-import cors from 'cors';
-import jwt from 'jsonwebtoken';
-import { createClient } from '@supabase/supabase-js';
-
 dotenv.config();
+
+import express from 'express';
+import session from 'express-session';
+import cors from 'cors';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 
-// CORS configuration for multi-hosting/all-host environments
+// Trust proxy is required when deployed behind reverse proxies (Render, Heroku, Vercel, etc.)
+app.set('trust proxy', 1);
+
+// Configure CORS to allow credentials (cookies)
 app.use(cors({
-  origin: true,
-  credentials: true
+    origin: true,
+    credentials: true
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'jb_logistics_secure_jwt_secret_key';
+// Express Session Middleware - No OTP required, direct credential auth
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'jb-logistics-admin-secret-key-2026',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours persistence
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // true on HTTPS production environments
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
+}));
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// Supabase initialization
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('----------------------------------------------------');
-  console.error('[ERROR] Supabase credentials missing on backend environment variables!');
-  console.error('SUPABASE_URL:', supabaseUrl ? 'FOUND' : 'MISSING');
-  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'FOUND' : 'MISSING');
-  console.error('----------------------------------------------------');
-} else {
-  console.log('[INFO] Supabase credentials successfully loaded.');
+    console.error("CRITICAL ERROR: SUPABASE_URL or Supabase Key is missing from environment variables.");
 }
 
-const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+const supabase = createClient(supabaseUrl || '', supabaseKey || '');
 
-// ==========================================
-// TOKEN AUTHENTICATION MIDDLEWARE
-// ==========================================
-const requireAdminAuth = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'Unauthorized access. Admin privileges required.' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Forbidden: Insufficient privileges.' });
-    }
-    req.admin = decoded;
-    next();
-  } catch (err) {
-    console.error('Admin token verification failed:', err.message);
-    return res.status(401).json({ success: false, message: 'Session expired or invalid token.' });
-  }
+// Admin Credentials read strictly from environment variables
+const ADMIN_CREDENTIALS = {
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD
 };
 
-// ==========================================
-// ADMIN AUTHENTICATION ROUTES
-// ==========================================
+if (!ADMIN_CREDENTIALS.email || !ADMIN_CREDENTIALS.password) {
+    console.error("CRITICAL ERROR: ADMIN_EMAIL or ADMIN_PASSWORD missing in .env file.");
+}
 
-app.post('/api/admin/request-ticket', (req, res) => {
-  console.log('--- ADMIN TICKET REQUESTED ---');
-  try {
-    const tempTicket = jwt.sign({ access: 'login_gate' }, JWT_SECRET, { expiresIn: '60s' });
-    return res.status(200).json({ success: true, ticket: tempTicket });
-  } catch (err) {
-    console.error('Error generating ticket:', err);
-    return res.status(500).json({ success: false, message: 'Failed to generate security ticket.' });
-  }
-});
-
-app.post('/api/admin/verify-ticket', (req, res) => {
-  const { ticket } = req.body || {};
-  
-  if (!ticket) {
-    return res.status(401).json({ success: false, message: 'No security ticket detected.' });
-  }
-
-  try {
-    jwt.verify(ticket, JWT_SECRET);
-    return res.status(200).json({ success: true, message: 'Ticket verified' });
-  } catch (err) {
-    console.log('Ticket verification failed:', err.message);
-    return res.status(401).json({ success: false, message: 'Security ticket has expired or is invalid.' });
-  }
-});
-
-app.post('/api/admin/login', (req, res) => {
-  console.log('--- LOGIN ATTEMPT RECEIVED ---');
-  const { password, passkey, pin } = req.body || {};
-  const providedSecret = password || passkey || pin;
-  
-  const adminPassword = (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim() !== '') 
-    ? process.env.ADMIN_PASSWORD 
-    : 'jblogistics@0987';
-
-  if (providedSecret === adminPassword) {
-    console.log('Authentication SUCCESS. Generating secure JWT session token.');
-    const adminSessionToken = jwt.sign({ role: 'admin', email: 'admin@jblogisticsservices.com' }, JWT_SECRET, { expiresIn: '8h' });
-
-    return res.status(200).json({ 
-      success: true, 
-      token: adminSessionToken,
-      message: 'Authenticated successfully' 
-    });
-  }
-
-  console.log('Authentication FAILED: Password mismatch');
-  return res.status(401).json({ success: false, message: 'Invalid admin passcode. Access denied.' });
-});
-
-app.get('/api/admin/verify', (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    try {
-      jwt.verify(token, JWT_SECRET);
-      return res.status(200).json({ isAuthenticated: true });
-    } catch {
-      return res.status(200).json({ isAuthenticated: false });
+// Middleware to protect internal API endpoints
+function requireAdminAuth(req, res, next) {
+    if (req.session && req.session.isAdmin) {
+        return next();
     }
-  }
-  return res.status(200).json({ isAuthenticated: false });
+    return res.status(401).json({ error: 'Unauthorized access. Admin session required.' });
+}
+
+// ==================== AUTH ENDPOINTS ====================
+
+/**
+ * Direct Admin Login
+ * Validates email/password and sets session directly
+ */
+app.post('/api/admin/login', (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    if (email.trim() !== ADMIN_CREDENTIALS.email || password !== ADMIN_CREDENTIALS.password) {
+        return res.status(401).json({ error: 'Invalid admin credentials.' });
+    }
+
+    // Set admin session flag
+    req.session.isAdmin = true;
+    req.session.adminEmail = ADMIN_CREDENTIALS.email;
+
+    req.session.save((err) => {
+        if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ error: 'Failed to save admin session.' });
+        }
+        return res.status(200).json({
+            success: true,
+            message: 'Admin authentication successful.',
+            adminEmail: ADMIN_CREDENTIALS.email
+        });
+    });
 });
 
+/**
+ * Endpoint for checking active session status
+ */
+app.get('/api/admin/session', (req, res) => {
+    if (req.session && req.session.isAdmin) {
+        return res.json({ authenticated: true, email: req.session.adminEmail });
+    }
+    return res.json({ authenticated: false });
+});
+
+/**
+ * Admin Logout Endpoint
+ */
 app.post('/api/admin/logout', (req, res) => {
-  return res.status(200).json({ success: true, message: 'Logged out successfully' });
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to logout.' });
+        }
+        res.clearCookie('connect.sid');
+        return res.status(200).json({ success: true, message: 'Logged out successfully.' });
+    });
 });
 
-// ==========================================
-// ADMIN DATA & MESSAGES ROUTES
-// ==========================================
+// ==================== PROTECTED API DATA ENDPOINTS ====================
 
 app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
-  if (!supabase) {
-    return res.status(500).json({ success: false, message: 'Supabase credentials missing on backend environment variables' });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Supabase fetch error:', error);
-      return res.status(500).json({ success: false, message: error.message });
+    try {
+        const { data, error } = await supabase.from('quotes').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return res.json(data || []);
+    } catch (err) {
+        console.error('Error fetching messages:', err);
+        return res.status(500).json({ error: 'Failed to fetch messages.' });
     }
-
-    return res.status(200).json({
-      success: true,
-      data: data || []
-    });
-  } catch (err) {
-    console.error('Server error fetching messages:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
-  }
 });
-
-// ==========================================
-// ADMIN SHIPMENTS ROUTES
-// ==========================================
-
-app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
-  if (!supabase) return res.status(500).json({ success: false, message: 'Supabase credentials missing' });
-
-  try {
-    const { data, error } = await supabase
-      .from('shipments')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) return res.status(500).json({ success: false, message: error.message });
-    return res.status(200).json(data || []);
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-app.patch('/api/admin/shipments/:id', requireAdminAuth, async (req, res) => {
-  if (!supabase) return res.status(500).json({ success: false, message: 'Supabase credentials missing' });
-
-  const { id } = req.params;
-  const { status } = req.body;
-
-  try {
-    const { error } = await supabase
-      .from('shipments')
-      .update({ status })
-      .eq('id', id);
-
-    if (error) return res.status(400).json({ success: false, message: error.message });
-    return res.status(200).json({ success: true, message: 'Shipment updated successfully' });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// ==========================================
-// ADMIN DRIVERS ROUTES
-// ==========================================
 
 app.get('/api/admin/drivers', requireAdminAuth, async (req, res) => {
-  if (!supabase) return res.status(500).json({ success: false, message: 'Supabase credentials missing' });
+    try {
+        const { data, error } = await supabase.from('drivers').select('*');
+        if (error) throw error;
+        return res.json(data || []);
+    } catch (err) {
+        console.error('Error fetching drivers:', err);
+        return res.status(500).json({ error: 'Failed to fetch drivers.' });
+    }
+});
 
-  try {
-    const { data, error } = await supabase
-      .from('drivers')
-      .select('*');
-
-    if (error) return res.status(500).json({ success: false, message: error.message });
-    return res.status(200).json(data || []);
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Internal server error' });
-  }
+app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('shipments').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return res.json(data || []);
+    } catch (err) {
+        console.error('Error fetching shipments:', err);
+        return res.status(500).json({ error: 'Failed to fetch shipments.' });
+    }
 });
 
 const PORT = process.env.PORT || 5000;
-// Bound to '0.0.0.0' to accept multi-host / all-network device connections
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend server running successfully on all hosts, port ${PORT}`);
+app.listen(PORT, () => {
+    console.log(`Backend server running on port ${PORT}`);
 });
