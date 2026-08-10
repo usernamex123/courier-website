@@ -217,7 +217,7 @@ export default function Layout() {
               {isProfileMenuOpen && (
                 <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2, ease: "easeOut" }} className="absolute right-0 top-full pt-3 w-56 z-50">
                   <div className="bg-[#141210] border border-white/10 p-2 rounded-2xl shadow-2xl flex flex-col gap-1 backdrop-blur-xl">
-                    <button onClick={() => { setIsProfileMenuOpen(false); navigate('/profile'); }} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-white hover:bg-white/5 hover:text-yellow-500 transition-colors cursor-pointer rounded-xl uppercase">Profile</button>
+                    <button onClick={() => { setIsProfileMenuOpen(false); navigate('/Dashboard'); }} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-white hover:bg-white/5 hover:text-yellow-500 transition-colors cursor-pointer rounded-xl uppercase">Profile</button>
                     <button onClick={() => { setIsProfileMenuOpen(false); navigate('/settings'); }} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-white hover:bg-white/5 hover:text-yellow-500 transition-colors cursor-pointer rounded-xl uppercase">Settings</button>
                     <div className="h-[1px] bg-white/10 my-1"></div>
                     <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer rounded-xl uppercase">Logout</button>
@@ -280,7 +280,7 @@ export default function Layout() {
 
             {user ? (
               <div className="flex flex-col gap-2 pt-2">
-                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/profile'); }} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Profile Settings</button>
+                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/Dashboard'); }} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Profile Settings</button>
                 <button onClick={() => { setIsMobileMenuOpen(false); navigate('/settings'); }} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Preferences & Settings</button>
                 <button onClick={handleLogout} className="w-full text-left py-3 text-xs font-bold tracking-wider text-red-500 uppercase">Log Out</button>
               </div>

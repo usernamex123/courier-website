@@ -75,7 +75,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
                   <div className="absolute right-0 top-full pt-2 w-52 z-50">
                     <div className="bg-[#12100e] border border-white/10 p-2 rounded-2xl shadow-2xl flex flex-col gap-1">
                       <button 
-                        onClick={() => navigate('/profile')}
+                        onClick={() => navigate('/Dashboard')}
                         className="w-full text-left px-4 py-2.5 text-xs font-semibold text-white hover:bg-white/5 rounded-xl flex items-center gap-2 cursor-pointer"
                       >
                         <Settings size={14} className="text-yellow-500" /> Account Settings
@@ -104,7 +104,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
           <div className="flex md:hidden items-center gap-3">
             {user && (
               <button 
-                onClick={() => navigate('/profile')}
+                onClick={() => navigate('/Dashboard')}
                 className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-600 to-yellow-400 text-black font-extrabold text-sm flex items-center justify-center border border-white/20"
               >
                 {getProfileInitial()}
@@ -140,7 +140,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
             {user ? (
               <>
                 <Link
-                  to="/profile"
+                  to="/Dashboard"
                   className="flex items-center gap-3 text-sm font-bold text-stone-200 py-2 border-b border-white/5"
                 >
                   <Settings size={18} className="text-yellow-500" /> Account Settings
