@@ -11,6 +11,11 @@ import LegalNotice from "./components/LegalNotice";
 import UserLayout from "./layout/user";
 import UserDashboard from "./layout/UserDashboard";
 
+// Import dashboard feature components
+import MyShipments from "./layout/MyShipments";
+import CustomerNotifications from "./layout/CustomerNotifications";
+import CustomerProfile from "./layout/CustomerProfile";
+
 // Import AdminSecure guard and dashboard container components
 import AdminSecure from "./components/AdminSecure";
 import { GuestOnlyRoute, AdminDashboardContainer } from "./components/AdminRoute";
@@ -64,14 +69,7 @@ export default function App() {
         {/* USER DASHBOARD ROUTES */}
         <Route path="/dashboard" element={<UserLayout />}>
           <Route index element={<UserDashboard />} />
-          <Route path="myshipments" element={
-            <div className="max-w-6xl mx-auto px-5 py-8 text-white">
-              <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
-                <h1 className="text-3xl font-black uppercase tracking-wider text-yellow-500 mb-4">My Shipments</h1>
-                <p className="text-stone-300">Manage and view all your dispatches here.</p>
-              </div>
-            </div>
-          } />
+          <Route path="myshipments" element={<MyShipments />} />
           <Route path="myshipments/:id" element={
             <div className="max-w-6xl mx-auto px-5 py-8 text-white">
               <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
@@ -96,22 +94,8 @@ export default function App() {
               </div>
             </div>
           } />
-          <Route path="notifications" element={
-            <div className="max-w-6xl mx-auto px-5 py-8 text-white">
-              <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
-                <h1 className="text-3xl font-black uppercase tracking-wider text-yellow-500 mb-4">Notifications</h1>
-                <p className="text-stone-300">Stay updated with real-time alerts.</p>
-              </div>
-            </div>
-          } />
-          <Route path="profile" element={
-            <div className="max-w-4xl mx-auto px-5 py-12 text-white">
-              <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
-                <h1 className="text-3xl font-black uppercase tracking-wider text-yellow-500 mb-4">User Profile</h1>
-                <p className="text-stone-300">View and update your personal user profile details here.</p>
-              </div>
-            </div>
-          } />
+          <Route path="notifications" element={<CustomerNotifications />} />
+          <Route path="profile" element={<CustomerProfile />} />
           <Route path="settings" element={
             <div className="max-w-4xl mx-auto px-5 py-12 text-white">
               <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
