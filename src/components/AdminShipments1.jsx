@@ -156,7 +156,7 @@ export default function AdminShipments1({ title = "Shipment", initial, onClose, 
           
           {/* SENDER INFORMATION */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Sender Information[cite: 1]</h4>
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Sender Information</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Full Name <span className="text-red-500">*</span></label>
@@ -256,7 +256,7 @@ export default function AdminShipments1({ title = "Shipment", initial, onClose, 
 
           {/* RECIPIENT INFORMATION */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Recipient Information[cite: 1]</h4>
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Recipient Information</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Full Name <span className="text-red-500">*</span></label>
@@ -358,7 +358,7 @@ export default function AdminShipments1({ title = "Shipment", initial, onClose, 
             
             {/* PACKAGE DETAILS */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Package Details[cite: 1]</h4>
+              <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Package Details</h4>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Package Type</label>
                 <select 
@@ -428,7 +428,7 @@ export default function AdminShipments1({ title = "Shipment", initial, onClose, 
             {/* SERVICE & PRICING */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
               <div className="space-y-4">
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Service & Pricing[cite: 1]</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Service & Pricing</h4>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Service Type</label>
                   <select 
