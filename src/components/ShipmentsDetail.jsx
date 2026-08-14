@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { 
   ArrowLeft, 
   Plus, 
@@ -11,39 +11,119 @@ import {
   Printer, 
   CheckCircle2,
   X,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
 import PrintableLabel from "../label/PrintableLabel";
+import { supabase } from "../lib/supabaseClient";
 
-export default function ShipmentsDetail({ shipment, onClose }) {
+const STATUS_LABELS = {
+  created: "Created",
+  confirmed: "Confirmed",
+  pickup_scheduled: "Pickup Scheduled",
+  picked_up: "Picked Up",
+  at_origin_facility: "At Origin Facility",
+  in_transit: "In Transit",
+  at_destination_facility: "At Destination",
+  out_for_delivery: "Out for Delivery",
+  delivered: "Delivered",
+  delayed: "Delayed",
+  failed_delivery: "Failed Delivery",
+  cancelled: "Cancelled",
+  returned: "Returned"
+};
+
+// Helper to format date & time strictly in Cleveland, Ohio (EDT / Eastern Time)
+const fmtDateTime = (dateStr) => {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/New_York'
+  });
+};
+
+// Helper to get current date & time formatted for Cleveland, Ohio (America/New_York)
+const getClevelandCurrentDateTime = () => {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(now);
+  const getPart = (type) => parts.find(p => p.type === type)?.value;
+
+  const year = getPart('year');
+  const month = getPart('month');
+  const day = getPart('day');
+  let hour = getPart('hour');
+  const minute = getPart('minute');
+
+  if (hour === '24') hour = '00';
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+};
+
+export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
   const labelRef = useRef(null);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  
+  // Tracking events states
+  const [trackingEvents, setTrackingEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
 
   // Form states for adding tracking event
   const [eventStatus, setEventStatus] = useState("");
   const [eventLocation, setEventLocation] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   
-  const getCurrentFormattedTime = () => {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const yyyy = now.getFullYear();
-    let hours = now.getHours();
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    return `${mm}/${dd}/${yyyy}, ${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+  // Initialize with Cleveland, Ohio current date & time
+  const [eventTime, setEventTime] = useState(getClevelandCurrentDateTime());
+
+  const fetchTrackingEvents = async () => {
+    if (!shipment?.id) return;
+    try {
+      setLoadingEvents(true);
+      const { data, error } = await supabase
+        .from('tracking_events')
+        .select('*')
+        .eq('shipment_id', shipment.id)
+        .order('event_time', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTrackingEvents(data || []);
+    } catch (err) {
+      console.error("Error fetching tracking events:", err.message);
+    } finally {
+      setLoadingEvents(false);
+    }
   };
 
-  const [eventTime, setEventTime] = useState(getCurrentFormattedTime());
+  useEffect(() => {
+    fetchTrackingEvents();
+  }, [shipment?.id]);
 
   if (!shipment) return null;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(dateStr).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      timeZone: 'America/New_York'
+    });
   };
 
   const handlePrintLabel = () => {
@@ -76,21 +156,74 @@ export default function ShipmentsDetail({ shipment, onClose }) {
     }
   };
 
-  const handleAddEventSubmit = (e) => {
+  const handleAddEventSubmit = async (e) => {
     e.preventDefault();
-    setIsTrackingModalOpen(false);
+    if (!eventStatus) return;
+
+    try {
+      setUpdating(true);
+
+      // Append the Eastern Daylight Time (EDT) offset (-04:00) so Supabase records exact Cleveland time
+      const formattedEventTime = eventTime ? `${eventTime}:00-04:00` : new Date().toISOString();
+
+      const isValidUUID = (id) => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return typeof id === 'string' && uuidRegex.test(id);
+      };
+
+      const customerUserId = isValidUUID(shipment.user_id) ? shipment.user_id : null;
+
+      // 1. Insert distinct event into tracking_events table with Cleveland event_time timestamp
+      const { error: trackingEventError } = await supabase
+        .from('tracking_events')
+        .insert({
+          shipment_id: shipment.id,
+          customer_user_id: customerUserId,
+          status: eventStatus,
+          location: eventLocation,
+          description: eventDescription,
+          event_time: formattedEventTime
+        });
+
+      if (trackingEventError) throw trackingEventError;
+
+      // 2. Update shipments table current_status to latest status
+      const { data, error: shipmentError } = await supabase
+        .from('shipments')
+        .update({ current_status: eventStatus })
+        .eq('id', shipment.id)
+        .select()
+        .single();
+
+      if (shipmentError) throw shipmentError;
+
+      if (typeof onUpdate === 'function' && data) {
+        onUpdate(data);
+      }
+
+      setIsTrackingModalOpen(false);
+      setEventStatus("");
+      setEventLocation("");
+      setEventDescription("");
+      
+      // Refresh timeline events instantly
+      fetchTrackingEvents();
+    } catch (err) {
+      console.error("Error updating tracking event:", err.message);
+      alert("Failed to update shipment status: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
     <div className={`fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-center p-4 sm:p-6 font-sans ${isTrackingModalOpen ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-      {/* Hidden rendered Label for printing */}
       <div className="hidden">
         <PrintableLabel ref={labelRef} shipment={shipment} />
       </div>
 
       <div className="bg-slate-50 w-full max-w-5xl rounded-3xl shadow-2xl border border-gray-200 overflow-hidden my-auto space-y-6 p-6 h-fit">
         
-        {/* Navigation / Back */}
         <div>
           <button 
             onClick={onClose}
@@ -109,7 +242,7 @@ export default function ShipmentsDetail({ shipment, onClose }) {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => {
-                setEventTime(getCurrentFormattedTime());
+                setEventTime(getClevelandCurrentDateTime());
                 setIsTrackingModalOpen(true);
               }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-sm shadow-sm transition-all cursor-pointer"
@@ -128,7 +261,7 @@ export default function ShipmentsDetail({ shipment, onClose }) {
           </div>
           <div>
             <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
-              {shipment.current_status?.replace('_', ' ') || 'Created'}
+              {STATUS_LABELS[shipment.current_status] || shipment.current_status?.replace('_', ' ') || 'Created'}
             </span>
           </div>
         </div>
@@ -170,7 +303,6 @@ export default function ShipmentsDetail({ shipment, onClose }) {
 
         {/* Sender & Recipient Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Sender Card */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase border-b border-gray-100 pb-3">Sender</h3>
             <div className="space-y-3 text-sm">
@@ -179,25 +311,16 @@ export default function ShipmentsDetail({ shipment, onClose }) {
                 <span className="font-semibold text-gray-900">{shipment.sender_name || "Sparsh Limbu"}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Company</span>
-                <span className="font-semibold text-gray-900">{shipment.sender_company || "—"}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">Phone</span>
                 <span className="font-semibold text-gray-900">{shipment.sender_phone || "—"}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
+              <div className="flex justify-between py-1">
                 <span className="text-gray-500">Address</span>
                 <span className="font-semibold text-gray-900">{shipment.sender_address || shipment.origin || "Damak"}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-gray-500">City/State</span>
-                <span className="font-semibold text-gray-900">{shipment.sender_city || shipment.origin || "Damak"}</span>
               </div>
             </div>
           </div>
 
-          {/* Recipient Card */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase border-b border-gray-100 pb-3">Recipient</h3>
             <div className="space-y-3 text-sm">
@@ -206,85 +329,12 @@ export default function ShipmentsDetail({ shipment, onClose }) {
                 <span className="font-semibold text-gray-900">{shipment.recipient_name || "Sparsh Limbu"}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Company</span>
-                <span className="font-semibold text-gray-900">{shipment.recipient_company || "—"}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">Phone</span>
                 <span className="font-semibold text-gray-900 font-mono">{shipment.recipient_phone || "0000000000"}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
+              <div className="flex justify-between py-1">
                 <span className="text-gray-500">Address</span>
                 <span className="font-semibold text-gray-900">{shipment.recipient_address || shipment.destination || "Damak"}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-gray-500">City/State</span>
-                <span className="font-semibold text-gray-900">{shipment.recipient_city || shipment.destination || "Damak"}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Package & Pricing Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Package Card */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase border-b border-gray-100 pb-3">Package</h3>
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="flex items-start gap-3">
-                <Box className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs text-gray-400">Type</div>
-                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{shipment.package_type || "Box"}</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Scale className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs text-gray-400">Weight</div>
-                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{shipment.weight ? `${shipment.weight} lb` : "0.1 lb"}</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 pt-3">
-                <Ruler className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs text-gray-400">Dimensions</div>
-                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{shipment.dimensions || "0×0×0 in"}</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 pt-3">
-                <DollarSign className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-xs text-gray-400">Declared Value</div>
-                  <div className="font-semibold text-gray-900 text-sm mt-0.5">${Number(shipment.declared_value || 0).toFixed(2)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Pricing Card */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase border-b border-gray-100 pb-3">Pricing</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between py-1.5 border-b border-gray-50">
-                <span className="text-gray-500">Base Shipping</span>
-                <span className="font-semibold text-gray-900">${Number(shipment.base_shipping || shipment.price || 8.59).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-50">
-                <span className="text-gray-500">Fuel Surcharge</span>
-                <span className="font-semibold text-gray-900">${Number(shipment.fuel_surcharge || 1.03).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-50">
-                <span className="text-gray-500">Tax</span>
-                <span className="font-semibold text-gray-900">${Number(shipment.tax || 0.00).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-50">
-                <span className="text-gray-500">Discount</span>
-                <span className="font-semibold text-gray-900">{shipment.discount ? `$${Number(shipment.discount).toFixed(2)}` : "—"}</span>
-              </div>
-              <div className="flex justify-between py-2 pt-3 font-bold text-base text-gray-900">
-                <span>Total</span>
-                <span>${Number(shipment.price || 9.62).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -307,18 +357,48 @@ export default function ShipmentsDetail({ shipment, onClose }) {
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
           <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase">Tracking Timeline</h3>
           <div className="space-y-4 pt-2">
-            <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                <CheckCircle2 className="w-4 h-4 text-black" />
+            {loadingEvents ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
               </div>
-              <div className="flex-1 border-b border-gray-100 pb-4">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-gray-900 text-sm">Created</div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-yellow-100 text-yellow-800">Latest</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">{formatDate(shipment.created_at)}</div>
-              </div>
-            </div>
+            ) : trackingEvents.length === 0 ? (
+              <div className="text-xs text-gray-500 py-2">No tracking events recorded yet. Click "Add Tracking Event" to log status updates.</div>
+            ) : (
+              trackingEvents.map((ev, index) => {
+                const isLatest = index === 0;
+                const eventDate = ev.event_time || ev.created_at;
+                return (
+                  <div key={ev.id} className="flex items-start gap-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 shadow-sm ${isLatest ? 'bg-yellow-400 text-black' : 'bg-gray-100 text-gray-600'}`}>
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 border-b border-gray-100 pb-4 last:border-b-0">
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold text-gray-900 text-sm">
+                          {STATUS_LABELS[ev.status] || ev.status?.replace('_', ' ') || 'Update'}
+                        </div>
+                        {isLatest && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-yellow-100 text-yellow-800">Latest</span>
+                        )}
+                      </div>
+                      {ev.location && (
+                        <div className="text-xs font-semibold text-gray-700 mt-0.5">
+                          Location: {ev.location}
+                        </div>
+                      )}
+                      {ev.description && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          {ev.description}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-400 mt-1">
+                        {fmtDateTime(eventDate)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -329,7 +409,6 @@ export default function ShipmentsDetail({ shipment, onClose }) {
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-gray-200 overflow-hidden p-6 space-y-5 my-auto animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-gray-100 pb-4">
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">Add Tracking Event</h2>
@@ -343,10 +422,8 @@ export default function ShipmentsDetail({ shipment, onClose }) {
               </button>
             </div>
 
-            {/* Modal Form */}
             <form onSubmit={handleAddEventSubmit} className="space-y-4">
               
-              {/* Status Field */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-700 uppercase">Status *</label>
                 <div className="relative">
@@ -357,31 +434,31 @@ export default function ShipmentsDetail({ shipment, onClose }) {
                     className="w-full appearance-none bg-gray-50/50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent cursor-pointer"
                   >
                     <option value="" disabled>Select status...</option>
-                    <option value="Picked Up">Picked Up</option>
-                    <option value="In Transit">In Transit</option>
-                    <option value="Out for Delivery">Out for Delivery</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Exception">Exception</option>
+                    <option value="picked_up">Picked Up</option>
+                    <option value="at_origin_facility">At Origin Facility</option>
+                    <option value="in_transit">In Transit</option>
+                    <option value="at_destination_facility">At Destination</option>
+                    <option value="out_for_delivery">Out for Delivery</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="delayed">Delayed</option>
+                    <option value="failed_delivery">Failed Delivery</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="returned">Returned</option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-700">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
                 </div>
               </div>
 
-              {/* Location Field */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-700 uppercase">Location</label>
                 <input 
                   type="text"
-                  placeholder="e.g. Chicago, IL"
+                  placeholder="e.g. Cleveland, OH"
                   value={eventLocation}
                   onChange={(e) => setEventLocation(e.target.value)}
                   className="w-full bg-gray-50/50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 />
               </div>
 
-              {/* Description Field */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-700 uppercase">Description</label>
                 <textarea 
@@ -393,23 +470,19 @@ export default function ShipmentsDetail({ shipment, onClose }) {
                 />
               </div>
 
-              {/* Event Time Field */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700 uppercase">Event Time</label>
-                <div className="relative">
-                  <input 
-                    type="text"
-                    value={eventTime}
-                    onChange={(e) => setEventTime(e.target.value)}
-                    className="w-full bg-gray-50/50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                  />
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                </div>
+                <label className="block text-xs font-bold text-gray-700 uppercase flex items-center gap-1.5">
+                  <Calendar size={14} className="text-gray-400" /> Event Time (Cleveland, OH / EDT)
+                </label>
+                <input 
+                  type="datetime-local"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  required
+                  className="w-full bg-gray-50/50 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent font-mono"
+                />
               </div>
 
-              {/* Modal Footer Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <button 
                   type="button"
@@ -420,8 +493,10 @@ export default function ShipmentsDetail({ shipment, onClose }) {
                 </button>
                 <button 
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-sm shadow-sm transition-all cursor-pointer"
+                  disabled={updating}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-sm shadow-sm transition-all cursor-pointer disabled:opacity-50"
                 >
+                  {updating && <Loader2 className="w-4 h-4 animate-spin" />}
                   Add Event
                 </button>
               </div>

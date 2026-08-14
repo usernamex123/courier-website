@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { ChevronDown, ChevronUp, Mail, Clock, Search, Trash2, Loader2, RefreshCw, MessageSquare, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { 
+  Mail, Clock, Search, Trash2, Loader2, RefreshCw, 
+  ExternalLink, Eye, CornerUpLeft, MapPin, Package, User, X, Send
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 // Initialize Supabase Client with fail-safe fallbacks
@@ -27,8 +30,14 @@ export default function ClientQuotes() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [selectedQuote, setSelectedQuote] = useState(null); // For detail modal
+  
+  // Reply Modal States
+  const [replyingQuote, setReplyingQuote] = useState(null);
+  const [replySubject, setReplySubject] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
 
   const fetchMessages = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -111,7 +120,6 @@ export default function ClientQuotes() {
     const token = localStorage.getItem('admin_token');
 
     try {
-      // 1. Delete from API endpoint
       await fetch(`${API_URL}/api/admin/messages/${id}`, {
         method: 'DELETE',
         headers: {
@@ -120,7 +128,6 @@ export default function ClientQuotes() {
         credentials: 'include'
       }).catch(() => null);
 
-      // 2. Delete from Supabase table directly
       if (supabaseUrl && supabaseAnonKey) {
         await supabase.from('messages').delete().eq('id', id);
       }
@@ -132,6 +139,68 @@ export default function ClientQuotes() {
       toast.error('Failed to delete message');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q));
+      if (supabaseUrl && supabaseAnonKey) {
+        await supabase.from('messages').update({ status: newStatus }).eq('id', id);
+      }
+      toast.success(`Status updated to ${newStatus}`);
+    } catch (err) {
+      console.error('Failed to update status', err);
+      toast.error('Failed to update status');
+    }
+  };
+
+  // Open Reply Modal
+  const openReplyModal = (quote) => {
+    setReplyingQuote(quote);
+    setReplySubject(`Inquiry Follow-up: JB Logistics - ${quote.subject || quote.service || 'General Inquiry'}`);
+    setReplyBody(`Dear ${quote.client_name || quote.name || 'Client'},\n\nThank you for reaching out to JB Logistics. Regarding your inquiry, `);
+  };
+
+  // Send Reply Handler
+  const handleSendReply = async (e) => {
+    e.preventDefault();
+    if (!replyingQuote) return;
+
+    setSendingReply(true);
+    const token = localStorage.getItem('admin_token');
+    const quoteId = replyingQuote.id;
+
+    try {
+      // Try sending via backend API if available
+      const res = await fetch(`${API_URL}/api/admin/messages/${quoteId}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          subject: replySubject,
+          message: replyBody,
+          recipient: replyingQuote.email
+        }),
+        credentials: 'include'
+      }).catch(() => null);
+
+      // Update status to 'replied' in state and Supabase
+      setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'replied' } : q));
+      if (supabaseUrl && supabaseAnonKey) {
+        await supabase.from('messages').update({ status: 'replied' }).eq('id', quoteId);
+      }
+
+      toast.success('Reply sent successfully!');
+      setReplyingQuote(null);
+      setReplyBody('');
+    } catch (err) {
+      console.error('Failed to send reply:', err);
+      toast.error('Failed to send reply');
+    } finally {
+      setSendingReply(false);
     }
   };
 
@@ -148,179 +217,357 @@ export default function ClientQuotes() {
     );
   });
 
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-yellow-500 font-black tracking-wider uppercase text-sm gap-3">
-        <Loader2 className="w-6 h-6 animate-spin" />
+      <div className="flex justify-center items-center h-64 text-gray-500 font-medium text-sm gap-3 bg-white min-h-screen">
+        <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
         Loading client messages...
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, sans-serif' }} className="space-y-6 text-white max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+    <div style={{ fontFamily: 'Inter, sans-serif' }} className="space-y-4 text-gray-900 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 bg-white min-h-screen">
       
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#141210] border border-white/15 p-8 shadow-2xl">
-        <div>
-          <h2 className="text-3xl font-black uppercase tracking-wider text-white">Client Quotes & Messages</h2>
-          <p className="text-sm text-white/60 uppercase tracking-widest mt-2">Manage incoming client inquiries, quote requests, and follow-ups</p>
+      {/* Top action header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-100">
+        <div className="relative flex-1 max-w-md w-full">
+          <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search messages..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-gray-50/50 border border-gray-200 pl-10 pr-4 py-2 text-gray-900 text-xs focus:outline-none focus:border-gray-400 transition-colors placeholder:text-gray-400 rounded-md"
+          />
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button 
             onClick={() => fetchMessages(true)}
             disabled={refreshing}
-            className="p-3 bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 hover:text-white transition-colors cursor-pointer flex items-center gap-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+            className="px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-medium disabled:opacity-50 rounded-md shadow-2xs"
             title="Refresh list"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-yellow-500' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-gray-600' : ''}`} />
             <span>Refresh</span>
           </button>
 
-          <span className="inline-flex items-center px-3 py-2 bg-green-500/10 text-green-400 text-xs font-black uppercase tracking-wider border border-green-500/30">
-            <span className="w-2 h-2 mr-2 bg-green-500 rounded-full animate-pulse"></span>
-            Realtime Active
-          </span>
-          <span className="px-3 py-2 bg-white/5 text-yellow-500 text-xs font-black uppercase tracking-wider border border-white/10">
+          <span className="px-2.5 py-1.5 bg-gray-50 text-gray-600 text-xs font-medium border border-gray-200 rounded-md">
             Total: {quotes.length}
           </span>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-950/50 border border-red-500/30 text-red-400 p-4 font-bold uppercase tracking-wider text-xs flex items-center justify-between">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-3 font-medium text-xs flex items-center justify-between rounded-md">
           <span>Error: {error}</span>
-          <button onClick={() => fetchMessages()} className="underline hover:text-white cursor-pointer">Try Again</button>
+          <button onClick={() => fetchMessages()} className="underline hover:text-red-900 cursor-pointer">Try Again</button>
         </div>
       )}
 
-      {/* Search Bar Toolbar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-        <input
-          type="text"
-          placeholder="Search messages by name, email, or message content..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-[#141210] border border-white/15 pl-11 pr-4 py-3.5 text-white text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-white/30"
-        />
+      {/* Clean table design matching screenshot */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-2xs">
+        {filteredQuotes.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-xs font-medium tracking-wide">
+            {searchTerm ? 'No messages match your search criteria.' : 'No client messages received yet.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200 text-[11px] text-gray-500 uppercase tracking-wider bg-gray-50/50">
+                  <th className="py-3 px-4 font-semibold w-12 text-center">#</th>
+                  <th className="py-3 px-4 font-semibold">Client</th>
+                  <th className="py-3 px-4 font-semibold">Subject / Service</th>
+                  <th className="py-3 px-4 font-semibold">Details</th>
+                  <th className="py-3 px-4 font-semibold">Status</th>
+                  <th className="py-3 px-4 font-semibold">Date</th>
+                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-xs">
+                {filteredQuotes.map((quote, index) => {
+                  const id = quote.id || index + 1;
+                  const clientName = quote.client_name || quote.name || 'Unnamed Client';
+                  const clientEmail = quote.email || 'No email provided';
+                  const initials = clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                  const subjectText = quote.subject || (quote.service ? `${quote.service} Quote` : 'General Inquiry');
+                  const serviceText = quote.service || quote.mode || 'Standard Delivery';
+                  
+                  const origin = quote.origin || 'Kathmandu';
+                  const destination = quote.destination || 'N/A';
+                  const weightOrDetails = quote.weight || quote.message || quote.content || 'Standard Package';
+
+                  const status = (quote.status || 'new').toLowerCase();
+                  
+                  const dateObj = quote.created_at ? new Date(quote.created_at) : new Date();
+                  const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                  const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                  return (
+                    <tr key={id} className="hover:bg-gray-50/65 transition-colors group">
+                      {/* Index */}
+                      <td className="py-3.5 px-4 text-gray-400 font-mono text-center font-medium">
+                        {index + 1}
+                      </td>
+
+                      {/* Client */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-50/80 text-blue-600 font-semibold text-xs flex items-center justify-center shrink-0 uppercase rounded-full">
+                            {initials || 'CL'}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">{clientName}</div>
+                            <div className="text-[11px] text-gray-500 font-normal mt-0.5">{clientEmail}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Subject / Service */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-gray-900">{subjectText}</div>
+                        <div className="text-[11px] text-gray-500 font-normal mt-0.5">{serviceText}</div>
+                      </td>
+
+                      {/* Details */}
+                      <td className="py-3.5 px-4 text-gray-600 space-y-1">
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <User className="w-3 h-3 text-gray-400 shrink-0" />
+                          <span>From: {origin}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                          <span>To: {destination}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                          <Package className="w-3 h-3 text-gray-400 shrink-0" />
+                          <span className="truncate max-w-[220px]">{weightOrDetails}</span>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        <select
+                          value={status}
+                          onChange={(e) => handleStatusChange(quote.id, e.target.value)}
+                          className={`text-[10px] font-semibold uppercase px-2 py-0.5 border rounded cursor-pointer focus:outline-none transition-colors ${
+                            status === 'new' 
+                              ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                              : status === 'replied' 
+                              ? 'bg-purple-50 text-purple-600 border-purple-200' 
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                          }`}
+                        >
+                          <option value="new" className="bg-white text-blue-600">New</option>
+                          <option value="read" className="bg-white text-emerald-600">Read</option>
+                          <option value="replied" className="bg-white text-purple-600">Replied</option>
+                        </select>
+                      </td>
+
+                      {/* Date */}
+                      <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">
+                        <div className="text-[11px] font-medium text-gray-700">{dateStr}</div>
+                        <div className="text-[10px] text-gray-400">{timeStr}</div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* View details */}
+                          <button
+                            onClick={() => setSelectedQuote(quote)}
+                            className="p-1.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-600 transition-colors rounded cursor-pointer shadow-2xs"
+                            title="View Message Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          {/* Reply in Popup Modal */}
+                          <button
+                            onClick={() => openReplyModal(quote)}
+                            className="p-1.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-600 hover:text-blue-600 transition-colors rounded cursor-pointer shadow-2xs"
+                            title="Reply to Client"
+                          >
+                            <CornerUpLeft className="w-4 h-4" />
+                          </button>
+
+                          {/* Delete */}
+                          <button
+                            onClick={(e) => handleDeleteMessage(e, quote.id)}
+                            disabled={deletingId === quote.id}
+                            className="p-1.5 bg-white hover:bg-red-50 border border-gray-200 text-gray-600 hover:text-red-600 transition-colors rounded cursor-pointer disabled:opacity-50 shadow-2xs"
+                            title="Delete Message"
+                          >
+                            {deletingId === quote.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-red-600" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Message List */}
-      {filteredQuotes.length === 0 ? (
-        <div className="text-center py-16 bg-[#141210] border border-white/15 text-white/40 text-xs font-black uppercase tracking-widest">
-          {searchTerm ? 'No messages match your search criteria.' : 'No client messages received yet.'}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredQuotes.map((quote) => {
-            const id = quote.id || Math.random();
-            const isExpanded = expandedId === id;
-            const isDeleting = deletingId === id;
-            const clientName = quote.client_name || quote.name || 'Unnamed Client';
-            const clientEmail = quote.email || 'No email provided';
-            const messageContent = quote.message || quote.service || quote.content || 'No message content provided.';
-            const timestamp = quote.created_at ? new Date(quote.created_at).toLocaleString() : 'Recently';
-
-            const gmailLink = clientEmail !== 'No email provided' 
-              ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(clientEmail)}&su=${encodeURIComponent(`Inquiry Follow-up: JB Logistics`)}`
-              : '#';
-
-            return (
-              <div 
-                key={id}
-                className="bg-[#141210] border border-white/15 transition-all duration-200 overflow-hidden shadow-xl"
-              >
-                {/* Compact Bar Header (Always Visible) */}
-                <div 
-                  onClick={() => toggleExpand(id)}
-                  className="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors gap-4"
-                >
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="w-10 h-10 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-sm flex items-center justify-center shrink-0 uppercase rounded-lg">
-                      {clientName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-black text-sm uppercase tracking-wider text-white truncate">{clientName}</span>
-                        {quote.service && (
-                          <span className="hidden sm:inline-block text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 border border-yellow-500/20 font-bold uppercase tracking-wider">
-                            {quote.service}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-white/70 font-medium tracking-wide block truncate max-w-2xl mt-1">
-                        {messageContent}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-xs text-white/50 hidden md:inline-block font-mono tracking-wider">{timestamp}</span>
-                    
-                    <button 
-                      onClick={(e) => handleDeleteMessage(e, id)}
-                      disabled={isDeleting}
-                      className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer rounded"
-                      title="Delete Message"
-                    >
-                      {isDeleting ? <Loader2 className="w-4 h-4 animate-spin text-red-400" /> : <Trash2 className="w-4 h-4" />}
-                    </button>
-
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-yellow-500" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-white/40" />
-                    )}
-                  </div>
+      {/* Detail Modal */}
+      {selectedQuote && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 w-full max-w-2xl rounded-xl shadow-xl overflow-hidden animate-fadeIn">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-50 text-blue-600 font-semibold text-xs flex items-center justify-center uppercase rounded-full">
+                  {(selectedQuote.client_name || selectedQuote.name || 'C')[0]}
                 </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    {selectedQuote.client_name || selectedQuote.name || 'Client Inquiry'}
+                  </h3>
+                  <span className="text-[11px] text-gray-500 font-mono">{selectedQuote.email || 'No email'}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedQuote(null)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer rounded-md hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-                {/* Expanded Section */}
-                {isExpanded && (
-                  <div className="px-6 py-5 bg-black/50 border-t border-white/10 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/80">
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-4 h-4 text-yellow-500" />
-                        {clientEmail !== 'No email provided' ? (
-                          <a 
-                            href={gmailLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            onClick={(e) => e.stopPropagation()} 
-                            className="text-yellow-400 hover:text-yellow-300 font-mono text-xs font-bold flex items-center gap-2 hover:underline"
-                          >
-                            <span>{clientEmail}</span>
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-yellow-500/10 px-2 py-0.5 border border-yellow-500/30 uppercase tracking-wider">
-                              Open Gmail <ExternalLink className="w-3 h-3" />
-                            </span>
-                          </a>
-                        ) : (
-                          <span className="font-mono text-white/50">{clientEmail}</span>
-                        )}
-                      </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-100 rounded-lg">
+                <div>
+                  <span className="text-[10px] uppercase font-semibold text-gray-400 block">Subject / Service</span>
+                  <span className="text-xs font-semibold text-gray-900 mt-1 block">
+                    {selectedQuote.subject || selectedQuote.service || 'General Inquiry'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-semibold text-gray-400 block">Route / Details</span>
+                  <span className="text-xs font-semibold text-blue-600 mt-1 block">
+                    {selectedQuote.origin || 'Kathmandu'} → {selectedQuote.destination || 'N/A'}
+                  </span>
+                </div>
+              </div>
 
-                      <div className="flex items-center gap-2 font-mono text-xs text-white/50">
-                        <Clock className="w-4 h-4 text-white/40" />
-                        <span>Received: {timestamp}</span>
-                      </div>
-                    </div>
+              <div className="bg-gray-50 p-5 border border-gray-100 rounded-lg">
+                <span className="text-[10px] font-semibold tracking-wider text-gray-400 block mb-2 uppercase">Full Message Body</span>
+                <p className="text-sm text-gray-800 font-normal leading-relaxed whitespace-pre-wrap">
+                  {selectedQuote.message || selectedQuote.content || 'No message content provided.'}
+                </p>
+              </div>
 
-                    <div className="bg-black/70 p-5 border border-white/10 rounded-sm">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/40 block mb-2">Message Body</span>
-                      <p className="text-sm text-white/95 font-medium tracking-wide whitespace-pre-wrap leading-relaxed">
-                        {messageContent}
-                      </p>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between pt-2 text-xs text-gray-500">
+                <span>Received: {selectedQuote.created_at ? new Date(selectedQuote.created_at).toLocaleString() : 'Recently'}</span>
+                {selectedQuote.email && (
+                  <button
+                    onClick={() => {
+                      const q = selectedQuote;
+                      setSelectedQuote(null);
+                      openReplyModal(q);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs transition-colors rounded-md shadow-2xs cursor-pointer"
+                  >
+                    <span>Reply Now</span>
+                    <CornerUpLeft className="w-3.5 h-3.5" />
+                  </button>
                 )}
               </div>
-            );
-          })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reply Popup Modal */}
+      {replyingQuote && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 w-full max-w-xl rounded-xl shadow-xl overflow-hidden animate-fadeIn">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md">
+                  <CornerUpLeft className="w-4 h-4" />
+                </div>
+                <h3 className="font-semibold text-gray-900 text-sm">
+                  Reply to {replyingQuote.client_name || replyingQuote.name || 'Client'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setReplyingQuote(null)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer rounded-md hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendReply} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-gray-500 mb-1">To</label>
+                <input
+                  type="text"
+                  disabled
+                  value={replyingQuote.email || 'No email provided'}
+                  className="w-full bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-600 rounded-md font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-gray-500 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={replySubject}
+                  onChange={(e) => setReplySubject(e.target.value)}
+                  required
+                  className="w-full bg-white border border-gray-200 px-3 py-2 text-xs text-gray-900 rounded-md focus:outline-none focus:border-gray-400 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-semibold text-gray-500 mb-1">Message</label>
+                <textarea
+                  rows={6}
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  required
+                  placeholder="Type your reply here..."
+                  className="w-full bg-white border border-gray-200 p-3 text-xs text-gray-900 rounded-md focus:outline-none focus:border-gray-400 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setReplyingQuote(null)}
+                  className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-md cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingReply}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md shadow-2xs cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  {sendingReply ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Reply</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

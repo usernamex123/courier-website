@@ -15,6 +15,7 @@ const supabase = createClient(
 const MODE_COLORS = {
   "Road Freight": "#f59e0b", "Sea Freight": "#3b82f6", "Air Freight": "#06b6d4", "Rail Freight": "#8b5cf6",
   "Express Delivery": "#10b981", "Same Day Delivery": "#ec4899", "Cold Chain": "#0ea5e9", "Dangerous Goods": "#ef4444", "Project Cargo": "#6366f1",
+  "Standard": "#f59e0b", "Express": "#10b981", "Priority": "#6366f1"
 };
 
 const parseDate = (val) => {
@@ -43,7 +44,9 @@ export default function AdminDashboard() {
         try {
           const res = await supabase.from("shipments").select("*");
           if (res.data) shipments = res.data;
-        } catch (e) {}
+        } catch (e) {
+          console.error("Error loading shipments:", e);
+        }
 
         try {
           const res = await supabase.from("customers").select("*");
@@ -60,31 +63,10 @@ export default function AdminDashboard() {
           if (res.data) invoices = res.data;
         } catch (e) {}
 
-        const fallbackShipments = shipments.length ? shipments : [
-          { id: 1, tracking_number: "TRK-9081", origin: "New York", destination: "Chicago", status: "in_transit", service_type: "Road Freight", cost: 450, created_date: new Date().toISOString() },
-          { id: 2, tracking_number: "TRK-9082", origin: "Los Angeles", destination: "Seattle", status: "delivered", service_type: "Air Freight", cost: 1200, created_date: new Date().toISOString() },
-          { id: 3, tracking_number: "TRK-9083", origin: "Miami", destination: "Atlanta", status: "out_for_delivery", service_type: "Express Delivery", cost: 280, created_date: new Date().toISOString() },
-        ];
-
-        const fallbackCustomers = customers.length ? customers : [
-          { id: 1, name: "Acme Corp", status: "active", created_date: new Date().toISOString() },
-          { id: 2, name: "Global Logistics", status: "active", created_date: new Date().toISOString() },
-        ];
-
-        const fallbackDrivers = drivers.length ? drivers : [
-          { id: 1, name: "John Doe", status: "available" },
-          { id: 2, name: "Jane Smith", status: "on_delivery" },
-        ];
-
-        const fallbackInvoices = invoices.length ? invoices : [
-          { id: 1, total: 1500, issue_date: new Date().toISOString() },
-          { id: 2, total: 3200, issue_date: new Date().toISOString() },
-        ];
-
-        const activeShipmentsList = shipments.length ? shipments : fallbackShipments;
-        const activeCustomersList = customers.length ? customers : fallbackCustomers;
-        const activeDriversList = drivers.length ? drivers : fallbackDrivers;
-        const activeInvoicesList = invoices.length ? invoices : fallbackInvoices;
+        const activeShipmentsList = shipments;
+        const activeCustomersList = customers;
+        const activeDriversList = drivers;
+        const activeInvoicesList = invoices;
 
         const now = new Date();
         const months = [];
@@ -94,12 +76,24 @@ export default function AdminDashboard() {
         }
 
         const revByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
-        activeInvoicesList.forEach((inv) => { 
-          const d = parseDate(inv.issue_date || inv.created_date); 
-          if (d && revByMonth[monthKey(d)] != null) {
-            revByMonth[monthKey(d)] += Number(inv.total || inv.amount || 0);
-          }
-        });
+        
+        // Calculate revenue from invoices or fallback to shipments price
+        if (activeInvoicesList.length > 0) {
+          activeInvoicesList.forEach((inv) => { 
+            const d = parseDate(inv.issue_date || inv.created_at || inv.created_date); 
+            if (d && revByMonth[monthKey(d)] != null) {
+              revByMonth[monthKey(d)] += Number(inv.total || inv.amount || 0);
+            }
+          });
+        } else {
+          activeShipmentsList.forEach((s) => {
+            const d = parseDate(s.created_at || s.created_date);
+            const priceVal = Number(s.price || s.cost || 0);
+            if (d && revByMonth[monthKey(d)] != null) {
+              revByMonth[monthKey(d)] += priceVal;
+            }
+          });
+        }
 
         const revenueData = months.map((m) => ({ 
           month: m.label, 
@@ -109,40 +103,62 @@ export default function AdminDashboard() {
         const thisM = monthKey(now);
         const lastM = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 
-        const sThis = activeShipmentsList.filter((s) => { const d = parseDate(s.created_date); return d && monthKey(d) === thisM; }).length;
-        const sLast = activeShipmentsList.filter((s) => { const d = parseDate(s.created_date); return d && monthKey(d) === lastM; }).length;
-        const shipmentsChange = sLast ? Math.round(((sThis - sLast) / sLast) * 100) : 0;
+        const sThis = activeShipmentsList.filter((s) => { const d = parseDate(s.created_at || s.created_date); return d && monthKey(d) === thisM; }).length;
+        const sLast = activeShipmentsList.filter((s) => { const d = parseDate(s.created_at || s.created_date); return d && monthKey(d) === lastM; }).length;
+        const shipmentsChange = sLast ? Math.round(((sThis - sLast) / sLast) * 100) : (sThis > 0 ? 100 : 0);
 
-        const cThis = activeCustomersList.filter((c) => { const d = parseDate(c.created_date); return d && monthKey(d) === thisM; }).length;
-        const cLast = activeCustomersList.filter((c) => { const d = parseDate(c.created_date); return d && monthKey(d) === lastM; }).length;
-        const customersChange = cLast ? Math.round(((cThis - cLast) / cLast) * 100) : 0;
+        const cThis = activeCustomersList.filter((c) => { const d = parseDate(c.created_at || c.created_date); return d && monthKey(d) === thisM; }).length;
+        const cLast = activeCustomersList.filter((c) => { const d = parseDate(c.created_at || c.created_date); return d && monthKey(d) === lastM; }).length;
+        const customersChange = cLast ? Math.round(((cThis - cLast) / cLast) * 100) : (cThis > 0 ? 100 : 0);
 
         const revThis = revByMonth[thisM] || 0;
         const revLast = revByMonth[lastM] || 0;
-        const revChange = revLast ? Math.round(((revThis - revLast) / revLast) * 100) : 0;
+        const revChange = revLast ? Math.round(((revThis - revLast) / revLast) * 100) : (revThis > 0 ? 100 : 0);
 
-        const totalRevenue = activeInvoicesList.reduce((s, i) => s + Number(i.total || i.amount || 0), 0);
-        const activeCustomersCount = activeCustomersList.filter((c) => c.status === "active").length;
-        const driversOnDuty = activeDriversList.filter((d) => ["available", "on_delivery"].includes(d.status)).length;
-        const driversPct = activeDriversList.length ? Math.round((driversOnDuty / activeDriversList.length) * 100) : 0;
+        const totalRevenue = activeInvoicesList.length > 0 
+          ? activeInvoicesList.reduce((sum, i) => sum + Number(i.total || i.amount || 0), 0)
+          : activeShipmentsList.reduce((sum, s) => sum + Number(s.price || s.cost || 0), 0);
+
+        const activeCustomersCount = activeCustomersList.length > 0
+          ? activeCustomersList.filter((c) => c.status === "active" || !c.status).length
+          : new Set(activeShipmentsList.map(s => s.user_id || s.customer_id || s.sender_name)).size;
+
+        const driversOnDuty = activeDriversList.filter((d) => ["available", "on_delivery", "active"].includes(d.status)).length;
+        const driversPct = activeDriversList.length ? Math.round((driversOnDuty / activeDriversList.length) * 100) : (driversOnDuty > 0 ? 100 : 0);
 
         const modeCounts = {};
         activeShipmentsList.forEach((s) => { 
-          const k = s.service_type || "Road Freight"; 
+          const k = s.service_type || "Standard"; 
           modeCounts[k] = (modeCounts[k] || 0) + 1; 
         });
 
         const modeData = Object.entries(modeCounts)
-          .map(([name, value]) => ({ name: name.replace(" Freight", ""), value, fill: MODE_COLORS[name] || "#94a3b8" }))
+          .map(([name, value]) => ({ name: name.replace(" Freight", ""), value, fill: MODE_COLORS[name] || MODE_COLORS["Standard"] || "#f59e0b" }))
           .sort((a, b) => b.value - a.value);
         const modeTotal = modeData.reduce((s, m) => s + m.value, 0) || 1;
 
-        const deliveredThisMonth = activeShipmentsList.filter((s) => s.status === "delivered" && parseDate(s.updated_date || s.created_date) && monthKey(parseDate(s.updated_date || s.created_date)) === thisM).length;
-        const inTransitNow = activeShipmentsList.filter((s) => ["in_transit", "out_for_delivery"].includes(s.status)).length;
-        const delayed = activeShipmentsList.filter((s) => ["failed", "returned", "delayed"].includes(s.status)).length;
+        const deliveredThisMonth = activeShipmentsList.filter((s) => {
+          const status = s.current_status || s.status;
+          const d = parseDate(s.updated_at || s.created_at || s.created_date);
+          return status === "delivered" && d && monthKey(d) === thisM;
+        }).length;
 
-        const active = activeShipmentsList.filter((s) => ["in_transit", "out_for_delivery", "picked_up"].includes(s.status)).slice(0, 5);
-        const recent = [...activeShipmentsList].sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0)).slice(0, 6);
+        const inTransitNow = activeShipmentsList.filter((s) => {
+          const status = s.current_status || s.status;
+          return ["in_transit", "out_for_delivery", "picked_up", "at_origin_facility", "at_destination_facility"].includes(status);
+        }).length;
+
+        const delayed = activeShipmentsList.filter((s) => {
+          const status = s.current_status || s.status;
+          return ["failed", "returned", "delayed"].includes(status);
+        }).length;
+
+        const active = activeShipmentsList.filter((s) => {
+          const status = s.current_status || s.status;
+          return ["in_transit", "out_for_delivery", "picked_up", "at_origin_facility", "at_destination_facility"].includes(status);
+        }).slice(0, 5);
+
+        const recent = [...activeShipmentsList].sort((a, b) => new Date(b.created_at || b.created_date || 0) - new Date(a.created_at || a.created_date || 0)).slice(0, 6);
 
         setData({
           totalShipments: activeShipmentsList.length,
@@ -198,7 +214,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-bold text-gray-900 text-base">Revenue Overview</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Monthly revenue from paid invoices (in $K)</p>
+              <p className="text-xs text-gray-500 mt-0.5">Monthly revenue from shipments/invoices (in $K)</p>
             </div>
             <TrendingUp className="w-5 h-5 text-green-500" />
           </div>
@@ -260,7 +276,7 @@ export default function AdminDashboard() {
                   <th className="pb-3 font-bold">Tracking #</th>
                   <th className="pb-3 font-bold">Route</th>
                   <th className="pb-3 font-bold">Status</th>
-                  <th className="pb-3 font-bold text-right">Cost</th>
+                  <th className="pb-3 font-bold text-right">Price</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -268,8 +284,8 @@ export default function AdminDashboard() {
                   <tr key={s.id || i} className="hover:bg-gray-50/60 transition-colors">
                     <td className="py-3.5 font-bold text-gray-900 text-xs font-mono">{s.tracking_number || "—"}</td>
                     <td className="py-3.5 text-gray-600 text-xs">{s.origin || "—"} → {s.destination || "—"}</td>
-                    <td className="py-3.5"><StatusBadge status={s.status} /></td>
-                    <td className="py-3.5 text-right font-bold text-gray-900 text-xs">${Number(s.cost || 0).toLocaleString()}</td>
+                    <td className="py-3.5"><StatusBadge status={s.current_status || s.status} /></td>
+                    <td className="py-3.5 text-right font-bold text-gray-900 text-xs">${Number(s.price || s.cost || 0).toLocaleString()}</td>
                   </tr>
                 ))}
                 {data.recent.length === 0 && (
@@ -296,7 +312,7 @@ export default function AdminDashboard() {
                     <div className="text-xs font-bold text-gray-900 truncate font-mono">{s.tracking_number || "—"}</div>
                     <div className="text-[11px] text-gray-500 truncate">{s.destination || "In transit"}</div>
                   </div>
-                  <StatusBadge status={s.status} />
+                  <StatusBadge status={s.current_status || s.status} />
                 </div>
               ))}
               {data.active.length === 0 && (

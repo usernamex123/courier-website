@@ -17,3 +17,14 @@ body {
   font-family: 'Bebas Neue', sans-serif;
   letter-spacing: 0.05em; 
 }
+
+/* Print settings to remove browser headers, footers, and page numbers */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  body {
+    margin: 10mm;
+  }
+}

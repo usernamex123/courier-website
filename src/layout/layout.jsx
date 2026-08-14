@@ -28,10 +28,8 @@ export default function Layout() {
 
   // --- CLIENT USER SESSION STATE ---
   const [user, setUser] = useState(null);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const lastScrollY = useRef(0);
-  const profileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -75,16 +73,6 @@ export default function Layout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const handleLogout = async () => {
     try {
       await fetch(`${API_URL}/api/admin/logout`, {
@@ -97,7 +85,6 @@ export default function Layout() {
     await supabase.auth.signOut();
     setUser(null);
     setIsAdminAuth(false);
-    setIsProfileMenuOpen(false);
     setIsMobileMenuOpen(false);
     navigate('/');
   };
@@ -105,14 +92,12 @@ export default function Layout() {
   useEffect(() => {
     setIsOpen(false);
     setIsMobileMenuOpen(false);
-    setIsProfileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       setIsOpen(false);
-      setIsProfileMenuOpen(false);
 
       if (currentScrollY > lastScrollY.current) {
         if (currentScrollY > 100) setIsScrolled(true);
@@ -208,23 +193,10 @@ export default function Layout() {
         <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm md:text-base font-black uppercase tracking-wider text-white hover:text-yellow-500 cursor-pointer">Contact Us</a>
 
         {user ? (
-          <div className="flex items-center gap-3 ml-2 relative" ref={profileMenuRef}>
-            <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-yellow-500 text-black font-black text-base lg:text-lg flex items-center justify-center uppercase tracking-wider border-2 border-white shadow-lg cursor-pointer select-none hover:bg-yellow-400 transition-colors" title={user.user_metadata?.full_name || user.email}>
-              {user.user_metadata?.full_name ? user.user_metadata.full_name.charAt(0) : user.email.charAt(0)}
-            </button>
-            
-            <AnimatePresence>
-              {isProfileMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2, ease: "easeOut" }} className="absolute right-0 top-full pt-3 w-56 z-50">
-                  <div className="bg-[#141210] border border-white/10 p-2 rounded-2xl shadow-2xl flex flex-col gap-1 backdrop-blur-xl">
-                    <button onClick={() => { setIsProfileMenuOpen(false); navigate('/Dashboard'); }} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-white hover:bg-white/5 hover:text-yellow-500 transition-colors cursor-pointer rounded-xl uppercase">Profile</button>
-                    <button onClick={() => { setIsProfileMenuOpen(false); navigate('/settings'); }} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-white hover:bg-white/5 hover:text-yellow-500 transition-colors cursor-pointer rounded-xl uppercase">Settings</button>
-                    <div className="h-[1px] bg-white/10 my-1"></div>
-                    <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-xs font-extrabold tracking-wider text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer rounded-xl uppercase">Logout</button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div className="flex items-center gap-3 ml-2">
+            <Link to="/Dashboard" className="px-6 py-3 rounded-full bg-yellow-500 text-white font-extrabold text-sm tracking-wide shadow-lg cursor-pointer select-none hover:bg-yellow-400 transition-colors flex items-center gap-2">
+              <span>Customer Portal</span>
+            </Link>
           </div>
         ) : (
           <Login />
@@ -233,9 +205,9 @@ export default function Layout() {
 
       <div className="flex md:hidden items-center gap-3">
         {user && (
-          <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="w-10 h-10 rounded-full bg-yellow-500 text-black font-black text-sm flex items-center justify-center uppercase border border-white shadow">
-            {user.user_metadata?.full_name ? user.user_metadata.full_name.charAt(0) : user.email.charAt(0)}
-          </button>
+          <Link to="/Dashboard" className="px-4 py-2 rounded-full bg-yellow-500 text-white font-bold text-xs flex items-center gap-1.5 shadow">
+            <span>Customer Portal</span>
+          </Link>
         )}
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white cursor-pointer">
           {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -280,8 +252,7 @@ export default function Layout() {
 
             {user ? (
               <div className="flex flex-col gap-2 pt-2">
-                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/Dashboard'); }} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Profile Settings</button>
-                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/settings'); }} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Preferences & Settings</button>
+                <Link to="/Dashboard" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Customer Portal</Link>
                 <button onClick={handleLogout} className="w-full text-left py-3 text-xs font-bold tracking-wider text-red-500 uppercase">Log Out</button>
               </div>
             ) : (

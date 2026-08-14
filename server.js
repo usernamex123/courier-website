@@ -20,16 +20,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Express Session Middleware - No OTP required, direct credential auth
+// Express Session Middleware - Configured with a short expiration (e.g., 30 seconds)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'jb-logistics-admin-secret-key-2026',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours persistence
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production', // true on HTTPS production environments
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 1000 * 30 // Expires after 30 seconds of inactivity/time elapsed
     }
 }));
 

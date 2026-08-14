@@ -3,12 +3,12 @@ import { X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabaseClient";
 
-export const STATUSES = ["pending", "picked_up", "in_transit", "out_for_delivery", "delivered", "failed", "returned"];
+export const STATUSES = ["pending", "picked_up", "at_origin_facility", "in_transit", "at_destination_facility", "out_for_delivery", "delivered", "failed", "returned"];
 export const SERVICES = ["Standard", "Express", "Priority", "Air Freight", "Sea Freight", "Road Freight"];
 export const PAYMENTS = ["paid", "unpaid", "pending", "failed"];
 export const PACKAGE_TYPES = ["Box", "Envelope", "Pallet", "Crate", "Tube"];
 
-export default function EntityFormModal({ title = "Shipment", initial, onClose, onSaved }) {
+export default function AdminShipments1({ title = "Shipment", initial, onClose, onSaved }) {
   const [formData, setFormData] = useState(initial || {
     service_type: "Standard",
     package_type: "Box",
@@ -35,6 +35,13 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
     e.preventDefault();
     setSaving(true);
     try {
+      const inputId = formData.user_id?.trim();
+      if (!inputId) {
+        toast.error("Please enter a valid User ID");
+        setSaving(false);
+        return;
+      }
+
       const calculatedPrice = Number(formData.price) || (Number(formData.weight_lb || 1) * 7 + 20);
       const originStr = [formData.sender_city, formData.sender_country].filter(Boolean).join(", ") || "United States";
       const destStr = [formData.recipient_city, formData.recipient_country].filter(Boolean).join(", ") || "United States";
@@ -44,22 +51,42 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
         const id = initial.id;
         const updateData = {
           ...formData,
+          user_id: inputId,
+          customer_id: inputId,
+          profile_id: inputId,
           origin: originStr,
           destination: destStr,
           price: calculatedPrice,
           client_name: clientNameVal,
         };
+        delete updateData.sender_company;
+        
         const { error } = await supabase
           .from('shipments')
           .update(updateData)
           .eq('id', id);
         if (error) throw error;
+
+        // Log tracking event if status was explicitly altered during edit
+        if (formData.current_status && formData.current_status !== initial.current_status) {
+          await supabase.from('tracking_events').insert([{
+            shipment_id: id,
+            status: formData.current_status.toLowerCase(),
+            description: `Shipment status updated to ${formData.current_status.replace('_', ' ')}.`,
+            location: originStr,
+            event_time: new Date().toISOString()
+          }]);
+        }
+
         toast.success(`Shipment updated successfully`);
       } else {
         const trackingNumber = formData.tracking_number || "JB" + Math.floor(100000000 + Math.random() * 900000000);
         const shipmentNumber = "SH" + Math.floor(100000 + Math.random() * 900000);
         const newRecord = {
           ...formData,
+          user_id: inputId,
+          customer_id: inputId,
+          profile_id: inputId,
           tracking_number: trackingNumber,
           shipment_number: shipmentNumber,
           origin: originStr,
@@ -72,10 +99,29 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
           recipient_name: formData.recipient_name || "Customer",
           client_name: clientNameVal,
         };
-        const { error } = await supabase
+        delete newRecord.sender_company;
+
+        const { data: insertedShipment, error } = await supabase
           .from('shipments')
-          .insert([newRecord]);
+          .insert([newRecord])
+          .select()
+          .single();
+
         if (error) throw error;
+
+        // Seed initial tracking event log for historical timeline tracking
+        if (insertedShipment) {
+          await supabase.from('tracking_events').insert([
+            {
+              shipment_id: insertedShipment.id,
+              status: insertedShipment.current_status || 'pending',
+              description: 'Shipment record created in system.',
+              location: originStr,
+              event_time: new Date().toISOString()
+            }
+          ]);
+        }
+
         toast.success(`Shipment created successfully`);
       }
       onSaved?.();
@@ -110,7 +156,7 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
           
           {/* SENDER INFORMATION */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Sender Information</h4>
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Sender Information[cite: 1]</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Full Name <span className="text-red-500">*</span></label>
@@ -124,13 +170,14 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Company</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">User ID <span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
-                  value={formData.sender_company || ''} 
-                  onChange={e => handleChange('sender_company', e.target.value)} 
+                  required
+                  value={formData.user_id || ''} 
+                  onChange={e => handleChange('user_id', e.target.value)} 
                   className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                  placeholder="Company name"
+                  placeholder="Enter User ID (e.g. 508638)"
                 />
               </div>
               <div>
@@ -209,7 +256,7 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
 
           {/* RECIPIENT INFORMATION */}
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Recipient Information</h4>
+            <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-4">Recipient Information[cite: 1]</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Full Name <span className="text-red-500">*</span></label>
@@ -311,7 +358,7 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
             
             {/* PACKAGE DETAILS */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Package Details</h4>
+              <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Package Details[cite: 1]</h4>
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Package Type</label>
                 <select 
@@ -381,7 +428,7 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
             {/* SERVICE & PRICING */}
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
               <div className="space-y-4">
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Service & Pricing</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Service & Pricing[cite: 1]</h4>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Service Type</label>
                   <select 
@@ -392,6 +439,23 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
                     {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+
+                {/* Price Text Box with Attached $ Symbol */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Price</label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-4 text-gray-500 font-semibold text-sm">$</span>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.price ?? ''} 
+                      onChange={e => handleChange('price', e.target.value)} 
+                      className="w-full bg-white border border-gray-300 rounded-xl pl-8 pr-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <button 
                     type="button"
@@ -429,7 +493,7 @@ export default function EntityFormModal({ title = "Shipment", initial, onClose, 
               disabled={saving} 
               className="px-6 py-2.5 rounded-xl text-sm font-bold bg-yellow-400 hover:bg-yellow-500 text-black disabled:opacity-50 flex items-center gap-2 shadow-sm cursor-pointer transition-all"
             >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Create Shipment
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} {initial ? 'Update Shipment' : 'Create Shipment'}
             </button>
           </div>
 

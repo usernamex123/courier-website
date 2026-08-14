@@ -8,13 +8,14 @@ import GroundFreight from "./components/GroundFreight";
 import GetStarted from "./components/GetStarted";
 import DriverTracker from "./components/DriverTracker"; 
 import LegalNotice from "./components/LegalNotice";
-import UserLayout from "./layout/user";
+import DashboardLayout from "./layout/DashboardLayout";
 import UserDashboard from "./layout/UserDashboard";
 
 // Import dashboard feature components
 import MyShipments from "./layout/MyShipments";
 import CustomerNotifications from "./layout/CustomerNotifications";
 import CustomerProfile from "./layout/CustomerProfile";
+import CustomerInvoice from "./layout/CustomerInvoice";
 
 // Import AdminSecure guard and dashboard container components
 import AdminSecure from "./components/AdminSecure";
@@ -66,8 +67,8 @@ export default function App() {
         <Route path="/portal" element={<Navigate to="/dashboard" replace />} />
         <Route path="/portal/*" element={<Navigate to="/dashboard" replace />} />
 
-        {/* USER DASHBOARD ROUTES */}
-        <Route path="/dashboard" element={<UserLayout />}>
+        {/* USER DASHBOARD ROUTES: Protected by DashboardLayout */}
+        <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<UserDashboard />} />
           <Route path="myshipments" element={<MyShipments />} />
           <Route path="myshipments/:id" element={
@@ -86,14 +87,7 @@ export default function App() {
               </div>
             </div>
           } />
-          <Route path="invoices" element={
-            <div className="max-w-6xl mx-auto px-5 py-8 text-white">
-              <div className="border border-white/15 bg-[#0e0c0b]/90 backdrop-blur-md p-8 shadow-2xl">
-                <h1 className="text-3xl font-black uppercase tracking-wider text-yellow-500 mb-4">Invoices</h1>
-                <p className="text-stone-300">View billing statements and payment histories.</p>
-              </div>
-            </div>
-          } />
+          <Route path="invoices" element={<CustomerInvoice />} />
           <Route path="notifications" element={<CustomerNotifications />} />
           <Route path="profile" element={<CustomerProfile />} />
           <Route path="settings" element={

@@ -1,8 +1,10 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Search, Package, Plus, ArrowRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Search, Package, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import ShipmentStatusBadge from "../components/logistics/ShipmentStatusBadge";
 import EmptyState from "../components/logistics/EmptyState";
+import ShipmentDetailModal from "./ShipmentDetailModal";
+import { supabase } from "../lib/supabaseClient";
 
 const STATUS_LABELS = {
   created: "Created",
@@ -23,59 +25,90 @@ const fmtDate = (dateStr) => {
 };
 
 export default function MyShipments() {
-  const [shipments] = useState([
-    {
-      id: "1",
-      tracking_number: "TRK-9842-1054",
-      shipment_number: "SH-1001",
-      origin: "Damak",
-      destination: "Kathmandu",
-      service_type: "Standard Express",
-      current_status: "in_transit",
-      price: 14.50,
-      recipient_name: "John Doe",
-      created_date: "2026-08-06T10:00:00Z"
-    },
-    {
-      id: "2",
-      tracking_number: "TRK-3321-8890",
-      shipment_number: "SH-1002",
-      origin: "Damak",
-      destination: "Pokhara",
-      service_type: "Next Day",
-      current_status: "delivered",
-      price: 9.62,
-      recipient_name: "Jane Smith",
-      created_date: "2026-08-02T14:30:00Z"
-    },
-    {
-      id: "3",
-      tracking_number: "TRK-1120-4432",
-      shipment_number: "SH-1003",
-      origin: "Damak",
-      destination: "Biratnagar",
-      service_type: "Economy",
-      current_status: "delivered",
-      price: 8.00,
-      recipient_name: "Ram Thapa",
-      created_date: "2026-07-28T09:15:00Z"
-    },
-    {
-      id: "4",
-      tracking_number: "TRK-7765-2219",
-      shipment_number: "SH-1004",
-      origin: "Damak",
-      destination: "Lalitpur",
-      service_type: "Standard Express",
-      current_status: "created",
-      price: 16.20,
-      recipient_name: "Sita Sharma",
-      created_date: "2026-08-09T16:45:00Z"
-    }
-  ]);
-
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [shipments, setShipments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userCode, setUserCode] = useState(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const [selectedShipment, setSelectedShipment] = useState(null); 
+  
+  const fetchUserDataAndShipments = async () => {
+    try {
+      setLoading(true);
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        setShipments([]);
+        setLoading(false);
+        return;
+      }
+
+      let assignedCode = user.user_metadata?.customer_id;
+
+      if (!assignedCode) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('customer_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!profileError && profileData) {
+          assignedCode = profileData.customer_id;
+        }
+      }
+
+      setUserCode(assignedCode || "—");
+
+      if (!assignedCode) {
+        setShipments([]);
+        setLoading(false);
+        return;
+      }
+
+      const safeCode = String(assignedCode).trim();
+      
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('*')
+        .or(`customer_id.eq.${safeCode},user_id.eq.${safeCode},profile_id.eq.${safeCode}`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      const fetchedShipments = data || [];
+      setShipments(fetchedShipments);
+
+      // Check if URL has an 'open' query parameter to auto-open modal
+      const openId = searchParams.get('open');
+      if (openId) {
+        const match = fetchedShipments.find((s) => s.id === openId);
+        if (match) {
+          setSelectedShipment(match);
+          setSearchParams({}, { replace: true });
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching shipments by user ID:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserDataAndShipments();
+
+    const channel = supabase
+      .channel('public:shipments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
+        fetchUserDataAndShipments();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filtered = shipments.filter((s) => {
     const matchQ = !q || (
@@ -91,6 +124,20 @@ export default function MyShipments() {
 
   return (
     <div className="space-y-4 font-sans">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-slate-900">My Shipments</h1>
+          <p className="text-xs text-slate-500">Track and manage dispatches issued to your account.</p>
+        </div>
+        {userCode && (
+          <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+            <ShieldCheck className="w-4 h-4 text-yellow-600" />
+            <span className="text-xs text-slate-600 font-medium">Unique ID:</span>
+            <span className="font-mono text-xs font-bold text-slate-900 tracking-wider">{userCode}</span>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 shadow-sm">
           <Search className="w-4 h-4 text-slate-400" />
@@ -111,33 +158,23 @@ export default function MyShipments() {
             <option key={s} value={s}>{STATUS_LABELS[s]}</option>
           ))}
         </select>
-        <Link 
-          to="/dashboard/create" 
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-400 text-black text-sm font-medium hover:bg-yellow-300 whitespace-nowrap shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" /> New
-        </Link>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-yellow-500 mb-2" />
+          <p className="text-sm text-slate-500">Loading your shipments...</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
           <EmptyState 
             icon={Package} 
             title="No shipments found" 
-            description={q || status ? "No shipments match your search." : "You don't have any shipments yet."} 
-            action={
-              <Link 
-                to="/dashboard/create" 
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-400 text-black text-sm font-medium hover:bg-yellow-300 shadow-sm transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Create Shipment
-              </Link>
-            } 
+            description={q || status ? "No shipments match your search." : "You don't have any shipments assigned to your ID yet."} 
           />
         </div>
       ) : (
         <>
-          {/* Desktop table */}
           <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-100">
@@ -153,30 +190,40 @@ export default function MyShipments() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                  <tr 
+                    key={s.id} 
+                    onClick={() => setSelectedShipment(s)}
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
                     <td className="px-4 py-3 font-mono font-semibold text-slate-900">{s.tracking_number}</td>
                     <td className="px-4 py-3 text-slate-600">{s.origin} → {s.destination}</td>
                     <td className="px-4 py-3 text-slate-600">{s.service_type}</td>
                     <td className="px-4 py-3"><ShipmentStatusBadge status={s.current_status} /></td>
                     <td className="px-4 py-3 font-medium text-slate-800 font-mono">{fmtMoney(s.price)}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{fmtDate(s.created_date)}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{fmtDate(s.created_at || s.created_date)}</td>
                     <td className="px-4 py-3 text-right">
-                      <Link to={`/dashboard/myshipments/${s.id}`} className="inline-flex p-1 text-yellow-600 hover:text-yellow-500 transition-colors">
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedShipment(s);
+                        }}
+                        className="inline-flex p-1 text-yellow-600 hover:text-yellow-500 transition-colors cursor-pointer"
+                      >
                         <ArrowRight className="w-4 h-4" />
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {filtered.map((s) => (
-              <Link 
+              <div 
                 key={s.id} 
-                to={`/dashboard/myshipments/${s.id}`} 
-                className="block bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition-colors"
+                onClick={() => setSelectedShipment(s)}
+                className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-slate-300 transition-colors cursor-pointer"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-semibold text-slate-900 text-sm">{s.tracking_number}</span>
@@ -184,13 +231,21 @@ export default function MyShipments() {
                 </div>
                 <div className="text-xs text-slate-500 mt-1">{s.origin} → {s.destination}</div>
                 <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 text-sm">
-                  <span className="text-xs text-slate-400">{fmtDate(s.created_date)}</span>
+                  <span className="text-xs text-slate-400">{fmtDate(s.created_at || s.created_date)}</span>
                   <span className="font-medium font-mono text-slate-900">{fmtMoney(s.price)}</span>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </>
+      )}
+
+      {/* Shipment Detail Modal Popup */}
+      {selectedShipment && (
+        <ShipmentDetailModal 
+          shipment={selectedShipment} 
+          onClose={() => setSelectedShipment(null)} 
+        />
       )}
     </div>
   );
