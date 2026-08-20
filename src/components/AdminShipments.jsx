@@ -193,11 +193,11 @@ export default function AdminShipments() {
 
   return (
     <div className="w-full space-y-6 animate-fadeIn font-sans">
-      {/* Top Filter & Action Bar */}
-      <div className="bg-white border border-gray-200 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      {/* Top Filter & Action Bar - Adjusted for mobile responsiveness */}
+      <div className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
           {/* Search Input */}
-          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 flex-1 min-w-[200px] max-w-[320px] shadow-sm">
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 w-full lg:w-auto lg:min-w-[200px] lg:max-w-[320px] shadow-sm">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input 
               value={query} 
@@ -211,7 +211,7 @@ export default function AdminShipments() {
           <select 
             value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value)} 
-            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer shrink-0 font-medium"
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer flex-1 lg:flex-none font-medium"
           >
             <option value="all">All Status</option>
             {STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ").toUpperCase()}</option>)}
@@ -221,7 +221,7 @@ export default function AdminShipments() {
           <select 
             value={serviceFilter} 
             onChange={(e) => setServiceFilter(e.target.value)} 
-            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer shrink-0 font-medium"
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer flex-1 lg:flex-none font-medium"
           >
             <option value="all">All Services</option>
             {SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -231,7 +231,7 @@ export default function AdminShipments() {
           <select 
             value={paymentFilter} 
             onChange={(e) => setPaymentFilter(e.target.value)} 
-            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer shrink-0 font-medium"
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer flex-1 lg:flex-none font-medium"
           >
             <option value="all">All Payments</option>
             {PAYMENTS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
@@ -239,7 +239,7 @@ export default function AdminShipments() {
         </div>
         
         {/* Export & Create Action Buttons */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center justify-end gap-3 shrink-0">
           <button 
             onClick={exportCsv} 
             className="bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer"
@@ -273,9 +273,9 @@ export default function AdminShipments() {
         </button>
       </BulkActionBar>
 
-      {/* Table Container */}
-      <div className="w-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-        <table className="w-full text-sm table-fixed">
+      {/* Table Container with horizontal scrolling for mobile */}
+      <div className="w-full bg-white rounded-2xl border border-gray-200 overflow-x-auto shadow-sm">
+        <table className="w-full text-sm table-fixed min-w-[950px]">
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-200 bg-gray-50">
               <th className="px-3.5 py-4 w-10">
