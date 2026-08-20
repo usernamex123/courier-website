@@ -3,19 +3,34 @@
 
 html {
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   background: #020617;
-  /* Font removed from here to restore your site's original look */
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Class only for the logo */
 .logo-font {
   font-family: 'Bebas Neue', sans-serif;
   letter-spacing: 0.05em; 
+}
+
+/* GPU Acceleration for sticky/fixed navbars to prevent scroll jitter */
+header, nav {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Off-screen performance boost for heavy sections */
+section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
 }
 
 /* Print settings to remove browser headers, footers, and page numbers */

@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   LayoutDashboard, Package, Users, Truck, Building2, Wallet, 
   GitBranch, BarChart3, MessageSquare, Navigation, Settings, 
-  Bell, Search, ChevronDown, LogOut, Menu, X, ShieldAlert 
+  Bell, Search, ChevronDown, ChevronRight, LogOut, Menu, X, ShieldAlert,
+  FileText, CreditCard, Receipt, DollarSign, ArrowLeftRight
 } from 'lucide-react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -12,6 +13,9 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const isFinancePath = location.pathname.startsWith('/admin/finance');
+  const [financeOpen, setFinanceOpen] = useState(isFinancePath);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -24,16 +28,27 @@ export default function AdminLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navItems = [
+  const topNavItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { label: 'Shipments', icon: Package, path: '/admin/shipments' },
     { label: 'Customers', icon: Users, path: '/admin/customers' },
     { label: 'Drivers', icon: Truck, path: '/admin/drivers' },
     { label: 'Fleet', icon: Navigation, path: '/admin/fleet' },
     { label: 'Warehouses', icon: Building2, path: '/admin/warehouses' },
-    { label: 'Billing & Finance', icon: Wallet, path: '/admin/billing' },
+  ];
+
+  const financeSubItems = [
+    { label: 'Overview', icon: BarChart3, path: '/admin/finance/overview' },
+    { label: 'Invoices', icon: FileText, path: '/admin/finance/invoices' },
+    { label: 'Payments', icon: CreditCard, path: '/admin/finance/payments' },
+    { label: 'Receivables', icon: Receipt, path: '/admin/finance/receivables' },
+    { label: 'Expenses', icon: DollarSign, path: '/admin/finance/expenses' },
+    { label: 'Transactions', icon: ArrowLeftRight, path: '/admin/finance/transactions' },
+    { label: 'Reports', icon: BarChart3, path: '/admin/finance/reports' },
+  ];
+
+  const bottomNavItems = [
     { label: 'Branches', icon: GitBranch, path: '/admin/branches' },
-    { label: 'Reports', icon: BarChart3, path: '/admin/reports' },
     { label: 'Quotes & Messages', icon: MessageSquare, path: '/admin/messages' },
     { label: 'Live Tracking', icon: ShieldAlert, path: '/admin/tracking' },
     { label: 'Settings', icon: Settings, path: '/admin/settings' },
@@ -50,8 +65,78 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
-          {navItems.map((item) => {
+        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100dvh-4rem)]">
+          {topNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.label}
+                onClick={() => {
+                  navigate(item.path);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  isActive 
+                    ? 'bg-amber-400 text-gray-900 shadow-sm font-black' 
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
+                {item.label}
+              </button>
+            );
+          })}
+
+          {/* Finance Accordion Menu */}
+          <div className="pt-1">
+            <button
+              onClick={() => setFinanceOpen(!financeOpen)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                isFinancePath 
+                  ? 'bg-amber-400 text-gray-900 shadow-sm font-black' 
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Wallet className={`w-4 h-4 ${isFinancePath ? 'text-gray-900' : 'text-gray-500'}`} />
+                <span>Finance</span>
+              </div>
+              {financeOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+            </button>
+
+            {financeOpen && (
+              <div className="pl-4 pr-1 py-1.5 space-y-1 mt-1 border-l-2 border-amber-400 ml-4">
+                {financeSubItems.map((sub) => {
+                  const SubIcon = sub.icon;
+                  const isSubActive = location.pathname === sub.path;
+                  return (
+                    <button
+                      key={sub.label}
+                      onClick={() => {
+                        navigate(sub.path);
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        isSubActive
+                          ? 'bg-amber-100 text-amber-900 font-black'
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                    >
+                      <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-amber-700' : 'text-gray-400'}`} />
+                      <span>{sub.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (

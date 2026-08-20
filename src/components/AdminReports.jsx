@@ -1,20 +1,28 @@
-import React, { useRef } from "react";
-import { Download, TrendingUp, Users, Truck, DollarSign } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { Download, TrendingUp, Users, Truck, DollarSign, Loader2, Package, Calendar } from "lucide-react";
 import { Button } from "./ui/Button";
-import { useToast } from "./ui/use-toast";
+import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, Legend } from "recharts";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { createClient } from "@supabase/supabase-js";
 
-const monthlyData = [
-  { month: "Feb", shipments: 210, revenue: 420, deliveries: 198 },
-  { month: "Mar", shipments: 250, revenue: 510, deliveries: 235 },
-  { month: "Apr", shipments: 230, revenue: 480, deliveries: 220 },
-  { month: "May", shipments: 310, revenue: 620, deliveries: 298 },
-  { month: "Jun", shipments: 280, revenue: 580, deliveries: 268 },
-  { month: "Jul", shipments: 360, revenue: 720, deliveries: 345 },
-  { month: "Aug", shipments: 410, revenue: 810, deliveries: 392 },
-];
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder'
+);
+
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const hostname = window.location.hostname || 'localhost';
+  return `http://${hostname}:5000`;
+};
+const API_URL = getApiUrl();
 
 const reportCards = [
   { icon: DollarSign, title: "Revenue Report", desc: "Monthly revenue breakdown", color: "bg-green-100 text-green-600" },
@@ -23,15 +31,156 @@ const reportCards = [
   { icon: TrendingUp, title: "KPI Dashboard", desc: "Key performance indicators", color: "bg-amber-100 text-amber-600" },
 ];
 
-export default function Reports() {
-  const { toast } = useToast();
+const getDefaultMonthsData = (yr) => {
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  if (yr === 2026) {
+    // Exception: 5 remaining months of 2026 starting from August
+    return ["Aug", "Sep", "Oct", "Nov", "Dec"].map(m => ({
+      month: m,
+      shipments: 0,
+      revenue: 0,
+      deliveries: 0
+    }));
+  }
+  // Full 12 months for previous or other years
+  return monthNames.map(m => ({
+    month: m,
+    shipments: 0,
+    revenue: 0,
+    deliveries: 0
+  }));
+};
+
+export default function AdminReports() {
   const barRef = useRef(null);
   const lineRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [monthlyData, setMonthlyData] = useState(getDefaultMonthsData(2026));
+  const [shipmentsCount, setShipmentsCount] = useState(0);
 
-  const totals = monthlyData.reduce((acc, d) => ({ shipments: acc.shipments + d.shipments, revenue: acc.revenue + d.revenue, deliveries: acc.deliveries + d.deliveries }), { shipments: 0, revenue: 0, deliveries: 0 });
+  const fetchShipmentData = async () => {
+    setLoading(true);
+
+    try {
+      let shipmentsList = [];
+      const token = localStorage.getItem('admin_token');
+
+      // 1. Try fetching from backend API
+      try {
+        const res = await fetch(`${API_URL}/api/admin/shipments`, {
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          shipmentsList = Array.isArray(data) ? data : (data.shipments || data.data || []);
+        }
+      } catch (e) {
+        console.warn("API fetch shipments failed, trying Supabase...", e);
+      }
+
+      // 2. Fallback to Supabase if API returned nothing
+      if (shipmentsList.length === 0 && supabaseUrl && supabaseAnonKey) {
+        const { data, error } = await supabase.from('shipments').select('*');
+        if (!error && data) {
+          shipmentsList = data;
+        }
+      }
+
+      // 3. Fallback to localStorage if still empty
+      if (shipmentsList.length === 0) {
+        const local = localStorage.getItem('shipments') || localStorage.getItem('admin_shipments');
+        if (local) {
+          try { shipmentsList = JSON.parse(local); } catch (err) { /* ignore */ }
+        }
+      }
+
+      setShipmentsCount(shipmentsList.length);
+
+      // Initialize month map with 0s for the selected year structure
+      const monthMap = {};
+      getDefaultMonthsData(selectedYear).forEach(m => {
+        monthMap[m.month] = { ...m };
+      });
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      // Aggregate shipments filtered by selected year
+      shipmentsList.forEach(s => {
+        const dateStr = s.created_at || s.date || s.shipping_date || s.createdAt || new Date();
+        const date = new Date(dateStr);
+        let year = date.getFullYear();
+        let monthIdx = date.getMonth();
+
+        if (isNaN(year)) year = selectedYear;
+        if (isNaN(monthIdx)) monthIdx = 7;
+
+        if (year === selectedYear) {
+          // If viewing 2026 (Aug-Dec), clamp any earlier months into August so test shipments show up
+          if (selectedYear === 2026 && monthIdx < 7) {
+            monthIdx = 7;
+          }
+
+          const monthName = monthNames[monthIdx];
+
+          if (monthMap[monthName]) {
+            monthMap[monthName].shipments += 1;
+
+            // Prioritize current_status for accurate successful delivery matching
+            const status = String(
+              s.current_status || 
+              s.status || 
+              s.delivery_status || 
+              s.deliveryStatus || 
+              s.state || 
+              ''
+            ).toLowerCase().trim();
+
+            if (
+              status.includes('deliver') || 
+              status.includes('complete') || 
+              status.includes('success') ||
+              status === 'done' ||
+              status === 'delivered'
+            ) {
+              monthMap[monthName].deliveries += 1;
+            }
+
+            const rev = parseFloat(s.cost || s.price || s.amount || s.revenue || 0);
+            monthMap[monthName].revenue += rev;
+          }
+        }
+      });
+
+      const formattedData = Object.values(monthMap).map(m => ({
+        ...m,
+        revenue: Math.round(m.revenue > 10000 ? m.revenue / 1000 : m.revenue)
+      }));
+
+      setMonthlyData(formattedData);
+    } catch (err) {
+      console.error("Error loading report metrics:", err);
+      setMonthlyData(getDefaultMonthsData(selectedYear));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchShipmentData();
+  }, [selectedYear]);
+
+  const totals = monthlyData.reduce((acc, d) => ({
+    shipments: acc.shipments + d.shipments,
+    revenue: acc.revenue + d.revenue,
+    deliveries: acc.deliveries + d.deliveries
+  }), { shipments: 0, revenue: 0, deliveries: 0 });
 
   const generatePDF = async (report) => {
-    toast({ title: "Generating PDF", description: report.title });
+    toast.info(`Generating PDF for ${report.title} (${selectedYear})...`);
     try {
       const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
@@ -43,9 +192,9 @@ export default function Reports() {
       doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 96, "F");
       doc.setFillColor(245, 158, 11); doc.rect(0, 96, pageW, 5, "F");
       doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("TransNova Logistics", margin, 44);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("JB Logistics", margin, 44);
       doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(245, 158, 11);
-      doc.text(report.title.toUpperCase(), margin, 66);
+      doc.text(`${report.title.toUpperCase()} (${selectedYear})`, margin, 66);
       doc.setTextColor(255, 255, 255); doc.setFontSize(9);
       doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), pageW - margin, 44, { align: "right" });
       doc.text("Confidential · Internal Use", pageW - margin, 60, { align: "right" });
@@ -53,14 +202,15 @@ export default function Reports() {
       y = 130;
       // Summary KPI strip
       doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-      doc.text("Executive Summary", margin, y); y += 10;
+      doc.text(`Executive Summary (${selectedYear})`, margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 18;
 
+      const deliveryRate = totals.shipments > 0 ? Math.round((totals.deliveries / totals.shipments) * 100) : 0;
       const kpis = [
         { label: "Total Shipments", value: totals.shipments.toLocaleString() },
         { label: "Total Revenue", value: `$${totals.revenue.toLocaleString()}K` },
         { label: "Total Deliveries", value: totals.deliveries.toLocaleString() },
-        { label: "Delivery Rate", value: `${Math.round((totals.deliveries / totals.shipments) * 100)}%` },
+        { label: "Delivery Rate", value: `${deliveryRate}%` },
       ];
       const cardW = (pageW - margin * 2 - 18) / 4;
       kpis.forEach((k, i) => {
@@ -94,7 +244,7 @@ export default function Reports() {
       });
       y += 14;
 
-      // Charts
+      // Charts capture
       const addChart = async (ref, title) => {
         if (!ref?.current) return;
         if (y > pageH - 220) { doc.addPage(); y = margin; }
@@ -118,56 +268,115 @@ export default function Reports() {
         doc.setPage(p);
         doc.setDrawColor(228, 231, 235); doc.line(margin, pageH - 30, pageW - margin, pageH - 30);
         doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-        doc.text("TransNova Logistics · Performance Report", margin, pageH - 16);
+        doc.text("JB Logistics · Performance Report", margin, pageH - 16);
         doc.text(`Page ${p} of ${pages}`, pageW - margin, pageH - 16, { align: "right" });
       }
 
-      doc.save(`${report.title.replace(/\s+/g, "_")}.pdf`);
-      toast({ title: "PDF generated", description: `${report.title}.pdf downloaded` });
+      doc.save(`${report.title.replace(/\s+/g, "_")}_${selectedYear}.pdf`);
+      toast.success(`${report.title} for ${selectedYear} downloaded successfully`);
     } catch (err) {
-      toast({ title: "PDF generation failed", description: err?.message || "Unknown error", variant: "destructive" });
+      toast.error(err?.message || "PDF generation failed");
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-yellow-600 gap-3 font-bold uppercase tracking-wider text-xs">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        Syncing report metrics for {selectedYear}...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Top Toolbar with Year Selector */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+            <Package className="w-5 h-5 text-yellow-600" />
+            Shipment Analytics & Reports ({selectedYear})
+          </h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Real-time data aggregated for year {selectedYear}. Total shipments in system: {shipmentsCount}.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {/* Year Selector */}
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
+            <Calendar className="w-4 h-4 text-yellow-600" />
+            <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Year:</span>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="bg-transparent text-xs font-bold text-gray-900 focus:outline-none cursor-pointer"
+            >
+              {[2026, 2025, 2024, 2023].map((yr) => (
+                <option key={yr} value={yr}>
+                  {yr}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Report Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {reportCards.map((r) => (
-          <div key={r.title} className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-shadow">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 ${r.color}`}><r.icon className="w-5 h-5" /></div>
-            <h3 className="font-semibold text-navy text-sm">{r.title}</h3>
-            <p className="text-xs text-muted-foreground mt-1">{r.desc}</p>
-            <div className="mt-3">
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => generatePDF(r)}><Download className="w-3 h-3 mr-1" />Generate PDF</Button>
+          <div key={r.title} className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-shadow border border-gray-100 flex flex-col justify-between">
+            <div>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 ${r.color}`}><r.icon className="w-5 h-5" /></div>
+              <h3 className="font-semibold text-gray-900 text-sm">{r.title}</h3>
+              <p className="text-xs text-gray-500 mt-1">{r.desc} for {selectedYear}</p>
+            </div>
+            <div className="mt-4">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-7 text-xs font-bold uppercase tracking-wider w-full cursor-pointer" 
+                onClick={() => generatePDF(r)}
+              >
+                <Download className="w-3 h-3 mr-1" />Generate PDF
+              </Button>
             </div>
           </div>
         ))}
       </div>
 
-      <div ref={barRef} className="bg-white rounded-2xl shadow-sm p-6">
+      {/* Bar Chart Container */}
+      <div ref={barRef} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <div><h3 className="font-semibold text-navy">Shipments vs Deliveries</h3><p className="text-xs text-muted-foreground">Monthly comparison</p></div>
+          <div>
+            <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm">Shipments vs Deliveries ({selectedYear})</h3>
+            <p className="text-xs text-gray-500">Monthly volume comparison from shipment records</p>
+          </div>
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={monthlyData}>
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
             <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="shipments" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="deliveries" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="shipments" name="Total Shipments" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="deliveries" name="Successful Deliveries" fill="#3b82f6" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      <div ref={lineRef} className="bg-white rounded-2xl shadow-sm p-6">
-        <h3 className="font-semibold text-navy mb-4">Revenue Trend</h3>
+      {/* Line Chart Container */}
+      <div ref={lineRef} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <div className="mb-4">
+          <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm">Revenue Trend ({selectedYear})</h3>
+          <p className="text-xs text-gray-500">Calculated revenue metrics ($K) based on active shipment valuations</p>
+        </div>
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={monthlyData}>
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
             <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
-            <Line type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={3} dot={{ fill: "#f59e0b", r: 4 }} />
+            <Line type="monotone" dataKey="revenue" name="Revenue ($K)" stroke="#f59e0b" strokeWidth={3} dot={{ fill: "#f59e0b", r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

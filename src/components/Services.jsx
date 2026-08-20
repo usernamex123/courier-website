@@ -127,7 +127,7 @@ export default function Services() {
               <div 
                 key={service.id}
                 onMouseEnter={() => setActiveService(service.id)}
-                onClick={() => navigate(service.path)}
+                onClick={() => setActiveService(service.id)}
                 className="relative cursor-pointer"
               >
                 <div className={`py-5 px-4 transition-all duration-300 border-0 text-center flex flex-col items-center justify-center ${

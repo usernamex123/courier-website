@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { UserCheck, X, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../supabase";
@@ -39,11 +40,14 @@ export default function Login() {
   useEffect(() => {
     if (shouldRender) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.scrollbarGutter = 'stable';
     } else {
       document.body.style.overflow = 'unset';
+      document.documentElement.style.scrollbarGutter = 'auto';
     }
     return () => {
       document.body.style.overflow = 'unset';
+      document.documentElement.style.scrollbarGutter = 'auto';
     };
   }, [shouldRender]);
 
@@ -118,145 +122,149 @@ export default function Login() {
         <span>Login/Register</span>
       </button>
 
-      {/* Modal Popup */}
-      <AnimatePresence>
-        {shouldRender && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isModalOpen ? 1 : 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => toggleModal(false)}
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: isModalOpen ? 1 : 0, scale: isModalOpen ? 1 : 0.95, y: isModalOpen ? 0 : 20 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="w-full max-w-md bg-[#0d0c0b] border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl shadow-yellow-500/5 relative text-white z-10"
-            >
-              <button
-                onClick={() => toggleModal(false)}
-                className="absolute top-6 right-6 w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="text-center space-y-1 mb-8">
-                <h2 className="text-3xl font-black tracking-tight text-white">
-                  {isSignUp ? 'Create Account' : 'Welcome Back'}
-                </h2>
-                <p className="text-sm text-white/50">
-                  {isSignUp ? 'Register to manage your shipments' : 'Sign in to access your client account'}
-                </p>
-              </div>
-
-              <div className="flex bg-[#050505] p-1.5 rounded-2xl border border-white/10 mb-6">
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(false)}
-                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-                    !isSignUp ? 'bg-yellow-500 text-black shadow-md' : 'text-white/60 hover:text-white'
-                  }`}
+      {/* Modal Popup rendered via Portal to escape Navbar stacking context/transforms */}
+      {typeof document !== 'undefined' &&
+        ReactDOM.createPortal(
+          <AnimatePresence>
+            {shouldRender && (
+              <div className="fixed inset-0 z-[99999] flex items-start justify-center p-4 sm:p-6 py-12 sm:py-16 overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: isModalOpen ? 1 : 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+                  onClick={() => toggleModal(false)}
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: isModalOpen ? 1 : 0, scale: isModalOpen ? 1 : 0.95, y: isModalOpen ? 0 : 20 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="w-full max-w-md bg-[#0d0c0b] border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl shadow-yellow-500/5 relative text-white z-10 my-auto"
                 >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(true)}
-                  className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
-                    isSignUp ? 'bg-yellow-500 text-black shadow-md' : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  Register
-                </button>
-              </div>
+                  <button
+                    onClick={() => toggleModal(false)}
+                    className="absolute top-6 right-6 w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {isSignUp && (
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-white/75">
-                      Full Name
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
-                        <User className="w-4 h-4" />
+                  <div className="text-center space-y-1 mb-8">
+                    <h2 className="text-3xl font-black tracking-tight text-white">
+                      {isSignUp ? 'Create Account' : 'Welcome Back'}
+                    </h2>
+                    <p className="text-sm text-white/50">
+                      {isSignUp ? 'Register to manage your shipments' : 'Sign in to access your client account'}
+                    </p>
+                  </div>
+
+                  <div className="flex bg-[#050505] p-1.5 rounded-2xl border border-white/10 mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUp(false)}
+                      className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                        !isSignUp ? 'bg-yellow-500 text-black shadow-md' : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUp(true)}
+                      className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                        isSignUp ? 'bg-yellow-500 text-black shadow-md' : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      Register
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {isSignUp && (
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-white/75">
+                          Full Name
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="text"
+                            required={isSignUp}
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="Enter your full name"
+                            className="w-full bg-[#050505] border border-white/15 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
+                          />
+                        </div>
                       </div>
-                      <input
-                        type="text"
-                        required={isSignUp}
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className="w-full bg-[#050505] border border-white/15 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
-                      />
-                    </div>
-                  </div>
-                )}
+                    )}
 
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/75">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
-                      <Mail className="w-4 h-4" />
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-white/75">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="Enter your email"
+                          className="w-full bg-[#050505] border border-white/15 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
+                        />
+                      </div>
                     </div>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email"
-                      className="w-full bg-[#050505] border border-white/15 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/75">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
-                      <Lock className="w-4 h-4" />
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-white/75">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          className="w-full bg-[#050505] border border-white/15 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
+                        />
+                      </div>
                     </div>
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      className="w-full bg-[#050505] border border-white/15 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500 transition-colors"
-                    />
-                  </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-black font-extrabold text-sm py-4 rounded-2xl transition-all shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-6"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Please wait...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{isSignUp ? 'Create Account' : 'Sign In'}</span>
-                      <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-              </form>
-            </motion.div>
-          </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 text-black font-extrabold text-sm py-4 rounded-2xl transition-all shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-6"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Please wait...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{isSignUp ? 'Create Account' : 'Sign In'}</span>
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </>
   );
 }

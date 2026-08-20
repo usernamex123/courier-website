@@ -1,293 +1,284 @@
-import React, { useEffect, useState } from "react";
-import { Plus, Search, Phone, Star, Truck, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Users, UserCheck, Truck, UserX, Search, ChevronLeft, ChevronRight, Loader2, Plus, X, Trash2 } from "lucide-react";
+import { Button } from "./ui/Button";
 import { toast } from "sonner";
+import { createClient } from "@supabase/supabase-js";
 
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return `http://${window.location.hostname || 'localhost'}:5000`;
-};
-const API_URL = getApiUrl();
-
-const FIELDS = [
-  { name: "full_name", label: "Full Name", required: true },
-  { name: "email", label: "Email", type: "email" },
-  { name: "phone", label: "Phone", required: true },
-  { name: "license_number", label: "License Number" },
-  { name: "license_expiry", label: "License Expiry", type: "date" },
-  { name: "status", label: "Status", type: "select", options: ["available", "on_delivery", "off_duty", "on_leave"] },
-  { name: "rating", label: "Rating", type: "number" },
-  { name: "total_deliveries", label: "Total Deliveries", type: "number" },
-  { name: "city", label: "Base City" },
-  { name: "join_date", label: "Join Date", type: "date" },
-];
-
-// --- Inline UI Components ---
-
-const StatusBadge = ({ status }) => {
-  const s = (status || "").toLowerCase();
-  let colors = "bg-gray-100 text-gray-700 border-gray-200";
-  if (s === "available") colors = "bg-green-50 text-green-700 border-green-200";
-  if (s === "on_delivery") colors = "bg-blue-50 text-blue-700 border-blue-200";
-  if (s === "off_duty" || s === "on_leave") colors = "bg-yellow-50 text-yellow-800 border-yellow-200";
-  
-  return (
-    <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider border ${colors}`}>
-      {status?.replace('_', ' ') || 'UNKNOWN'}
-    </span>
-  );
-};
-
-const ConfirmDialog = ({ message, onConfirm, onClose }) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Action</h3>
-      <p className="text-sm text-gray-600 mb-6">{message}</p>
-      <div className="flex gap-3 justify-end">
-        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">Delete Driver</button>
-      </div>
-    </div>
-  </div>
-);
-
-const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
-  const [formData, setFormData] = useState(initial || {});
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const method = initial ? 'PUT' : 'POST';
-      const idStr = initial ? `/${initial._id || initial.id}` : '';
-      
-      const res = await fetch(`${API_URL}/api/admin/drivers${idStr}`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      });
-
-      if (res.ok) {
-        toast.success(`${title} ${initial ? 'updated' : 'added'} successfully`);
-        onSaved();
-      } else {
-        toast.error(`Failed to save ${title.toLowerCase()}`);
-      }
-    } catch (err) {
-      toast.error("Network error while saving");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl my-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">{initial ? 'Edit' : 'Add'} {title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {fields.map(f => (
-              <div key={f.name} className={f.name === 'full_name' || f.name === 'email' ? 'col-span-2' : 'col-span-1'}>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{f.label}</label>
-                {f.type === 'select' ? (
-                  <select
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                    value={formData[f.name] || ''}
-                    onChange={e => setFormData({ ...formData, [f.name]: e.target.value })}
-                    required={f.required}
-                  >
-                    <option value="">Select {f.label}</option>
-                    {f.options.map(o => <option key={o} value={o}>{o.replace('_', ' ').toUpperCase()}</option>)}
-                  </select>
-                ) : (
-                  <input
-                    type={f.type || 'text'}
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                    value={formData[f.name] || ''}
-                    onChange={e => setFormData({ ...formData, [f.name]: e.target.value })}
-                    required={f.required}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="pt-4 flex justify-end gap-3 border-t border-gray-200 mt-6">
-            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-50 flex items-center gap-2 shadow-sm">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Save {title}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// --- Main Component ---
+const sbUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(sbUrl || 'https://placeholder.supabase.co', sbKey || 'placeholder');
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname || 'localhost'}:5000`;
 
 export default function AdminDrivers() {
-  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [deleting, setDeleting] = useState(null);
+  const [driversList, setDriversList] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [licenseFilter, setLicenseFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name-asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
-  const load = async () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [driverToDelete, setDriverToDelete] = useState(null);
+  const [formData, setFormData] = useState({ name: "", phone: "", email: "", license_number: "", license_type: "CDL Class A", vehicle_assigned: "", vehicle_model: "", status: "Active", current_trip: "Available" });
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchDrivers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/drivers`, { credentials: 'include' });
-      const data = await res.json();
-      setItems(Array.isArray(data) ? data : data.drivers || []);
+      let list = [];
+      const token = localStorage.getItem('admin_token');
+      try {
+        const res = await fetch(`${API_URL}/api/admin/drivers`, { headers: token ? { 'Authorization': `Bearer ${token}` } : {}, credentials: 'include' });
+        if (res.ok) { const json = await res.json(); list = Array.isArray(json) ? json : (json.drivers || json.data || []); }
+      } catch (e) {}
+      if (list.length === 0 && sbUrl && sbKey) {
+        const { data } = await supabase.from('drivers').select('*');
+        if (data) list = data;
+      }
+      if (list.length === 0) {
+        try { list = JSON.parse(localStorage.getItem('admin_drivers') || '[]'); } catch (e) {}
+      }
+      setDriversList(list);
     } catch (err) {
-      toast.error("Failed to fetch drivers data");
+      toast.error("Failed to load drivers");
     } finally {
       setLoading(false);
     }
   };
-  
-  useEffect(() => { load(); }, []);
 
-  const filtered = items.filter((d) => { 
-    const q = query.toLowerCase(); 
-    return !q || (d.full_name || "").toLowerCase().includes(q) || (d.city || "").toLowerCase().includes(q); 
-  });
-  
-  const stats = { 
-    total: items.length, 
-    available: items.filter((d) => d.status === "available").length, 
-    onDelivery: items.filter((d) => d.status === "on_delivery").length 
+  useEffect(() => { fetchDrivers(); }, []);
+
+  const openAddModal = () => {
+    setEditingId(null);
+    setFormData({ name: "", phone: "", email: "", license_number: "", license_type: "CDL Class A", vehicle_assigned: "", vehicle_model: "", status: "Active", current_trip: "Available" });
+    setIsModalOpen(true);
   };
 
-  const handleDelete = async () => {
+  const openEditModal = (d) => {
+    setEditingId(d.id);
+    setFormData({ name: d.name || "", phone: d.phone || "", email: d.email || "", license_number: d.license_number || "", license_type: d.license_type || "CDL Class A", vehicle_assigned: d.vehicle_assigned || "", vehicle_model: d.vehicle_model || "", status: d.status || "Active", current_trip: d.current_trip || "Available" });
+    setIsModalOpen(true);
+  };
+
+  const handleSaveDriver = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.phone || !formData.license_number) return toast.error("Fill required fields.");
+    setSubmitting(true);
     try {
-      const id = deleting._id || deleting.id;
-      await fetch(`${API_URL}/api/admin/drivers/${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success("Driver deleted successfully");
-      setDeleting(null);
-      load();
+      const token = localStorage.getItem('admin_token');
+      if (editingId) {
+        const updatedList = driversList.map(d => d.id === editingId ? { ...d, ...formData } : d);
+        let ok = false;
+        try {
+          const res = await fetch(`${API_URL}/api/admin/drivers/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(formData), credentials: 'include' });
+          if (res.ok) ok = true;
+        } catch (e) {}
+        if (!ok && sbUrl && sbKey) await supabase.from('drivers').update(formData).eq('id', editingId);
+        setDriversList(updatedList);
+        localStorage.setItem('admin_drivers', JSON.stringify(updatedList));
+        toast.success("Driver updated!");
+      } else {
+        const newDriver = { id: Date.now(), ...formData };
+        let ok = false;
+        try {
+          const res = await fetch(`${API_URL}/api/admin/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(newDriver), credentials: 'include' });
+          if (res.ok) ok = true;
+        } catch (e) {}
+        if (!ok && sbUrl && sbKey) await supabase.from('drivers').insert([newDriver]);
+        const updated = [newDriver, ...driversList];
+        setDriversList(updated);
+        localStorage.setItem('admin_drivers', JSON.stringify(updated));
+        toast.success("Driver added!");
+      }
+      setIsModalOpen(false);
     } catch (err) {
-      toast.error("Failed to delete driver");
+      toast.error("Operation failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Roster</div>
-          <div className="text-3xl font-black font-mono text-gray-900 mt-2">{stats.total}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Available</div>
-          <div className="text-3xl font-black font-mono text-green-600 mt-2">{stats.available}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">On Delivery</div>
-          <div className="text-3xl font-black font-mono text-blue-600 mt-2">{stats.onDelivery}</div>
-        </div>
-      </div>
+  const confirmDeleteDriver = async () => {
+    if (!driverToDelete) return;
+    const id = driverToDelete.id;
+    try {
+      const token = localStorage.getItem('admin_token');
+      await fetch(`${API_URL}/api/admin/drivers/${id}`, { method: 'DELETE', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, credentials: 'include' }).catch(() => {});
+      if (sbUrl && sbKey) await supabase.from('drivers').delete().eq('id', id);
+      const updated = driversList.filter(d => d.id !== id);
+      setDriversList(updated);
+      localStorage.setItem('admin_drivers', JSON.stringify(updated));
+      toast.success("Driver deleted");
+    } catch (e) {
+      toast.error("Delete failed");
+    } finally {
+      setDriverToDelete(null);
+    }
+  };
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-        <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-300 px-4 py-2.5 w-full sm:w-80 shadow-sm">
-          <Search className="w-4 h-4 text-gray-400" />
-          <input 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)} 
-            placeholder="Search drivers by name or city..." 
-            className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400" 
-          />
+  const totalDrivers = driversList.length;
+  const activeCount = driversList.filter(d => String(d.status).toLowerCase() === 'active').length;
+  const onTripCount = driversList.filter(d => String(d.current_trip || '').toLowerCase().includes('trip')).length;
+  const inactiveCount = totalDrivers - activeCount;
+
+  const filtered = driversList.filter(d => {
+    const s = searchQuery.toLowerCase();
+    const matchSearch = (d.name?.toLowerCase().includes(s) || d.phone?.toLowerCase().includes(s) || d.license_number?.toLowerCase().includes(s) || d.email?.toLowerCase().includes(s));
+    const matchStatus = statusFilter === 'all' || String(d.status).toLowerCase() === statusFilter;
+    const matchLicense = licenseFilter === 'all' || String(d.license_type || '').toLowerCase().includes(licenseFilter.toLowerCase());
+    return matchSearch && matchStatus && matchLicense;
+  }).sort((a, b) => sortBy === 'name-asc' ? (a.name || '').localeCompare(b.name || '') : (b.name || '').localeCompare(a.name || ''));
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  if (loading) return <div className="flex flex-col items-center justify-center py-24 text-amber-600 gap-3 font-bold uppercase text-xs w-full"><Loader2 className="w-8 h-8 animate-spin" />Loading Drivers...</div>;
+
+  return (
+    <div className="w-full space-y-6 pb-12">
+      <div className="flex items-center justify-between bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2"><Users className="w-5 h-5 text-amber-600" />Drivers Management</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Manage fleet drivers</p>
         </div>
-        <button 
-          className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-5 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2" 
-          onClick={() => { setEditing(null); setShowForm(true); }}
-        >
-          <Plus className="w-4 h-4" /> Add Driver
+        <button onClick={openAddModal} className="flex items-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
+          <Plus className="w-4 h-4 stroke-[3]" /><span>Add Driver</span>
         </button>
       </div>
 
-      {/* Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <div className="col-span-full flex justify-center py-16 text-gray-500 font-sans">
-            <Loader2 className="w-6 h-6 text-yellow-600 animate-spin mx-auto mb-2" />
-            Loading drivers...
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-16 text-gray-500 font-sans">
-            No drivers found matching criteria.
-          </div>
-        ) : (
-          filtered.map((d) => (
-            <div key={d._id || d.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all group">
-              <div className="flex items-start gap-4 mb-5">
-                <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center font-bold text-yellow-700 text-lg shrink-0">
-                  {(d.full_name || "D")[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 text-base truncate">{d.full_name}</h3>
-                  <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
-                    <Truck className="w-3.5 h-3.5 text-yellow-600" /> {d.city || "Unassigned"}
-                  </p>
-                </div>
-                <div className="shrink-0"><StatusBadge status={d.status} /></div>
-              </div>
-              
-              <div className="space-y-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-gray-400" /> 
-                  <span className="font-mono text-gray-800">{d.phone || "—"}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="w-4 h-4 flex items-center justify-center text-[10px] font-black bg-gray-200 rounded-sm text-gray-600">ID</span>
-                  <span>License: <span className="text-gray-900 font-mono">{d.license_number || "—"}</span></span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-1.5 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-200">
-                  <Star className="w-3.5 h-3.5 fill-yellow-500 text-yellow-500" />
-                  <span className="text-xs font-bold text-yellow-800">{d.rating || "5.0"}</span>
-                </div>
-                <div className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">
-                  {d.total_deliveries || 0} Trips
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => { setEditing(d); setShowForm(true); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setDeleting(d)} className="p-1.5 rounded-lg bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { title: "Total Drivers", count: totalDrivers, icon: Users, bg: "bg-amber-100", text: "text-amber-600" },
+          { title: "Active Drivers", count: activeCount, icon: UserCheck, bg: "bg-green-100", text: "text-green-600" },
+          { title: "On Trip", count: onTripCount, icon: Truck, bg: "bg-blue-100", text: "text-blue-600" },
+          { title: "Inactive Drivers", count: inactiveCount, icon: UserX, bg: "bg-purple-100", text: "text-purple-600" }
+        ].map((c, i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{c.title}</p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-0.5">{c.count}</h3>
             </div>
-          ))
-        )}
+            <div className={`w-10 h-10 rounded-xl ${c.bg} ${c.text} flex items-center justify-center`}><c.icon className="w-5 h-5" /></div>
+          </div>
+        ))}
       </div>
 
-      {showForm && (
-        <EntityFormModal 
-          title="Driver" 
-          fields={FIELDS} 
-          initial={editing} 
-          onClose={() => setShowForm(false)} 
-          onSaved={() => { setShowForm(false); load(); }} 
-        />
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 min-w-[280px]">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input type="text" placeholder="Search drivers..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+            <option value="all">Status: All</option><option value="active">Active</option><option value="inactive">Inactive</option>
+          </select>
+          <select value={licenseFilter} onChange={e => { setLicenseFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+            <option value="all">License Type</option><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option>
+          </select>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+            <option value="name-asc">Name A-Z</option><option value="name-desc">Name Z-A</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50">
+                <th className="py-3.5 px-6">Driver</th><th className="py-3.5 px-6">Contact</th><th className="py-3.5 px-6">License</th><th className="py-3.5 px-6">Vehicle</th><th className="py-3.5 px-6">Status</th><th className="py-3.5 px-6">Trip</th><th className="py-3.5 px-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-xs text-gray-900 font-semibold">
+              {paginated.length === 0 ? (
+                <tr><td colSpan="7" className="text-center py-16 text-gray-400 font-bold"><Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />No drivers found</td></tr>
+              ) : (
+                paginated.map(d => {
+                  const active = String(d.status).toLowerCase() === 'active';
+                  const trip = d.current_trip || 'Available';
+                  const onTrip = String(trip).toLowerCase().includes('trip');
+                  return (
+                    <tr key={d.id} className="hover:bg-gray-50/60">
+                      <td className="py-4 px-6 font-bold text-gray-900 cursor-pointer hover:text-amber-600 transition-colors" onClick={() => openEditModal(d)}>{d.name}</td>
+                      <td className="py-4 px-6 text-gray-900"><div>{d.phone}</div><div className="text-gray-600 text-[11px] font-medium">{d.email || '—'}</div></td>
+                      <td className="py-4 px-6 text-gray-900"><div>{d.license_number}</div><div className="text-gray-600 text-[11px] font-medium">{d.license_type}</div></td>
+                      <td className="py-4 px-6 text-gray-900"><div>{d.vehicle_assigned || 'Unassigned'}</div><div className="text-gray-600 text-[11px] font-medium">{d.vehicle_model || '—'}</div></td>
+                      <td className="py-4 px-6"><span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>{active ? 'Active' : 'Inactive'}</span></td>
+                      <td className="py-4 px-6"><div className="flex items-center gap-1.5 font-bold"><span className={`w-2 h-2 rounded-full ${onTrip ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>{trip}</div></td>
+                      <td className="py-4 px-6 text-right">
+                        <button onClick={() => setDriverToDelete(d)} className="w-8 h-8 rounded-xl border border-rose-200 bg-rose-50 flex items-center justify-center text-rose-600 hover:bg-rose-100 ml-auto cursor-pointer" title="Delete Driver">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between p-4 px-6 border-t border-gray-100">
+          <p className="text-xs text-gray-700 font-bold uppercase tracking-wider">Showing {filtered.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}</p>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-bold cursor-pointer ${currentPage === p ? 'bg-amber-500 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>{p}</button>
+            ))}
+            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        </div>
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-gray-100 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">{editingId ? "Edit Driver" : "Add Driver"}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 cursor-pointer"><X className="w-4 h-4" /></button>
+            </div>
+            <form onSubmit={handleSaveDriver} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Name *</label><input required placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone *</label><input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+              </div>
+              <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email</label><input type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License # *</label><input required placeholder="License" value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License Type</label><select value={formData.license_type} onChange={e => setFormData({ ...formData, license_type: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 uppercase"><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option></select></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Assigned</label><input placeholder="Truck #14" value={formData.vehicle_assigned} onChange={e => setFormData({ ...formData, vehicle_assigned: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Model</label><input placeholder="Model" value={formData.vehicle_model} onChange={e => setFormData({ ...formData, vehicle_model: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl text-xs font-bold uppercase">Cancel</Button>
+                <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase">{submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{editingId ? "Update Driver" : "Save Driver"}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
-      
-      {deleting && (
-        <ConfirmDialog 
-          message={`Are you sure you want to remove ${deleting.full_name} from the roster? This cannot be undone.`} 
-          onConfirm={handleDelete} 
-          onClose={() => setDeleting(null)} 
-        />
+
+      {driverToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-gray-100 overflow-hidden p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Delete Driver</h3>
+              <p className="text-xs text-gray-500 font-medium">Are you sure you want to delete <strong className="text-gray-900">{driverToDelete.name}</strong>? This action cannot be undone.</p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDriverToDelete(null)} className="w-full rounded-xl text-xs font-bold uppercase">Cancel</Button>
+              <Button type="button" onClick={confirmDeleteDriver} className="w-full bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold uppercase">Delete</Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

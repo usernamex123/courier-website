@@ -35,7 +35,7 @@ export default function Layout() {
 
   const isSubPage = location.pathname !== "/" && location.pathname !== "";
   
-  // Check backend admin session status
+  // Check backend admin session status[cite: 1]
   useEffect(() => {
     const checkAdminSession = async () => {
       try {
@@ -60,7 +60,7 @@ export default function Layout() {
     checkAdminSession();
   }, [location.pathname]);
 
-  // Check Supabase client user session
+  // Check Supabase client user session[cite: 1]
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -152,13 +152,14 @@ export default function Layout() {
   };
 
   const HeaderContent = ({ height }) => (
-    <div className={`max-w-7xl mx-auto px-4 sm:px-5 flex justify-between items-center w-full ${height}`}>
-      <Link to="/" className="flex flex-row items-center gap-3 font-brand ml-1 group">
-        <div className="text-4xl sm:text-6xl font-black tracking-tighter leading-none text-yellow-500">JB</div>
-        <div className="flex flex-col justify-center">
-          <div className="text-xl sm:text-3xl font-black tracking-tight leading-none text-white">LOGISTICS</div>
-          <div className="w-full h-[2px] sm:h-[2.5px] bg-yellow-500 my-1 rounded-full"></div>
-          <div className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.25em] sm:tracking-[0.3em] text-stone-300 leading-none">Services</div>
+    <div className={`max-w-7xl mx-auto px-3 sm:px-5 flex justify-between items-center w-full ${height}`}>
+      <Link to="/" className="flex items-center gap-2.5 sm:gap-4 ml-1 group">
+        <span className="text-3xl sm:text-6xl font-black tracking-tight text-yellow-500 leading-none">JB</span>
+        <div className="self-stretch w-[2px] bg-yellow-500/80 my-0.5"></div>
+        <div className="flex flex-col justify-between">
+          <span className="text-lg sm:text-3xl font-black tracking-tight leading-none text-white">LOGISTICS</span>
+          <div className="w-full h-[2px] bg-yellow-500 my-1"></div>
+          <span className="text-[8px] sm:text-[11px] font-bold uppercase tracking-[0.35em] text-yellow-500 leading-none">SERVICES</span>
         </div>
       </Link>
       
@@ -203,10 +204,10 @@ export default function Layout() {
         )}
       </div>
 
-      <div className="flex md:hidden items-center gap-3">
+      <div className="flex md:hidden items-center gap-2.5">
         {user && (
-          <Link to="/Dashboard" className="px-4 py-2 rounded-full bg-yellow-500 text-white font-bold text-xs flex items-center gap-1.5 shadow">
-            <span>Customer Portal</span>
+          <Link to="/Dashboard" className="px-3 py-1.5 rounded-full bg-yellow-500 text-white font-bold text-[11px] flex items-center gap-1 shadow">
+            <span>Portal</span>
           </Link>
         )}
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white cursor-pointer">
@@ -272,7 +273,8 @@ export default function Layout() {
         )}
       </AnimatePresence>
       
-      <main>
+      {/* px-4 keeps text away from the screen edge on mobile; sm:px-0 keeps desktop completely unaffected */}
+      <main className="px-4 sm:px-0">
         <Outlet />
       </main>
 

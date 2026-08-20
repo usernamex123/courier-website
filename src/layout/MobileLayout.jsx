@@ -36,19 +36,17 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-yellow-500/5 via-amber-500/0 to-transparent blur-[100px] pointer-events-none"></div>
 
       {/* --- RESPONSIVE MOBILE & DESKTOP HEADER --- */}
-      <header className="w-full sticky top-0 z-50 bg-[#090807]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-4">
+      <header className="w-full sticky top-0 z-50 bg-[#090807]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3.5 sm:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           
-          {/* Brand Logo */}
-          <Link to="/" className="flex flex-col group">
-            <div className="flex items-center text-2xl sm:text-3xl font-extrabold tracking-tight leading-none text-white">
-              <span className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]">J</span>
-              <span className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]">B</span>
-              <span className="text-white ml-2">LOGISTICS</span>
-            </div>
-            <div className="w-full h-[2px] bg-gradient-to-r from-yellow-500 to-amber-400 my-1 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
-            <div className="text-[9px] font-bold tracking-[0.25em] text-stone-400 leading-none">
-              SERVICES
+          {/* Brand Logo - Matched to exact primary layout styling */}
+          <Link to="/" className="flex items-center gap-3 sm:gap-4 ml-1 group">
+            <span className="text-3xl sm:text-5xl font-black tracking-tight text-yellow-500 leading-none">JB</span>
+            <div className="self-stretch w-[2px] bg-yellow-500/80 my-0.5"></div>
+            <div className="flex flex-col justify-between">
+              <span className="text-lg sm:text-2xl font-black tracking-tight leading-none text-white">LOGISTICS</span>
+              <div className="w-full h-[2px] bg-yellow-500 my-1"></div>
+              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.35em] text-yellow-500 leading-none">SERVICES</span>
             </div>
           </Link>
 
@@ -101,20 +99,20 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
           </div>
 
           {/* Mobile Hamburger Button */}
-          <div className="flex md:hidden items-center gap-3">
+          <div className="flex md:hidden items-center gap-2.5">
             {user && (
               <button 
                 onClick={() => navigate('/Dashboard')}
-                className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-600 to-yellow-400 text-black font-extrabold text-sm flex items-center justify-center border border-white/20"
+                className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-600 to-yellow-400 text-black font-extrabold text-sm flex items-center justify-center border border-white/20 shadow-sm"
               >
                 {getProfileInitial()}
               </button>
             )}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-stone-300 hover:text-white"
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-stone-300 hover:text-white cursor-pointer active:scale-95 transition-transform"
             >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
 
@@ -128,11 +126,12 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-[#0e0c0b] border-b border-white/10 px-6 py-6 flex flex-col gap-4 z-40 shadow-2xl"
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="md:hidden bg-[#0e0c0b]/95 backdrop-blur-2xl border-b border-white/10 px-6 py-6 flex flex-col gap-4 z-40 shadow-2xl overflow-hidden"
           >
             <Link
               to="/"
-              className="flex items-center gap-3 text-sm font-bold text-stone-200 py-2 border-b border-white/5"
+              className="flex items-center gap-3 text-sm font-bold text-stone-200 py-3 border-b border-white/5 hover:text-yellow-400 transition-colors"
             >
               <Home size={18} className="text-yellow-500" /> Home Dashboard
             </Link>
@@ -141,7 +140,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
               <>
                 <Link
                   to="/Dashboard"
-                  className="flex items-center gap-3 text-sm font-bold text-stone-200 py-2 border-b border-white/5"
+                  className="flex items-center gap-3 text-sm font-bold text-stone-200 py-3 border-b border-white/5 hover:text-yellow-400 transition-colors"
                 >
                   <Settings size={18} className="text-yellow-500" /> Account Settings
                 </Link>
@@ -161,7 +160,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
                         }
                       } catch {}
                     }}
-                    className="flex items-center gap-3 text-sm font-bold text-yellow-400 py-2 border-b border-white/5 text-left"
+                    className="flex items-center gap-3 text-sm font-bold text-yellow-400 py-3 border-b border-white/5 text-left hover:text-yellow-300 transition-colors"
                   >
                     <ShieldAlert size={18} /> Admin Command Center
                   </button>
@@ -169,7 +168,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
 
                 <button
                   onClick={onLogout}
-                  className="flex items-center gap-3 text-sm font-bold text-red-400 py-2 text-left"
+                  className="flex items-center gap-3 text-sm font-bold text-red-400 py-3 text-left hover:text-red-300 transition-colors cursor-pointer"
                 >
                   <LogOut size={18} /> Log Out
                 </button>
@@ -180,7 +179,7 @@ export default function MobileLayout({ children, user, profileData, onLogout, on
                   setIsMobileMenuOpen(false);
                   onOpenAuthModal();
                 }}
-                className="w-full bg-gradient-to-r from-yellow-500 to-amber-400 text-black py-3 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 mt-2 shadow-lg"
+                className="w-full bg-gradient-to-r from-yellow-500 to-amber-400 text-black py-3.5 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 mt-2 shadow-lg cursor-pointer active:scale-95 transition-transform"
               >
                 <UserCheck size={18} /> Login / Register
               </button>

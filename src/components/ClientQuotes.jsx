@@ -14,15 +14,8 @@ const supabase = createClient(
   supabaseAnonKey || 'placeholder'
 );
 
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  const hostname = typeof window !== 'undefined' ? window.location.hostname || 'localhost' : 'localhost';
-  return `http://${hostname}:5000`;
-};
-
-const API_URL = getApiUrl();
+// Supabase Edge Function URL for sending emails
+const EDGE_FUNCTION_URL = `${supabaseUrl}/functions/v1/notify-admin`;
 
 export default function ClientQuotes() {
   const [quotes, setQuotes] = useState([]);
@@ -31,7 +24,7 @@ export default function ClientQuotes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [selectedQuote, setSelectedQuote] = useState(null); // For detail modal
+  const [selectedQuote, setSelectedQuote] = useState(null);
   
   // Reply Modal States
   const [replyingQuote, setReplyingQuote] = useState(null);
@@ -44,44 +37,22 @@ export default function ClientQuotes() {
     else setLoading(true);
 
     setError(null);
-    const token = localStorage.getItem('admin_token');
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/messages`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        credentials: 'include'
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Failed to fetch messages (${res.status}): ${errorText || 'Unauthorized'}`);
-      }
-
-      const resData = await res.json();
-      const messageList = Array.isArray(resData) ? resData : (resData.data || resData.messages || []);
-      setQuotes(messageList);
-    } catch (err) {
-      console.error('Failed to load quotes:', err);
-      // Fallback: try fetching from Supabase directly if configured
       if (supabaseUrl && supabaseAnonKey) {
         const { data, error: sbErr } = await supabase
           .from('messages')
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!sbErr && data) {
-          setQuotes(data);
-          setError(null);
-        } else {
-          setError(err.message || 'Error communicating with server');
-        }
+        if (sbErr) throw sbErr;
+        setQuotes(data || []);
       } else {
-        setError(err.message || 'Failed to load client messages');
+        throw new Error('Supabase configuration missing');
       }
+    } catch (err) {
+      console.error('Failed to load quotes:', err);
+      setError(err.message || 'Failed to load client messages');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,7 +62,6 @@ export default function ClientQuotes() {
   useEffect(() => {
     fetchMessages();
 
-    // Listen to realtime inserts from Supabase if configured
     let channel;
     if (supabaseUrl && supabaseAnonKey) {
       channel = supabase
@@ -114,22 +84,15 @@ export default function ClientQuotes() {
 
   const handleDeleteMessage = async (e, id) => {
     e.stopPropagation();
+    if (!id) return;
     if (!window.confirm('Are you sure you want to delete this message?')) return;
 
     setDeletingId(id);
-    const token = localStorage.getItem('admin_token');
 
     try {
-      await fetch(`${API_URL}/api/admin/messages/${id}`, {
-        method: 'DELETE',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        credentials: 'include'
-      }).catch(() => null);
-
       if (supabaseUrl && supabaseAnonKey) {
-        await supabase.from('messages').delete().eq('id', id);
+        const { error: sbErr } = await supabase.from('messages').delete().eq('id', id);
+        if (sbErr) throw sbErr;
       }
 
       setQuotes(prev => prev.filter(q => q.id !== id));
@@ -143,6 +106,7 @@ export default function ClientQuotes() {
   };
 
   const handleStatusChange = async (id, newStatus) => {
+    if (!id) return;
     try {
       setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q));
       if (supabaseUrl && supabaseAnonKey) {
@@ -155,56 +119,55 @@ export default function ClientQuotes() {
     }
   };
 
-  // Open Reply Modal
   const openReplyModal = (quote) => {
     setReplyingQuote(quote);
     setReplySubject(`Inquiry Follow-up: JB Logistics - ${quote.subject || quote.service || 'General Inquiry'}`);
     setReplyBody(`Dear ${quote.client_name || quote.name || 'Client'},\n\nThank you for reaching out to JB Logistics. Regarding your inquiry, `);
   };
 
-  // Send Reply Handler
   const handleSendReply = async (e) => {
     e.preventDefault();
-    if (!replyingQuote) return;
+    if (!replyingQuote || !replyingQuote.id) return;
 
     setSendingReply(true);
-    const token = localStorage.getItem('admin_token');
     const quoteId = replyingQuote.id;
+    const token = supabaseAnonKey;
 
     try {
-      // Try sending via backend API if available
-      const res = await fetch(`${API_URL}/api/admin/messages/${quoteId}/reply`, {
+      const res = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          type: 'admin_reply',
+          messageId: quoteId,
           subject: replySubject,
           message: replyBody,
           recipient: replyingQuote.email
-        }),
-        credentials: 'include'
-      }).catch(() => null);
+        })
+      });
 
-      // Update status to 'replied' in state and Supabase
-      setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'replied' } : q));
-      if (supabaseUrl && supabaseAnonKey) {
-        await supabase.from('messages').update({ status: 'replied' }).eq('id', quoteId);
+      const resData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to send email via Edge Function');
       }
 
-      toast.success('Reply sent successfully!');
+      setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'replied' } : q));
+
+      toast.success('Email reply sent successfully!');
       setReplyingQuote(null);
       setReplyBody('');
     } catch (err) {
       console.error('Failed to send reply:', err);
-      toast.error('Failed to send reply');
+      toast.error(err.message || 'Failed to send email reply');
     } finally {
       setSendingReply(false);
     }
   };
 
-  // Filter messages based on search query
   const filteredQuotes = quotes.filter((q) => {
     const name = q.client_name || q.name || '';
     const message = q.message || q.service || q.content || '';
@@ -219,76 +182,79 @@ export default function ClientQuotes() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-gray-500 font-medium text-sm gap-3 bg-white min-h-screen">
-        <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+      <div className="flex justify-center items-center h-64 text-gray-500 font-bold text-sm gap-3 bg-gray-50 min-h-screen font-sans">
+        <Loader2 className="w-6 h-6 animate-spin text-yellow-600" />
         Loading client messages...
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, sans-serif' }} className="space-y-4 text-gray-900 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 bg-white min-h-screen">
+    <div className="w-full space-y-6 animate-fadeIn font-sans text-gray-900 px-4 sm:px-6 lg:px-8 py-6 bg-gray-50 min-h-screen">
       
-      {/* Top action header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-100">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search messages..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-50/50 border border-gray-200 pl-10 pr-4 py-2 text-gray-900 text-xs focus:outline-none focus:border-gray-400 transition-colors placeholder:text-gray-400 rounded-md"
-          />
+      {/* Top Filter & Action Bar */}
+      <div className="bg-white border border-gray-200 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Search Input */}
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 flex-1 min-w-[200px] max-w-[320px] shadow-sm">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search messages..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400 font-medium"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <button 
             onClick={() => fetchMessages(true)}
             disabled={refreshing}
-            className="px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-medium disabled:opacity-50 rounded-md shadow-2xs"
+            className="bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
             title="Refresh list"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-gray-600' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-gray-600' : ''}`} />
             <span>Refresh</span>
           </button>
 
-          <span className="px-2.5 py-1.5 bg-gray-50 text-gray-600 text-xs font-medium border border-gray-200 rounded-md">
+          <span className="px-3.5 py-2.5 bg-gray-50 text-gray-700 text-sm font-bold border border-gray-200 rounded-xl shadow-sm">
             Total: {quotes.length}
           </span>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-3 font-medium text-xs flex items-center justify-between rounded-md">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 font-bold text-sm flex items-center justify-between rounded-xl">
           <span>Error: {error}</span>
           <button onClick={() => fetchMessages()} className="underline hover:text-red-900 cursor-pointer">Try Again</button>
         </div>
       )}
 
-      {/* Clean table design matching screenshot */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-2xs">
+      {/* Table Container */}
+      <div className="w-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
         {filteredQuotes.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-xs font-medium tracking-wide">
+          <div className="text-center py-20 text-gray-500 font-medium text-sm">
             {searchTerm ? 'No messages match your search criteria.' : 'No client messages received yet.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-sm table-fixed">
               <thead>
-                <tr className="border-b border-gray-200 text-[11px] text-gray-500 uppercase tracking-wider bg-gray-50/50">
-                  <th className="py-3 px-4 font-semibold w-12 text-center">#</th>
-                  <th className="py-3 px-4 font-semibold">Client</th>
-                  <th className="py-3 px-4 font-semibold">Subject / Service</th>
-                  <th className="py-3 px-4 font-semibold">Details</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold">Date</th>
-                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                <tr className="text-left text-gray-500 border-b border-gray-200 bg-gray-50">
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-12 text-center">#</th>
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[18%]">Client</th>
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[18%]">Subject / Service</th>
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[20%]">Details</th>
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[16%]">Status</th>
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[16%]">Date (Cleveland)</th>
+                  <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs text-right w-[12%]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-xs">
+              <tbody className="divide-y divide-gray-100">
                 {filteredQuotes.map((quote, index) => {
-                  const id = quote.id || index + 1;
+                  const id = quote.id;
                   const clientName = quote.client_name || quote.name || 'Unnamed Client';
                   const clientEmail = quote.email || 'No email provided';
                   const initials = clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -302,105 +268,95 @@ export default function ClientQuotes() {
                   const status = (quote.status || 'new').toLowerCase();
                   
                   const dateObj = quote.created_at ? new Date(quote.created_at) : new Date();
-                  const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                  const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                  const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+                  const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
 
                   return (
-                    <tr key={id} className="hover:bg-gray-50/65 transition-colors group">
-                      {/* Index */}
-                      <td className="py-3.5 px-4 text-gray-400 font-mono text-center font-medium">
+                    <tr key={id || index} className="hover:bg-gray-50/80 transition-colors group">
+                      <td className="px-3.5 py-4.5 text-gray-400 font-mono text-center font-bold">
                         {index + 1}
                       </td>
 
-                      {/* Client */}
-                      <td className="py-3.5 px-4">
+                      <td className="px-3.5 py-4.5 truncate">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-50/80 text-blue-600 font-semibold text-xs flex items-center justify-center shrink-0 uppercase rounded-full">
+                          <div className="w-8 h-8 bg-yellow-100 text-yellow-800 font-bold text-xs flex items-center justify-center shrink-0 uppercase rounded-full shadow-2xs">
                             {initials || 'CL'}
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">{clientName}</div>
-                            <div className="text-[11px] text-gray-500 font-normal mt-0.5">{clientEmail}</div>
+                          <div className="truncate">
+                            <div className="font-bold text-gray-900 truncate" title={clientName}>{clientName}</div>
+                            <div className="text-xs text-gray-500 font-medium truncate mt-0.5" title={clientEmail}>{clientEmail}</div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Subject / Service */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-gray-900">{subjectText}</div>
-                        <div className="text-[11px] text-gray-500 font-normal mt-0.5">{serviceText}</div>
+                      <td className="px-3.5 py-4.5 truncate">
+                        <div className="font-bold text-gray-900 truncate" title={subjectText}>{subjectText}</div>
+                        <div className="text-xs text-gray-500 font-medium truncate mt-0.5" title={serviceText}>{serviceText}</div>
                       </td>
 
-                      {/* Details */}
-                      <td className="py-3.5 px-4 text-gray-600 space-y-1">
-                        <div className="flex items-center gap-1.5 text-[11px]">
-                          <User className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span>From: {origin}</span>
+                      <td className="px-3.5 py-4.5 text-gray-600 space-y-1 truncate">
+                        <div className="flex items-center gap-1.5 text-xs truncate">
+                          <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="truncate">From: {origin}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px]">
-                          <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span>To: {destination}</span>
+                        <div className="flex items-center gap-1.5 text-xs truncate">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="truncate">To: {destination}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                          <Package className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span className="truncate max-w-[220px]">{weightOrDetails}</span>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 truncate">
+                          <Package className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="truncate">{weightOrDetails}</span>
                         </div>
                       </td>
 
-                      {/* Status */}
-                      <td className="py-3.5 px-4">
+                      <td className="px-3.5 py-4.5 truncate">
                         <select
                           value={status}
-                          onChange={(e) => handleStatusChange(quote.id, e.target.value)}
-                          className={`text-[10px] font-semibold uppercase px-2 py-0.5 border rounded cursor-pointer focus:outline-none transition-colors ${
+                          onChange={(e) => handleStatusChange(id, e.target.value)}
+                          className={`text-xs font-bold uppercase px-2.5 py-1 border rounded-xl cursor-pointer focus:outline-none transition-colors shadow-sm ${
                             status === 'new' 
-                              ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                              ? 'bg-blue-50 text-blue-700 border-blue-200' 
                               : status === 'replied' 
-                              ? 'bg-purple-50 text-purple-600 border-purple-200' 
-                              : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                              : 'bg-green-50 text-green-700 border-green-200'
                           }`}
                         >
-                          <option value="new" className="bg-white text-blue-600">New</option>
-                          <option value="read" className="bg-white text-emerald-600">Read</option>
-                          <option value="replied" className="bg-white text-purple-600">Replied</option>
+                          <option value="new" className="bg-white text-blue-700 font-bold">New</option>
+                          <option value="read" className="bg-white text-green-700 font-bold">Read</option>
+                          <option value="replied" className="bg-white text-purple-700 font-bold">Replied</option>
                         </select>
                       </td>
 
-                      {/* Date */}
-                      <td className="py-3.5 px-4 font-mono text-gray-500 whitespace-nowrap">
-                        <div className="text-[11px] font-medium text-gray-700">{dateStr}</div>
-                        <div className="text-[10px] text-gray-400">{timeStr}</div>
+                      <td className="px-3.5 py-4.5 font-mono text-gray-500 whitespace-nowrap">
+                        <div className="text-xs font-bold text-gray-800">{dateStr}</div>
+                        <div className="text-[11px] text-gray-400 font-medium">{timeStr}</div>
                       </td>
 
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* View details */}
+                      <td className="px-3.5 py-4.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => setSelectedQuote(quote)}
-                            className="p-1.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-600 transition-colors rounded cursor-pointer shadow-2xs"
+                            className="p-2 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 transition-colors rounded-xl cursor-pointer shadow-sm"
                             title="View Message Details"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Reply in Popup Modal */}
                           <button
                             onClick={() => openReplyModal(quote)}
-                            className="p-1.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-600 hover:text-blue-600 transition-colors rounded cursor-pointer shadow-2xs"
+                            className="p-2 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 hover:text-yellow-600 transition-colors rounded-xl cursor-pointer shadow-sm"
                             title="Reply to Client"
                           >
                             <CornerUpLeft className="w-4 h-4" />
                           </button>
 
-                          {/* Delete */}
                           <button
-                            onClick={(e) => handleDeleteMessage(e, quote.id)}
-                            disabled={deletingId === quote.id}
-                            className="p-1.5 bg-white hover:bg-red-50 border border-gray-200 text-gray-600 hover:text-red-600 transition-colors rounded cursor-pointer disabled:opacity-50 shadow-2xs"
+                            onClick={(e) => handleDeleteMessage(e, id)}
+                            disabled={deletingId === id}
+                            className="p-2 bg-white hover:bg-red-50 border border-gray-200 text-gray-700 hover:text-red-600 transition-colors rounded-xl cursor-pointer disabled:opacity-50 shadow-sm"
                             title="Delete Message"
                           >
-                            {deletingId === quote.id ? (
+                            {deletingId === id ? (
                               <Loader2 className="w-4 h-4 animate-spin text-red-600" />
                             ) : (
                               <Trash2 className="w-4 h-4" />
@@ -419,53 +375,55 @@ export default function ClientQuotes() {
 
       {/* Detail Modal */}
       {selectedQuote && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 w-full max-w-2xl rounded-xl shadow-xl overflow-hidden animate-fadeIn">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-50 text-blue-600 font-semibold text-xs flex items-center justify-center uppercase rounded-full">
+                <div className="w-9 h-9 bg-yellow-100 text-yellow-800 font-bold text-xs flex items-center justify-center uppercase rounded-full shadow-2xs">
                   {(selectedQuote.client_name || selectedQuote.name || 'C')[0]}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 text-sm">
+                  <h3 className="font-bold text-gray-900 text-sm">
                     {selectedQuote.client_name || selectedQuote.name || 'Client Inquiry'}
                   </h3>
-                  <span className="text-[11px] text-gray-500 font-mono">{selectedQuote.email || 'No email'}</span>
+                  <span className="text-xs text-gray-500 font-mono font-medium">{selectedQuote.email || 'No email'}</span>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedQuote(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer rounded-md hover:bg-gray-100"
+                className="p-2 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer rounded-xl hover:bg-gray-100"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-100 rounded-lg">
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-200 rounded-xl">
                 <div>
-                  <span className="text-[10px] uppercase font-semibold text-gray-400 block">Subject / Service</span>
-                  <span className="text-xs font-semibold text-gray-900 mt-1 block">
+                  <span className="text-xs uppercase font-bold text-gray-500 block">Subject / Service</span>
+                  <span className="text-sm font-bold text-gray-900 mt-1 block">
                     {selectedQuote.subject || selectedQuote.service || 'General Inquiry'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-semibold text-gray-400 block">Route / Details</span>
-                  <span className="text-xs font-semibold text-blue-600 mt-1 block">
+                  <span className="text-xs uppercase font-bold text-gray-500 block">Route / Details</span>
+                  <span className="text-sm font-bold text-yellow-600 mt-1 block">
                     {selectedQuote.origin || 'Kathmandu'} → {selectedQuote.destination || 'N/A'}
                   </span>
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-5 border border-gray-100 rounded-lg">
-                <span className="text-[10px] font-semibold tracking-wider text-gray-400 block mb-2 uppercase">Full Message Body</span>
+              <div className="bg-gray-50 p-5 border border-gray-200 rounded-xl">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-2">Full Message Body</span>
                 <p className="text-sm text-gray-800 font-normal leading-relaxed whitespace-pre-wrap">
                   {selectedQuote.message || selectedQuote.content || 'No message content provided.'}
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-2 text-xs text-gray-500">
-                <span>Received: {selectedQuote.created_at ? new Date(selectedQuote.created_at).toLocaleString() : 'Recently'}</span>
+              <div className="flex items-center justify-between pt-2 text-xs font-bold text-gray-500">
+                <span>
+                  Received: {selectedQuote.created_at ? new Date(selectedQuote.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'} (Cleveland, OH)
+                </span>
                 {selectedQuote.email && (
                   <button
                     onClick={() => {
@@ -473,10 +431,10 @@ export default function ClientQuotes() {
                       setSelectedQuote(null);
                       openReplyModal(q);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs transition-colors rounded-md shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-sm transition-colors rounded-xl shadow-sm cursor-pointer"
                   >
                     <span>Reply Now</span>
-                    <CornerUpLeft className="w-3.5 h-3.5" />
+                    <CornerUpLeft className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -487,80 +445,80 @@ export default function ClientQuotes() {
 
       {/* Reply Popup Modal */}
       {replyingQuote && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 w-full max-w-xl rounded-xl shadow-xl overflow-hidden animate-fadeIn">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md">
+                <div className="p-2 bg-yellow-100 text-yellow-800 rounded-xl">
                   <CornerUpLeft className="w-4 h-4" />
                 </div>
-                <h3 className="font-semibold text-gray-900 text-sm">
+                <h3 className="font-bold text-gray-900 text-sm">
                   Reply to {replyingQuote.client_name || replyingQuote.name || 'Client'}
                 </h3>
               </div>
               <button
                 onClick={() => setReplyingQuote(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer rounded-md hover:bg-gray-100"
+                className="p-2 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer rounded-xl hover:bg-gray-100"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSendReply} className="p-6 space-y-4">
               <div>
-                <label className="block text-[10px] uppercase font-semibold text-gray-500 mb-1">To</label>
+                <label className="block text-xs uppercase font-bold text-gray-600 mb-1">To</label>
                 <input
                   type="text"
                   disabled
                   value={replyingQuote.email || 'No email provided'}
-                  className="w-full bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-600 rounded-md font-mono"
+                  className="w-full bg-gray-50 border border-gray-200 px-3.5 py-2.5 text-sm text-gray-600 rounded-xl font-mono font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-semibold text-gray-500 mb-1">Subject</label>
+                <label className="block text-xs uppercase font-bold text-gray-600 mb-1">Subject</label>
                 <input
                   type="text"
                   value={replySubject}
                   onChange={(e) => setReplySubject(e.target.value)}
                   required
-                  className="w-full bg-white border border-gray-200 px-3 py-2 text-xs text-gray-900 rounded-md focus:outline-none focus:border-gray-400 font-medium"
+                  className="w-full bg-white border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 rounded-xl focus:outline-none focus:border-yellow-500 font-bold shadow-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-semibold text-gray-500 mb-1">Message</label>
+                <label className="block text-xs uppercase font-bold text-gray-600 mb-1">Message</label>
                 <textarea
                   rows={6}
                   value={replyBody}
                   onChange={(e) => setReplyBody(e.target.value)}
                   required
                   placeholder="Type your reply here..."
-                  className="w-full bg-white border border-gray-200 p-3 text-xs text-gray-900 rounded-md focus:outline-none focus:border-gray-400 leading-relaxed"
+                  className="w-full bg-white border border-gray-300 p-3.5 text-sm text-gray-900 rounded-xl focus:outline-none focus:border-yellow-500 font-medium shadow-sm leading-relaxed"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setReplyingQuote(null)}
-                  className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-md cursor-pointer transition-colors"
+                  className="px-4 py-2.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 text-sm font-bold rounded-xl cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={sendingReply}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md shadow-2xs cursor-pointer transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-black text-sm font-bold rounded-xl shadow-sm cursor-pointer transition-colors disabled:opacity-50"
                 >
                   {sendingReply ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin text-black" />
                       <span>Sending...</span>
                     </>
                   ) : (
                     <>
-                      <Send className="w-3.5 h-3.5" />
+                      <Send className="w-4 h-4" />
                       <span>Send Reply</span>
                     </>
                   )}

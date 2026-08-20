@@ -3,7 +3,8 @@ import { Navigate, Outlet, Link, useNavigate, useLocation, Routes, Route, NavLin
 import { 
   Loader2, LogOut, LayoutDashboard, Package, Users, Truck, 
   Car, Warehouse, FileText, BarChart3, Building2, Settings, ChevronLeft, Menu, Bell, 
-  RefreshCw, Search, Mail, Clock, Trash2, ExternalLink, ChevronUp, ChevronDown 
+  RefreshCw, Search, Mail, Clock, Trash2, ExternalLink, ChevronUp, ChevronDown, ChevronRight,
+  Wallet, CreditCard 
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -19,8 +20,13 @@ import AdminTracking from "./AdminTracking";
 import AdminVehicles from "./AdminVehicles";
 import AdminWarehouses from "./AdminWarehouses";
 import AdminReports from "./AdminReports";
-// Placeholder components for navigation items if not created yet
 
+// Import Finance Sub-components
+import AdminFinanceOverview from "./AdminFinanceOverview";
+import AdminFinanceInvoices from "./AdminFinanceInvoices";
+import AdminFinancePayments from "./AdminFinancePayments";
+
+// Placeholder components for other items if not created yet
 const AdminBranches = () => <div className="p-6 text-gray-900"><h2 className="text-xl font-bold">Branches Management</h2></div>;
 const AdminSettings = () => <div className="p-6 text-gray-900"><h2 className="text-xl font-bold">Admin Settings</h2></div>;
 
@@ -64,22 +70,41 @@ export function GuestOnlyRoute() {
 // ==========================================
 // 2. ADMIN SIDEBAR COMPONENT
 // ==========================================
-const navItems = [
+const topNavItems = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/admin/dashboard/shipments", label: "Shipments", icon: Package },
   { to: "/admin/dashboard/customers", label: "Customers", icon: Users },
   { to: "/admin/dashboard/drivers", label: "Drivers", icon: Truck },
   { to: "/admin/dashboard/vehicles", label: "Fleet", icon: Car },
   { to: "/admin/dashboard/warehouses", label: "Warehouses", icon: Warehouse },
-  { to: "/admin/dashboard/billing", label: "Billing & Finance", icon: FileText },
+];
+
+const financeSubItems = [
+  { to: "/admin/dashboard/finance/overview", label: "Overview", icon: BarChart3 },
+  { to: "/admin/dashboard/finance/invoices", label: "Invoices", icon: FileText },
+  { to: "/admin/dashboard/finance/payments", label: "Payments", icon: CreditCard },
+  { to: "/admin/dashboard/finance/reports", label: "Reports", icon: BarChart3 },
+];
+
+const bottomNavItems = [
   { to: "/admin/dashboard/branches", label: "Branches", icon: Building2 },
-  { to: "/admin/dashboard/reports", label: "Reports", icon: BarChart3 },
   { to: "/admin/dashboard/quotes", label: "Quotes & Messages", icon: FileText },
   { to: "/admin/dashboard/tracking", label: "Live Tracking", icon: FileText },
   { to: "/admin/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 function AdminSidebar({ open, onClose }) {
+  const location = useLocation();
+  const isFinanceActive = location.pathname.startsWith('/admin/dashboard/finance');
+  const [financeOpen, setFinanceOpen] = useState(isFinanceActive);
+
+  // Keep accordion open if a finance subpage is active
+  useEffect(() => {
+    if (isFinanceActive) {
+      setFinanceOpen(true);
+    }
+  }, [isFinanceActive]);
+
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
@@ -90,12 +115,67 @@ function AdminSidebar({ open, onClose }) {
             <span className="text-gray-900 ml-1.5">Logistics</span>
           </div>
           
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 max-h-[calc(100vh-120px)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-            {navItems.map((item) => (
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 max-h-[calc(100dvh-120px)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            {/* Top Navigation Items */}
+            {topNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "hover:bg-gray-100 hover:text-gray-900"}`
+                }
+              >
+                <item.icon className="w-4 h-4 shrink-0" /> {item.label}
+              </NavLink>
+            ))}
+
+            {/* Finance Accordion */}
+            <div className="pt-1">
+              <button
+                onClick={() => setFinanceOpen(!financeOpen)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                  isFinanceActive 
+                    ? "bg-yellow-500 text-black font-black shadow-sm" 
+                    : "hover:bg-gray-100 hover:text-gray-900 text-gray-600"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Wallet className="w-4 h-4 shrink-0" />
+                  <span>Finance</span>
+                </div>
+                {financeOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+              </button>
+
+              {financeOpen && (
+                <div className="pl-4 pr-1 py-1.5 space-y-1 mt-1 border-l-2 border-yellow-500 ml-3">
+                  {financeSubItems.map((sub) => (
+                    <NavLink
+                      key={sub.to}
+                      to={sub.to}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${
+                          isActive 
+                            ? "bg-yellow-100 text-yellow-900 font-black" 
+                            : "hover:bg-gray-100 hover:text-gray-900 text-gray-600"
+                        }`
+                      }
+                    >
+                      <sub.icon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{sub.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Navigation Items */}
+            {bottomNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
                 onClick={onClose}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "hover:bg-gray-100 hover:text-gray-900"}`
@@ -402,7 +482,6 @@ function AdminTopbar({ onMenuClick, title, onToggleNotifications, notificationOp
         <h1 className="text-base md:text-lg font-bold text-gray-900 uppercase tracking-wider">{title}</h1>
       </div>
 
-      {/* Bell icon wrapper set to relative so the dropdown anchors correctly and moves with scroll */}
       <div className="flex items-center gap-3 relative">
         <button 
           onClick={onToggleNotifications}
@@ -413,7 +492,6 @@ function AdminTopbar({ onMenuClick, title, onToggleNotifications, notificationOp
           <span className="absolute top-2 right-2 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
         </button>
 
-        {/* Client Quotes Dropdown / Modal Banner anchored directly inside bell button container */}
         <NotificationQuotesBanner 
           isOpen={notificationOpen} 
           onClose={onToggleNotifications} 
@@ -433,7 +511,8 @@ export function AdminDashboardContainer() {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    const currentItem = navItems.find(item => item.to === path || (item.end === false && path.startsWith(item.to)));
+    const allNavItems = [...topNavItems, ...financeSubItems, ...bottomNavItems];
+    const currentItem = allNavItems.find(item => item.to === path || (item.end === false && path.startsWith(item.to)));
     return currentItem ? currentItem.label : "Admin Portal";
   };
 
@@ -460,9 +539,14 @@ export function AdminDashboardContainer() {
             <Route path="drivers" element={<AdminDrivers />} />
             <Route path="vehicles" element={<AdminVehicles />} />
             <Route path="warehouses" element={<AdminWarehouses />} />
-            <Route path="billing" element={<AdminBilling />} />
+            
+            {/* Finance Sub-routes */}
+            <Route path="finance/overview" element={<AdminFinanceOverview />} />
+            <Route path="finance/invoices" element={<AdminFinanceInvoices />} />
+            <Route path="finance/payments" element={<AdminFinancePayments />} />
+            <Route path="finance/reports" element={<AdminReports />} />
+
             <Route path="branches" element={<AdminBranches />} />
-            <Route path="reports" element={<AdminReports />} />
             <Route path="quotes" element={<ClientQuotes />} />
             <Route path="tracking" element={<AdminTracking />} />
             <Route path="settings" element={<AdminSettings />} />

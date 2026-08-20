@@ -136,7 +136,7 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
             <title>Shipping Label - ${shipment.tracking_number || ''}</title>
             <script src="https://cdn.tailwindcss.com"></script>
             <style>
-              body { margin: 0; background: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+              body { margin: 0; background: white; display: flex; justify-content: center; align-items: center; min-height: 100dvh; }
             </style>
           </head>
           <body>

@@ -1,3 +1,4 @@
+import React from "react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -51,7 +52,7 @@ function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", fontWeight: 800 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95] text-white normal-case drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
+          className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95] text-white normal-case drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
         >
           Delivering <br />
           <span className="text-yellow-500 drop-shadow-[0_0_25px_rgba(234,179,8,0.4)]">Trust</span> Across <br />
@@ -76,7 +77,7 @@ function Hero() {
         >
           <a 
             href="#get-started" 
-            onClick={(e) => handleHomeScroll(e, 'get-started')}
+            onClick={(e) => handleHomeScale(e, 'get-started')}
             className="bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black px-8 py-4 rounded-none font-bold text-sm md:text-base tracking-wider inline-flex items-center gap-3 text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.4)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
           >
             <span>REQUEST A QUOTE</span>
