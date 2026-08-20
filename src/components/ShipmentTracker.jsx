@@ -132,21 +132,25 @@ export default function ShipmentTracker() {
             Enter your tracking number to get real-time updates on your shipment
           </p>
 
-          <form onSubmit={handleTrackSubmit} className="flex items-center bg-white border border-gray-200 rounded-xl p-1.5 shadow-sm">
-            <div className="pl-4 text-gray-400 flex items-center">
-              <Package size={20} />
+          <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row sm:items-center bg-transparent sm:bg-white sm:border sm:border-gray-200 sm:rounded-xl sm:p-1.5 sm:shadow-sm gap-3 sm:gap-0">
+            {/* Input Wrapper - white block on mobile, transparent/integrated on desktop */}
+            <div className="flex items-center bg-white border border-gray-200 sm:border-none rounded-xl sm:rounded-none p-1 sm:p-0 flex-1 shadow-sm sm:shadow-none">
+              <div className="pl-3 sm:pl-4 text-gray-400 flex items-center">
+                <Package size={20} />
+              </div>
+              <input
+                type="text"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder="Enter tracking number (e.g. JB000000000)"
+                className="bg-transparent text-gray-900 placeholder-gray-400 px-3 sm:px-4 py-3 sm:py-2.5 outline-none w-full sm:flex-1 text-sm font-medium min-w-0"
+              />
             </div>
-            <input
-              type="text"
-              value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value)}
-              placeholder="Enter tracking number (e.g. JB000000000)"
-              className="bg-transparent text-gray-900 placeholder-gray-400 px-4 py-2.5 outline-none flex-1 text-sm font-medium"
-            />
+
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#0f172a] hover:bg-[#1e293b] text-white font-semibold px-7 py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shrink-0 cursor-pointer text-sm shadow-sm disabled:opacity-50"
+              className="w-full sm:w-auto bg-[#0f172a] hover:bg-[#1e293b] text-white font-semibold px-7 py-3.5 sm:py-3 rounded-xl sm:rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shrink-0 cursor-pointer text-sm shadow-sm disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Track"}
             </button>

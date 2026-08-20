@@ -89,8 +89,8 @@ export default function Services() {
         </h2>
       </div>
 
-      {/* Main Interactive Banner Area: Added ID and scroll margin */}
-      <div id="service-banner" className="relative w-full flex items-center overflow-hidden min-h-[650px] scroll-mt-20">
+      {/* Main Interactive Banner Area: Optimized mobile height */}
+      <div id="service-banner" className="relative w-full flex items-center overflow-hidden min-h-[480px] md:min-h-[650px] scroll-mt-20">
         
         <div className="absolute inset-0 z-0 transform-gpu backface-hidden scale-105">
           {activeData.type === 'video' ? (
@@ -130,13 +130,13 @@ export default function Services() {
                 onClick={() => setActiveService(service.id)}
                 className="relative cursor-pointer"
               >
-                <div className={`py-5 px-4 transition-all duration-300 border-0 text-center flex flex-col items-center justify-center ${
+                <div className={`py-4 md:py-5 px-3 md:px-4 transition-all duration-300 border-0 text-center flex flex-col items-center justify-center ${
                   isActive 
                     ? 'bg-white/10 backdrop-blur-md border-b-4 border-yellow-500 shadow-lg' 
                     : 'bg-transparent hover:bg-white/5'
                 }`}>
                   <div className="flex items-center justify-center gap-2 w-full select-none">
-                    <h3 className={`text-sm md:text-base font-bold tracking-normal truncate w-full transition-colors duration-300 ${
+                    <h3 className={`text-xs sm:text-sm md:text-base font-bold tracking-normal truncate w-full transition-colors duration-300 ${
                       isActive ? 'text-white' : 'text-white/80 hover:text-white'
                     }`}>
                       {service.title}
@@ -150,16 +150,16 @@ export default function Services() {
         </div>
 
         {/* Dynamic Content Display Area */}
-        <div className="relative z-20 w-full max-w-4xl px-6 md:px-16 lg:px-24 flex flex-col items-start text-left my-20">
+        <div className="relative z-20 w-full max-w-4xl px-6 md:px-16 lg:px-24 flex flex-col items-start text-left pt-32 pb-12 md:py-20">
           <span className="text-yellow-500 font-bold uppercase tracking-widest text-xs md:text-sm mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             Core Service Offerings
           </span>
           
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] leading-[1.1] mb-6">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] leading-[1.1] mb-4 md:mb-6">
             {activeData.title}
           </h1>
           
-          <p className="text-slate-200 text-base sm:text-lg md:text-xl max-w-xl font-normal leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+          <p className="text-slate-200 text-sm sm:text-lg md:text-xl max-w-xl font-normal leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
             {activeData.subtitle}
           </p>
         </div>

@@ -26,11 +26,11 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-black text-white border-t border-white/10 px-6 md:px-16 py-10 relative overflow-hidden font-brand">
+    <footer className="bg-[#0B132B] text-white border-t border-white/15 px-5 sm:px-6 md:px-16 py-10 relative overflow-hidden font-brand">
       {/* Subtle background glow effect for modern styling */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-amber-500/10 blur-[120px] pointer-events-none rounded-full" />
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 relative z-10 pb-8 border-b border-white/10">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 relative z-10 pb-8 border-b border-white/10 w-full">
         
         {/* Column 1: Brand & Tagline */}
         <div className="flex flex-col items-start gap-3">
@@ -129,11 +129,11 @@ export default function Footer() {
               </svg>
               <span>+1 (216) 569-5350</span>
             </li>
-            <li className="flex items-center gap-2.5">
-              <svg className="w-5 h-5 text-yellow-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <li className="flex items-start gap-2.5">
+              <svg className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
               </svg>
-              <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="hover:text-yellow-500 transition-colors">
+              <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="hover:text-yellow-500 transition-colors break-words">
                 {emailAddress}
               </a>
             </li>
@@ -143,7 +143,7 @@ export default function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div className="max-w-7xl mx-auto pt-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+      <div className="max-w-7xl mx-auto pt-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-500 w-full text-center sm:text-left">
         <div>© 2026 JB Logistics. All rights reserved.</div>
         <div className="flex gap-6">
           <a href="#privacy" onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors">Privacy Policy</a>

@@ -16,14 +16,14 @@ export default function WhyChooseUs() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
         
         {/* Left Column: Image on top (z-20) with yellow frame behind it (z-10) */}
-        <div className="relative">
-          <div className="absolute -top-5 -left-5 w-28 h-28 border-4 border-yellow-500 rounded-2xl pointer-events-none z-10" />
+        <div className="relative pl-3 sm:pl-0">
+          <div className="absolute -top-3 -left-2 sm:-top-5 sm:-left-5 w-20 h-20 sm:w-28 sm:h-28 border-4 border-yellow-500 rounded-2xl pointer-events-none z-10" />
           
           <div className="overflow-hidden rounded-2xl shadow-xl relative z-20 border border-gray-300">
             <img
               src="/modern.jpg"
               alt="Logistics warehouse operations"
-              className="w-full object-cover h-[500px]"
+              className="w-full object-cover h-[380px] sm:h-[450px] lg:h-[500px]"
             />
           </div>
         </div>

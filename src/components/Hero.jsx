@@ -28,7 +28,7 @@ function Hero() {
   };
 
   return (
-    <section className="relative min-h-[calc(90vh+189px)] flex items-start justify-start pt-40 px-6 md:px-16 lg:px-24 overflow-hidden bg-black font-brand">
+    <section className="relative min-h-[500px] md:min-h-[calc(90vh+189px)] flex items-start justify-start pt-28 md:pt-40 px-4 sm:px-6 md:px-16 lg:px-24 overflow-hidden bg-black font-brand">
       {/* Video Background */}
       <video
         autoPlay
@@ -63,7 +63,7 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-slate-200 text-base sm:text-lg md:text-xl max-w-xl font-normal leading-relaxed mt-6 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+          className="text-slate-200 text-sm sm:text-lg md:text-xl max-w-xl font-normal leading-relaxed mt-4 md:mt-6 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
         >
           End-to-end logistics and courier solutions that connect businesses and people across the nation.
         </motion.p>
@@ -73,12 +73,12 @@ function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-8 flex items-center gap-4"
+          className="mt-6 md:mt-8 flex items-center gap-4"
         >
           <a 
             href="#get-started" 
-            onClick={(e) => handleHomeScale(e, 'get-started')}
-            className="bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black px-8 py-4 rounded-none font-bold text-sm md:text-base tracking-wider inline-flex items-center gap-3 text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.4)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
+            onClick={(e) => handleHomeScroll(e, 'get-started')}
+            className="bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-none font-bold text-xs sm:text-sm md:text-base tracking-wider inline-flex items-center gap-3 text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.4)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
           >
             <span>REQUEST A QUOTE</span>
             <ArrowRight size={18} className="transition-transform duration-300 hover:translate-x-1" />

@@ -147,8 +147,8 @@ export default function GetStarted() {
       {/* Background overlay */}
       <div className="absolute inset-0 bg-black/20 z-0" />
 
-      {/* Right Column Form Container with original font size, unscrollable, and perfectly balanced spacing */}
-      <div className="absolute right-0 top-0 h-full w-full md:w-1/2 z-10 bg-black/85 backdrop-blur-xl px-8 py-4 md:px-16 md:py-6 flex flex-col justify-center overflow-hidden border-l border-white/10 shadow-2xl">
+      {/* Right Column Form Container: Mobile padding adjusted to px-6 to prevent cutoff, desktop remains exact md:px-16 */}
+      <div className="absolute right-0 top-0 h-full w-full md:w-1/2 z-10 bg-black/85 backdrop-blur-xl px-6 sm:px-8 py-4 md:px-16 md:py-6 flex flex-col justify-center overflow-hidden border-l border-white/10 shadow-2xl">
         <div className="max-w-lg mx-auto w-full my-auto">
           
           {/* Section Heading with original font sizes */}
@@ -222,7 +222,7 @@ export default function GetStarted() {
                   }}
                   className="mt-0.5 w-4 h-4 accent-yellow-500 cursor-pointer rounded-none shrink-0" 
                 />
-                <span>By checking this box, you agree to our <Link to="/privacy-policy" className="text-yellow-500 hover:underline font-bold">Privacy Policy</Link></span>
+                <span className="break-words">By checking this box, you agree to our <Link to="/privacy-policy" className="text-yellow-500 hover:underline font-bold">Privacy Policy</Link></span>
               </label>
               {errors.agreed && <span className="text-red-400 text-xs font-semibold pl-1">{errors.agreed}</span>}
             </div>

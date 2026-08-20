@@ -35,7 +35,7 @@ export default function Layout() {
 
   const isSubPage = location.pathname !== "/" && location.pathname !== "";
   
-  // Check backend admin session status[cite: 1]
+  // Check backend admin session status
   useEffect(() => {
     const checkAdminSession = async () => {
       try {
@@ -60,7 +60,7 @@ export default function Layout() {
     checkAdminSession();
   }, [location.pathname]);
 
-  // Check Supabase client user session[cite: 1]
+  // Check Supabase client user session
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -92,6 +92,7 @@ export default function Layout() {
   useEffect(() => {
     setIsOpen(false);
     setIsMobileMenuOpen(false);
+    setIsMobileServicesOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -117,20 +118,24 @@ export default function Layout() {
     e.preventDefault();
     setIsOpen(false);
     setIsMobileMenuOpen(false);
+    setIsMobileServicesOpen(false);
 
     let targetId = id;
     if (id === 'about-us') targetId = 'about';
 
     if (targetId === 'about' || targetId === 'contact-us') {
+      const scrollToTarget = () => {
+        const element = document.getElementById(targetId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      };
+
       if (location.pathname !== "/") {
         navigate("/");
-        setTimeout(() => {
-          const element = document.getElementById(targetId);
-          if (element) element.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        setTimeout(scrollToTarget, 150);
       } else {
-        const element = document.getElementById(targetId);
-        if (element) element.scrollIntoView({ behavior: 'smooth' });
+        setTimeout(scrollToTarget, 50);
       }
       return;
     }
@@ -141,18 +146,24 @@ export default function Layout() {
     else if (id === 'warehousing') serviceKey = 'warehousing';
     else if (id === 'sea-freight') serviceKey = 'ocean';
 
+    const executeServiceScroll = () => {
+      const bannerElement = document.getElementById('service-banner');
+      if (bannerElement) {
+        bannerElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
+    };
+
     if (location.pathname !== "/") {
       navigate("/");
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
-      }, 100);
+      setTimeout(executeServiceScroll, 150);
     } else {
-      window.dispatchEvent(new CustomEvent('change-service-tab', { detail: serviceKey }));
+      setTimeout(executeServiceScroll, 50);
     }
   };
 
   const HeaderContent = ({ height }) => (
-    <div className={`max-w-7xl mx-auto px-3 sm:px-5 flex justify-between items-center w-full ${height}`}>
+    <div className={`max-w-7xl mx-auto px-4 sm:px-5 flex justify-between items-center w-full ${height}`}>
       <Link to="/" className="flex items-center gap-2.5 sm:gap-4 ml-1 group">
         <span className="text-3xl sm:text-6xl font-black tracking-tight text-yellow-500 leading-none">JB</span>
         <div className="self-stretch w-[2px] bg-yellow-500/80 my-0.5"></div>
@@ -207,7 +218,7 @@ export default function Layout() {
       <div className="flex md:hidden items-center gap-2.5">
         {user && (
           <Link to="/Dashboard" className="px-3 py-1.5 rounded-full bg-yellow-500 text-white font-bold text-[11px] flex items-center gap-1 shadow">
-            <span>Portal</span>
+            <span>Customer Portal</span>
           </Link>
         )}
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white cursor-pointer">
@@ -225,43 +236,58 @@ export default function Layout() {
 
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden fixed top-[74px] left-0 w-full bg-[#0d0b0a]/95 backdrop-blur-2xl border-b border-white/10 px-6 py-6 flex flex-col gap-4 z-40 shadow-2xl max-h-[calc(100vh-74px)] overflow-y-auto">
-            {isSubPage && (
-              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">
-                <Home size={18} className="text-yellow-500" /> Home
-              </Link>
-            )}
+          <>
+            {/* Backdrop overlay to close menu when tapping outside */}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsMobileServicesOpen(false);
+              }}
+              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30" 
+            />
 
-            <div>
-              <button onClick={() => setIsMobileServicesOpen(!isMobileServicesOpen)} className="w-full flex items-center justify-between text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">
-                <span>Services</span>
-                <ChevronDown size={16} className={`transition-transform duration-300 ${isMobileServicesOpen ? "rotate-180" : ""}`} />
-              </button>
-              
-              {isMobileServicesOpen && (
-                <div className="flex flex-col pl-4 py-2 gap-2 bg-white/5 border-l-2 border-yellow-500 my-2">
-                  <a href="#ground-freight" onClick={(e) => handleHomeScroll(e, 'ground-freight')} className="py-2 text-xs font-bold text-stone-300 uppercase">Ground Freight</a>
-                  <a href="#air-freight" onClick={(e) => handleHomeScroll(e, 'air-freight')} className="py-2 text-xs font-bold text-stone-300 uppercase">Air Freight</a>
-                  <a href="#sea-freight" onClick={(e) => handleHomeScroll(e, 'sea-freight')} className="py-2 text-xs font-bold text-stone-300 uppercase">Sea Freight</a>
-                  <a href="#warehousing" onClick={(e) => handleHomeScroll(e, 'warehousing')} className="py-2 text-xs font-bold text-stone-300 uppercase">Warehousing</a>
+            {/* Mobile Menu Box */}
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }} 
+              animate={{ opacity: 1, height: 'auto' }} 
+              exit={{ opacity: 0, height: 0 }} 
+              className="md:hidden fixed top-[74px] left-0 w-full bg-[#0d0b0a]/95 backdrop-blur-2xl border-b border-white/10 px-6 py-6 flex flex-col gap-4 z-40 shadow-2xl max-h-[calc(100vh-74px)] overflow-y-auto"
+            >
+              {isSubPage && (
+                <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">
+                  <Home size={18} className="text-yellow-500" /> Home
+                </Link>
+              )}
+
+              <div>
+                <button onClick={() => setIsMobileServicesOpen(!isMobileServicesOpen)} className="w-full flex items-center justify-between text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">
+                  <span>Services</span>
+                  <ChevronDown size={16} className={`transition-transform duration-300 ${isMobileServicesOpen ? "rotate-180" : ""}`} />
+                </button>
+                
+                {isMobileServicesOpen && (
+                  <div className="flex flex-col pl-4 py-2 gap-2 bg-white/5 border-l-2 border-yellow-500 my-2">
+                    <a href="#ground-freight" onClick={(e) => handleHomeScroll(e, 'ground-freight')} className="py-2 text-xs font-bold text-stone-300 uppercase">Ground Freight</a>
+                    <a href="#air-freight" onClick={(e) => handleHomeScroll(e, 'air-freight')} className="py-2 text-xs font-bold text-stone-300 uppercase">Air Freight</a>
+                    <a href="#sea-freight" onClick={(e) => handleHomeScroll(e, 'sea-freight')} className="py-2 text-xs font-bold text-stone-300 uppercase">Sea Freight</a>
+                    <a href="#warehousing" onClick={(e) => handleHomeScroll(e, 'warehousing')} className="py-2 text-xs font-bold text-stone-300 uppercase">Warehousing</a>
+                  </div>
+                )}
+              </div>
+
+              <a href="#about" onClick={(e) => handleHomeScroll(e, 'about-us')} className="text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">About Us</a>
+              <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">Contact Us</a>
+
+              {!user && (
+                <div className="pt-2">
+                  <Login />
                 </div>
               )}
-            </div>
-
-            <a href="#about" onClick={(e) => handleHomeScroll(e, 'about-us')} className="text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">About Us</a>
-            <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">Contact Us</a>
-
-            {user ? (
-              <div className="flex flex-col gap-2 pt-2">
-                <Link to="/Dashboard" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-left py-3 text-xs font-bold tracking-wider text-white uppercase border-b border-white/5">Customer Portal</Link>
-                <button onClick={handleLogout} className="w-full text-left py-3 text-xs font-bold tracking-wider text-red-500 uppercase">Log Out</button>
-              </div>
-            ) : (
-              <div className="pt-2">
-                <Login />
-              </div>
-            )}
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -273,8 +299,7 @@ export default function Layout() {
         )}
       </AnimatePresence>
       
-      {/* px-4 keeps text away from the screen edge on mobile; sm:px-0 keeps desktop completely unaffected */}
-      <main className="px-4 sm:px-0">
+      <main className="w-full">
         <Outlet />
       </main>
 

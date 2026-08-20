@@ -52,23 +52,23 @@ export default function WhyChooseUs() {
   return (
     <section 
       id="why" 
-      className="bg-[#0B132B] py-20 lg:py-28 relative overflow-hidden" 
+      className="bg-[#0B132B] py-20 lg:py-28 relative overflow-x-hidden" 
       onMouseEnter={() => setPaused(true)} 
       onMouseLeave={() => setPaused(false)}
     >
       {/* Background Glow / Effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-yellow-500/[0.03] blur-[120px] rounded-full z-0 pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 relative z-10 w-full">
         <div className="text-center max-w-2xl mx-auto mb-14">
           <span className="text-yellow-500 font-bold text-sm uppercase tracking-widest">Why Choose Us</span>
           <h2 className="text-3xl lg:text-4xl font-extrabold text-white mt-2 tracking-tight">A fresh, US-focused logistics partner</h2>
           <p className="text-white/60 mt-4">Newly launched and proudly operating across the United States — modern tech, a dedicated team, and cargo handled like our own.</p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-6 items-stretch">
-          {/* Slide */}
-          <div className="lg:col-span-3 relative rounded-3xl overflow-hidden group h-[440px] border border-white/10 shadow-2xl bg-black">
+        <div className="grid lg:grid-cols-5 gap-6 items-stretch w-full">
+          {/* Slide: Shorter mobile height h-[420px], desktop maintains exact lg:h-[440px] */}
+          <div className="lg:col-span-3 w-full min-w-0 relative rounded-3xl overflow-hidden group h-[420px] lg:h-[440px] border border-white/10 shadow-2xl bg-black">
             {reasons.map((r, i) => (
               <img
                 key={r.title}
@@ -80,23 +80,23 @@ export default function WhyChooseUs() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
             {/* Arrows */}
-            <button onClick={() => go(-1)} aria-label="Previous" className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 backdrop-blur hover:bg-yellow-500 hover:text-black text-white flex items-center justify-center transition-colors z-20">
+            <button onClick={() => go(-1)} aria-label="Previous" className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 backdrop-blur hover:bg-yellow-500 hover:text-black text-white flex items-center justify-center transition-colors z-20">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <button onClick={() => go(1)} aria-label="Next" className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 backdrop-blur hover:bg-yellow-500 hover:text-black text-white flex items-center justify-center transition-colors z-20">
+            <button onClick={() => go(1)} aria-label="Next" className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 backdrop-blur hover:bg-yellow-500 hover:text-black text-white flex items-center justify-center transition-colors z-20">
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            {/* Content */}
-            <div className="absolute bottom-0 left-0 right-0 p-8 lg:p-10 z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-yellow-500 text-black flex items-center justify-center shadow-lg">
-                  <current.icon className="w-6 h-6" />
+            {/* Content: Balanced padding for the refined mobile height */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 lg:p-10 z-10 w-full">
+              <div className="flex items-center gap-3 mb-2 sm:mb-4">
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-yellow-500 text-black flex items-center justify-center shadow-lg shrink-0">
+                  <current.icon className="w-4 h-4 sm:w-6 sm:h-6" />
                 </div>
-                <span className="text-yellow-400 font-bold text-sm tracking-widest uppercase">{String(active + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}</span>
+                <span className="text-yellow-400 font-bold text-xs sm:text-sm tracking-widest uppercase">{String(active + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}</span>
               </div>
-              <h3 className="text-2xl lg:text-3xl font-extrabold text-white mb-2">{current.title}</h3>
-              <p className="text-white/80 max-w-md leading-relaxed text-sm">{current.desc}</p>
+              <h3 className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white mb-1.5 sm:mb-2">{current.title}</h3>
+              <p className="text-white/80 max-w-full sm:max-w-md leading-relaxed text-xs sm:text-sm break-words">{current.desc}</p>
             </div>
 
             {/* Progress bar */}
@@ -106,14 +106,14 @@ export default function WhyChooseUs() {
           </div>
 
           {/* Tab list */}
-          <div className="lg:col-span-2 flex flex-col gap-2.5 justify-between">
+          <div className="lg:col-span-2 w-full min-w-0 flex flex-col gap-2.5 justify-between">
             {reasons.map((r, i) => {
               const isActive = i === active;
               return (
                 <button
                   key={r.title}
                   onClick={() => setActive(i)}
-                  className={`flex items-center gap-4 rounded-2xl p-3.5 text-left border transition-all cursor-pointer backdrop-blur-md ${
+                  className={`w-full flex items-center gap-4 rounded-2xl p-3.5 text-left border transition-all cursor-pointer backdrop-blur-md ${
                     isActive 
                       ? "bg-white/10 border-yellow-500/50 shadow-lg ring-1 ring-yellow-500/20" 
                       : "bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20"
