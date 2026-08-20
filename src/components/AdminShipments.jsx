@@ -193,11 +193,11 @@ export default function AdminShipments() {
 
   return (
     <div className="w-full space-y-6 animate-fadeIn font-sans">
-      {/* Top Filter & Action Bar - Adjusted for mobile responsiveness */}
-      <div className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
+      {/* Top Filter & Action Bar - Clean responsive layout */}
+      <div className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-col gap-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Input */}
-          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 w-full lg:w-auto lg:min-w-[200px] lg:max-w-[320px] shadow-sm">
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 flex-1 shadow-sm">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input 
               value={query} 
@@ -207,51 +207,51 @@ export default function AdminShipments() {
             />
           </div>
 
-          {/* Status Filter */}
+          {/* Export & Create Action Buttons */}
+          <div className="flex items-center gap-3 shrink-0 justify-end">
+            <button 
+              onClick={exportCsv} 
+              className="bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              <Download className="w-4 h-4" /> Export
+            </button>
+            <button 
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer" 
+              onClick={() => { setEditing(null); setShowForm(true); }}
+            >
+              <Plus className="w-4 h-4" /> Create
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-100">
           <select 
             value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value)} 
-            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer flex-1 lg:flex-none font-medium"
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer font-medium w-full"
           >
             <option value="all">All Status</option>
             {STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ").toUpperCase()}</option>)}
           </select>
 
-          {/* Service Filter */}
           <select 
             value={serviceFilter} 
             onChange={(e) => setServiceFilter(e.target.value)} 
-            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer flex-1 lg:flex-none font-medium"
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer font-medium w-full"
           >
             <option value="all">All Services</option>
             {SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
 
-          {/* Payment Filter */}
           <select 
             value={paymentFilter} 
             onChange={(e) => setPaymentFilter(e.target.value)} 
-            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer flex-1 lg:flex-none font-medium"
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer font-medium w-full"
           >
             <option value="all">All Payments</option>
             {PAYMENTS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
           </select>
-        </div>
-        
-        {/* Export & Create Action Buttons */}
-        <div className="flex items-center justify-end gap-3 shrink-0">
-          <button 
-            onClick={exportCsv} 
-            className="bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <button 
-            className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer" 
-            onClick={() => { setEditing(null); setShowForm(true); }}
-          >
-            <Plus className="w-4 h-4" /> Create
-          </button>
         </div>
       </div>
 
@@ -273,9 +273,108 @@ export default function AdminShipments() {
         </button>
       </BulkActionBar>
 
-      {/* Table Container with horizontal scrolling for mobile */}
-      <div className="w-full bg-white rounded-2xl border border-gray-200 overflow-x-auto shadow-sm">
-        <table className="w-full text-sm table-fixed min-w-[950px]">
+      {/* ========================================= */}
+      {/* 1. MOBILE CARD VIEW (Visible only on mobile) */}
+      {/* ========================================= */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-16 text-gray-500 bg-white rounded-2xl border border-gray-200">
+            <Loader2 className="w-6 h-6 text-yellow-600 animate-spin mx-auto mb-2" />
+            Loading shipments...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-gray-500 bg-white rounded-2xl border border-gray-200">
+            No active shipments registered in the database.
+          </div>
+        ) : (
+          filtered.map((s) => {
+            const sId = getId(s);
+            const isSel = selected.has(sId);
+            const formattedDate = s.created_at 
+              ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : "—";
+            const routeText = `${s.origin || "—"} → ${s.destination || "—"}`;
+
+            return (
+              <div 
+                key={sId}
+                className={`bg-white border rounded-2xl p-4 shadow-sm transition-all relative ${isSel ? "border-yellow-500 bg-yellow-50/30" : "border-gray-200"}`}
+              >
+                {/* Header: Checkbox + Tracking Number + Status */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={isSel} 
+                      onChange={() => toggle(sId)} 
+                      className="w-4 h-4 rounded accent-yellow-500 cursor-pointer" 
+                    />
+                    <span 
+                      onClick={() => { setEditing(s); setShowForm(true); }}
+                      className="font-bold text-gray-900 text-sm cursor-pointer hover:underline"
+                    >
+                      {s.tracking_number || "—"}
+                    </span>
+                  </div>
+                  <StatusBadge status={s.current_status} />
+                </div>
+
+                {/* Details Breakdown */}
+                <div className="space-y-1.5 text-xs text-gray-600 mb-4 border-t border-b border-gray-100 py-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Customer</span>
+                    <span className="font-semibold text-gray-800">{s.recipient_name || s.client_name || "Customer"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Route</span>
+                    <span className="font-medium text-gray-800 truncate max-w-[200px]" title={routeText}>{routeText}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Service / Pay</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">{s.service_type || "Standard"}</span>
+                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${s.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100/60 text-amber-800'}`}>
+                        {s.payment_status || 'unpaid'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Created</span>
+                    <span className="text-gray-500">{formattedDate}</span>
+                  </div>
+                </div>
+
+                {/* Footer: Price & Action Buttons */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="text-sm font-black text-gray-900">
+                    ${Number(s.price || 0).toFixed(2)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setViewingDetail(s)}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                    >
+                      Details
+                    </button>
+                    <button 
+                      onClick={() => { setEditing(s); setShowForm(true); }}
+                      className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-black font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ========================================= */}
+      {/* 2. DESKTOP TABLE VIEW (Visible only on desktop) */}
+      {/* ========================================= */}
+      <div className="hidden md:block w-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-200 bg-gray-50">
               <th className="px-3.5 py-4 w-10">
@@ -333,7 +432,6 @@ export default function AdminShipments() {
                         className="w-4 h-4 rounded accent-yellow-500 cursor-pointer" 
                       />
                     </td>
-                    {/* Clicking tracking number opens the edit modal */}
                     <td 
                       className="px-3.5 py-4.5 font-semibold text-gray-900 truncate cursor-pointer hover:underline" 
                       title="Click to edit"
@@ -364,7 +462,6 @@ export default function AdminShipments() {
                     <td className="px-3.5 py-4.5 text-gray-500 text-xs truncate" title={formattedDate}>
                       {formattedDate}
                     </td>
-                    {/* Clicking this arrow cell explicitly opens the detail popup */}
                     <td 
                       className="px-3.5 py-4.5 text-right cursor-pointer"
                       onClick={() => setViewingDetail(s)}
