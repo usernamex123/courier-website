@@ -21,10 +21,8 @@ serve(async (req) => {
     const body = await req.json()
     console.log("Received checkout request:", body)
 
-    // Map exact keys sent by CustomerInvoice.jsx
     const invoiceId = body.invoice_id || body.invoiceId
     const amount = body.amount || body.total
-    const currency = body.currency || 'USD'
     const invoiceNumber = body.invoice_number || body.invoiceNumber
     const customerEmail = body.customer_email
 
@@ -35,13 +33,13 @@ serve(async (req) => {
       throw new Error(`Missing required fields. invoice_id: ${invoiceId}, amount: ${amount}`)
     }
 
-    // Create Stripe Checkout Session with clean success URL
+    // Create Stripe Checkout Session with USD forced and Adaptive Pricing disabled
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: currency.toLowerCase(),
+            currency: 'usd', // Force USD strictly for all payments
             product_data: {
               name: `Shipment Invoice #${invoiceNumber || String(invoiceId).slice(0, 8)}`,
             },
@@ -51,8 +49,11 @@ serve(async (req) => {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/dashboard/invoices`,
-      cancel_url: `${origin}/dashboard/invoices?canceled=true`,
+      success_url: `${origin}/dashboard/payments`,
+      cancel_url: `${origin}/dashboard/payments?canceled=true`,
+      adaptive_pricing: {
+        enabled: false, // Disables Stripe automatic currency conversion (removes NPR/local options)
+      },
       metadata: {
         invoice_id: String(invoiceId),
       },

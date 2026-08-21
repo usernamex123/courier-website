@@ -82,6 +82,9 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
   const [trackingEvents, setTrackingEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
+  // Invoice number state
+  const [invoiceNumber, setInvoiceNumber] = useState(shipment?.invoice_number || "");
+
   // Form states for adding tracking event
   const [eventStatus, setEventStatus] = useState("");
   const [eventLocation, setEventLocation] = useState("");
@@ -110,8 +113,26 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
     }
   };
 
+  const fetchInvoiceNumber = async () => {
+    if (!shipment?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('invoice_number')
+        .eq('shipment_id', shipment.id)
+        .maybeSingle();
+
+      if (!error && data?.invoice_number) {
+        setInvoiceNumber(data.invoice_number);
+      }
+    } catch (err) {
+      console.error("Error fetching invoice number:", err.message);
+    }
+  };
+
   useEffect(() => {
     fetchTrackingEvents();
+    fetchInvoiceNumber();
   }, [shipment?.id]);
 
   if (!shipment) return null;
@@ -252,18 +273,32 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
           </div>
         </div>
 
-        {/* Tracking Number Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between gap-4 shadow-sm">
-          <div>
-            <div className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Tracking Number</div>
-            <div className="text-lg font-bold text-gray-900 font-mono">{shipment.tracking_number || "—"}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Ref: {shipment.reference_number || shipment.ref || "JBS-2026-00013"}</div>
+        {/* Tracking & Invoice Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          {/* Tracking Number Card */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between gap-4 shadow-sm">
+            <div>
+              <div className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Tracking Number</div>
+              <div className="text-lg font-bold text-gray-900 font-mono">{shipment.tracking_number || "—"}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Ref: {shipment.reference_number || shipment.ref || "JBS-2026-00013"}</div>
+            </div>
+            <div>
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
+                {STATUS_LABELS[shipment.current_status] || shipment.current_status?.replace('_', ' ') || 'Created'}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
-              {STATUS_LABELS[shipment.current_status] || shipment.current_status?.replace('_', ' ') || 'Created'}
-            </span>
+
+          {/* Invoice Number Card */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center justify-between gap-4 shadow-sm">
+            <div>
+              <div className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Invoice Number</div>
+              <div className="text-lg font-bold text-gray-900 font-mono">{invoiceNumber || "—"}</div>
+              <div className="text-xs text-gray-500 mt-0.5">Payment: <span className="capitalize">{shipment.payment_status || "Unpaid"}</span></div>
+            </div>
           </div>
+
         </div>
 
         {/* Route & Core Info Card */}

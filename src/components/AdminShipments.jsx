@@ -55,6 +55,7 @@ const BulkActionBar = ({ count, onClear, children }) => {
 
 export default function AdminShipments() {
   const [items, setItems] = useState([]);
+  const [invoicesMap, setInvoicesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -75,6 +76,21 @@ export default function AdminShipments() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       setItems(data || []);
+
+      // Fetch invoice numbers to map shipment_id -> invoice_number cleanly
+      const { data: invData, error: invError } = await supabase
+        .from('invoices')
+        .select('shipment_id, invoice_number');
+      
+      if (!invError && invData) {
+        const map = {};
+        invData.forEach((inv) => {
+          if (inv.shipment_id) {
+            map[inv.shipment_id] = inv.invoice_number;
+          }
+        });
+        setInvoicesMap(map);
+      }
     } catch (err) {
       console.error("Error loading shipments:", err);
       toast.error("Failed to load shipments");
@@ -90,6 +106,9 @@ export default function AdminShipments() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
         load();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+        load();
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -98,8 +117,10 @@ export default function AdminShipments() {
 
   const filtered = items.filter((s) => {
     const q = query.toLowerCase();
+    const invNum = (invoicesMap[s.id] || "").toLowerCase();
     const matchQ = !q || 
       (s.tracking_number || "").toLowerCase().includes(q) || 
+      invNum.includes(q) ||
       (s.origin || "").toLowerCase().includes(q) || 
       (s.destination || "").toLowerCase().includes(q) || 
       (s.recipient_name || "").toLowerCase().includes(q) ||
@@ -169,9 +190,10 @@ export default function AdminShipments() {
   };
 
   const exportCsv = () => {
-    const rows = [["Tracking", "Customer", "Route", "Service", "Status", "Payment", "Price", "Created"]];
+    const rows = [["Tracking", "Invoice #", "Customer", "Route", "Service", "Status", "Payment", "Price", "Created"]];
     filtered.forEach((s) => rows.push([
       s.tracking_number, 
+      invoicesMap[s.id] || "",
       s.recipient_name,
       `${s.origin} -> ${s.destination}`, 
       s.service_type, 
@@ -193,21 +215,19 @@ export default function AdminShipments() {
 
   return (
     <div className="w-full space-y-6 animate-fadeIn font-sans">
-      {/* Top Filter & Action Bar - Clean responsive layout */}
+      {/* Top Filter & Action Bar */}
       <div className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-col gap-4 shadow-sm">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Search Input */}
           <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 flex-1 shadow-sm">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input 
               value={query} 
               onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Search tracking, customer, route..." 
+              placeholder="Search tracking, invoice #, customer, route..." 
               className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400" 
             />
           </div>
 
-          {/* Export & Create Action Buttons */}
           <div className="flex items-center gap-3 shrink-0 justify-end">
             <button 
               onClick={exportCsv} 
@@ -224,7 +244,6 @@ export default function AdminShipments() {
           </div>
         </div>
 
-        {/* Filters Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-100">
           <select 
             value={statusFilter} 
@@ -255,7 +274,6 @@ export default function AdminShipments() {
         </div>
       </div>
 
-      {/* Bulk Action Bar Component */}
       <BulkActionBar count={selected.size} onClear={() => setSelected(new Set())}>
         <select 
           onChange={(e) => e.target.value && bulkStatus(e.target.value)} 
@@ -274,7 +292,7 @@ export default function AdminShipments() {
       </BulkActionBar>
 
       {/* ========================================= */}
-      {/* 1. MOBILE CARD VIEW (Visible only on mobile) */}
+      {/* 1. MOBILE CARD VIEW */}
       {/* ========================================= */}
       <div className="md:hidden space-y-3">
         {loading ? (
@@ -290,6 +308,7 @@ export default function AdminShipments() {
           filtered.map((s) => {
             const sId = getId(s);
             const isSel = selected.has(sId);
+            const invoiceNum = invoicesMap[sId];
             const formattedDate = s.created_at 
               ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : "—";
@@ -300,7 +319,6 @@ export default function AdminShipments() {
                 key={sId}
                 className={`bg-white border rounded-2xl p-4 shadow-sm transition-all relative ${isSel ? "border-yellow-500 bg-yellow-50/30" : "border-gray-200"}`}
               >
-                {/* Header: Checkbox + Tracking Number + Status */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3">
                     <input 
@@ -309,17 +327,23 @@ export default function AdminShipments() {
                       onChange={() => toggle(sId)} 
                       className="w-4 h-4 rounded accent-yellow-500 cursor-pointer" 
                     />
-                    <span 
-                      onClick={() => { setEditing(s); setShowForm(true); }}
-                      className="font-bold text-gray-900 text-sm cursor-pointer hover:underline"
-                    >
-                      {s.tracking_number || "—"}
-                    </span>
+                    <div className="flex flex-col">
+                      <span 
+                        onClick={() => { setEditing(s); setShowForm(true); }}
+                        className="font-bold text-gray-900 text-sm cursor-pointer hover:underline"
+                      >
+                        {s.tracking_number || "—"}
+                      </span>
+                      {invoiceNum && (
+                        <span className="text-[11px] font-mono text-gray-500 font-medium">
+                          {invoiceNum}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <StatusBadge status={s.current_status} />
                 </div>
 
-                {/* Details Breakdown */}
                 <div className="space-y-1.5 text-xs text-gray-600 mb-4 border-t border-b border-gray-100 py-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Customer</span>
@@ -344,7 +368,6 @@ export default function AdminShipments() {
                   </div>
                 </div>
 
-                {/* Footer: Price & Action Buttons */}
                 <div className="flex items-center justify-between pt-1">
                   <div className="text-sm font-black text-gray-900">
                     ${Number(s.price || 0).toFixed(2)}
@@ -371,7 +394,7 @@ export default function AdminShipments() {
       </div>
 
       {/* ========================================= */}
-      {/* 2. DESKTOP TABLE VIEW (Visible only on desktop) */}
+      {/* 2. DESKTOP TABLE VIEW */}
       {/* ========================================= */}
       <div className="hidden md:block w-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
         <table className="w-full text-sm table-fixed">
@@ -385,7 +408,7 @@ export default function AdminShipments() {
                   className="w-4 h-4 rounded accent-yellow-500 cursor-pointer" 
                 />
               </th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[14%]">Tracking</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[14%]">Tracking / Invoice</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[13%]">Customer</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[18%]">Route</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Service</th>
@@ -414,6 +437,7 @@ export default function AdminShipments() {
               filtered.map((s) => {
                 const sId = getId(s);
                 const isSel = selected.has(sId);
+                const invoiceNum = invoicesMap[sId];
                 const formattedDate = s.created_at 
                   ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                   : "—";
@@ -433,11 +457,18 @@ export default function AdminShipments() {
                       />
                     </td>
                     <td 
-                      className="px-3.5 py-4.5 font-semibold text-gray-900 truncate cursor-pointer hover:underline" 
-                      title="Click to edit"
+                      className="px-3.5 py-4.5 truncate cursor-pointer" 
                       onClick={() => { setEditing(s); setShowForm(true); }}
+                      title="Click to edit"
                     >
-                      {s.tracking_number || "—"}
+                      <div className="font-semibold text-gray-900 hover:underline">
+                        {s.tracking_number || "—"}
+                      </div>
+                      {invoiceNum && (
+                        <div className="text-[11px] font-mono text-gray-500 font-medium mt-0.5">
+                          {invoiceNum}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3.5 py-4.5 text-gray-700 font-medium truncate" title={s.recipient_name || s.client_name || "Customer"}>
                       {s.recipient_name || s.client_name || "Customer"}

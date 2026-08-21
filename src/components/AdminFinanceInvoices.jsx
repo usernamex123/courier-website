@@ -36,7 +36,7 @@ const fmtDate = (dateStr) => {
   });
 };
 
-export default function AdminFinancePayments() {
+export default function AdminFinanceInvoices() {
   const [invoices, setInvoices] = useState(null);
   const [paymentsMap, setPaymentsMap] = useState({});
   const [shipments, setShipments] = useState({});
@@ -62,7 +62,36 @@ export default function AdminFinancePayments() {
         .order('created_at', { ascending: false });
 
       if (invError) throw invError;
-      const fetchedInvoices = invData || [];
+      let fetchedInvoices = invData || [];
+
+      // --- DEDUPLICATION FILTER ---
+      // Identify shipments that have a custom (non-fallback) invoice
+      const shipmentIdsWithCustom = new Set(
+        fetchedInvoices
+          .filter(inv => inv.shipment_id && !inv.invoice_number?.startsWith('INV-JB'))
+          .map(inv => inv.shipment_id)
+      );
+
+      const trackingNumbersWithCustom = new Set(
+        fetchedInvoices
+          .filter(inv => inv.tracking_number && !inv.invoice_number?.startsWith('INV-JB'))
+          .map(inv => inv.tracking_number)
+      );
+
+      // Filter out fallback invoices ONLY IF a custom invoice exists for the same shipment
+      fetchedInvoices = fetchedInvoices.filter(inv => {
+        const isFallback = inv.invoice_number?.startsWith('INV-JB') || 
+                           (inv.tracking_number && inv.invoice_number === `INV-${inv.tracking_number}`);
+        if (isFallback) {
+          const hasCustom = (inv.shipment_id && shipmentIdsWithCustom.has(inv.shipment_id)) ||
+                            (inv.tracking_number && trackingNumbersWithCustom.has(inv.tracking_number));
+          if (hasCustom) {
+            return false; // Hide fallback invoice, show original custom invoice instead
+          }
+        }
+        return true;
+      });
+      // ----------------------------
 
       // Fetch all payments to map against invoices
       const { data: payData, error: payError } = await supabase
@@ -216,7 +245,7 @@ export default function AdminFinancePayments() {
         <div>
           <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Invoices & Payments</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Monitor auto-generated invoices, transaction gateways, and settlement statuses in real time.
+            Monitor invoices, transaction gateways, and settlement statuses in real time.
           </p>
         </div>
       </div>
@@ -341,7 +370,7 @@ export default function AdminFinancePayments() {
             <EmptyState 
               icon={CreditCard} 
               title="No invoices found" 
-              description="Auto-generated and manual invoices will appear here." 
+              description="Invoices will appear here." 
             />
           </div>
         ) : filteredRecords.length === 0 ? (
@@ -349,11 +378,11 @@ export default function AdminFinancePayments() {
             No invoices match your current filter.
           </div>
         ) : (
-          <div className="w-full">
-            <table className="w-full text-left border-collapse table-auto">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                  <th className="py-3.5 px-3 w-10 text-center">
+                  <th className="py-3.5 px-2 w-[40px] text-center">
                     <input 
                       type="checkbox"
                       checked={filteredRecords.length > 0 && selectedIds.length === filteredRecords.length}
@@ -361,13 +390,13 @@ export default function AdminFinancePayments() {
                       className="rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer w-4 h-4"
                     />
                   </th>
-                  <th className="py-3.5 px-3 whitespace-nowrap">Invoice #</th>
-                  <th className="py-3.5 px-3 whitespace-nowrap">Transaction Ref</th>
-                  <th className="py-3.5 px-3 whitespace-nowrap">Payment Method</th>
-                  <th className="py-3.5 px-3 whitespace-nowrap">Total Amount</th>
-                  <th className="py-3.5 px-3 whitespace-nowrap">Status</th>
-                  <th className="py-3.5 px-3 whitespace-nowrap">Timestamp</th>
-                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
+                  <th className="py-3.5 px-2 w-[110px]">Invoice #</th>
+                  <th className="py-3.5 px-2 w-[160px]">Transaction Ref</th>
+                  <th className="py-3.5 px-2 w-[100px]">Method</th>
+                  <th className="py-3.5 px-2 w-[90px]">Amount</th>
+                  <th className="py-3.5 px-2 w-[85px]">Status</th>
+                  <th className="py-3.5 px-2 w-[130px]">Timestamp</th>
+                  <th className="py-3.5 px-2 w-[90px] text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs font-medium text-gray-800">
@@ -382,7 +411,7 @@ export default function AdminFinancePayments() {
 
                   return (
                     <tr key={inv.id} className={`hover:bg-gray-50/65 transition-colors ${isChecked ? 'bg-amber-50/30' : ''}`}>
-                      <td className="py-4 px-3 text-center">
+                      <td className="py-4 px-2 text-center">
                         <input 
                           type="checkbox"
                           checked={isChecked}
@@ -390,38 +419,38 @@ export default function AdminFinancePayments() {
                           className="rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer w-4 h-4"
                         />
                       </td>
-                      <td className="py-4 px-3 font-semibold text-gray-900 whitespace-nowrap">
+                      <td className="py-4 px-2 font-semibold text-gray-900 truncate" title={invNum}>
                         {invNum}
                       </td>
-                      <td className="py-4 px-3 font-mono text-gray-600 whitespace-nowrap">
+                      <td className="py-4 px-2 font-mono text-gray-600 truncate" title={refNum}>
                         {refNum}
                       </td>
-                      <td className="py-4 px-3 capitalize text-gray-700 whitespace-nowrap">
+                      <td className="py-4 px-2 capitalize text-gray-700 truncate" title={method}>
                         {method.replace('_', ' ')}
                       </td>
-                      <td className="py-4 px-3 font-extrabold text-gray-900 whitespace-nowrap">
+                      <td className="py-4 px-2 font-extrabold text-gray-900 truncate" title={fmtMoney(amount, inv.currency)}>
                         {fmtMoney(amount, inv.currency)}
                       </td>
-                      <td className="py-4 px-3 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold capitalize border border-black/5 ${PAYMENT_STATUS_STYLES[statusKey] || "bg-slate-100 text-slate-600"}`}>
+                      <td className="py-4 px-2">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border border-black/5 truncate max-w-full ${PAYMENT_STATUS_STYLES[statusKey] || "bg-slate-100 text-slate-600"}`} title={statusKey}>
                           {statusKey}
                         </span>
                       </td>
-                      <td className="py-4 px-3 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="py-4 px-2 text-xs text-gray-500 truncate" title={fmtDate(inv.created_at || inv.issue_date)}>
                         {fmtDate(inv.created_at || inv.issue_date)}
                       </td>
-                      <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 justify-end">
+                      <td className="py-4 px-2 text-right">
+                        <div className="inline-flex items-center gap-1 justify-end">
                           <button 
                             onClick={() => printReceipt(inv)} 
-                            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                            className="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors cursor-pointer"
                             title="Print Invoice"
                           >
-                            <Printer className="w-4 h-4" />
+                            <Printer className="w-3.5 h-3.5" />
                           </button>
                           <button 
                             onClick={() => setSelectedRecord({ inv, pay })} 
-                            className="text-yellow-700 hover:text-yellow-800 text-xs font-bold px-2.5 py-1 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors cursor-pointer"
+                            className="text-yellow-700 hover:text-yellow-800 text-[11px] font-bold px-2 py-0.5 bg-yellow-50 rounded hover:bg-yellow-100 transition-colors cursor-pointer"
                           >
                             View
                           </button>

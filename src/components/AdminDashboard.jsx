@@ -77,14 +77,20 @@ export default function AdminDashboard() {
 
         const revByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
         
-        if (activeInvoicesList.length > 0) {
-          activeInvoicesList.forEach((inv) => { 
+        // Filter for paid invoices only to calculate correct revenue
+        const paidInvoices = activeInvoicesList.filter((inv) => {
+          const status = (inv.status || "").toLowerCase();
+          return ["paid", "completed", "success"].includes(status);
+        });
+
+        if (paidInvoices.length > 0) {
+          paidInvoices.forEach((inv) => { 
             const d = parseDate(inv.issue_date || inv.created_at || inv.created_date); 
             if (d && revByMonth[monthKey(d)] != null) {
               revByMonth[monthKey(d)] += Number(inv.total || inv.amount || 0);
             }
           });
-        } else {
+        } else if (activeInvoicesList.length === 0) {
           activeShipmentsList.forEach((s) => {
             const d = parseDate(s.created_at || s.created_date);
             const priceVal = Number(s.price || s.cost || 0);
@@ -114,9 +120,9 @@ export default function AdminDashboard() {
         const revLast = revByMonth[lastM] || 0;
         const revChange = revLast ? Math.round(((revThis - revLast) / revLast) * 100) : (revThis > 0 ? 100 : 0);
 
-        const totalRevenue = activeInvoicesList.length > 0 
-          ? activeInvoicesList.reduce((sum, i) => sum + Number(i.total || i.amount || 0), 0)
-          : activeShipmentsList.reduce((sum, s) => sum + Number(s.price || s.cost || 0), 0);
+        const totalRevenue = paidInvoices.length > 0 
+          ? paidInvoices.reduce((sum, i) => sum + Number(i.total || i.amount || 0), 0)
+          : (activeInvoicesList.length === 0 ? activeShipmentsList.reduce((sum, s) => sum + Number(s.price || s.cost || 0), 0) : 0);
 
         const activeCustomersCount = activeCustomersList.length > 0
           ? activeCustomersList.filter((c) => c.status === "active" || !c.status).length
@@ -195,25 +201,28 @@ export default function AdminDashboard() {
     );
   }
 
-  const cur = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`);
+  const cur = (n) => {
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+    return Number(n).toFixed(2);
+  };
 
   return (
-    <div className="space-y-6 animate-fadeIn font-sans">
+    <div className="space-y-6 animate-fadeIn font-sans w-full max-w-full overflow-hidden px-2 sm:px-4">
       {/* Stat Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Package} label="Total Shipments" value={data.totalShipments.toLocaleString()} change={`${Math.abs(data.shipmentsChange)}%`} changeType={data.shipmentsChange >= 0 ? "up" : "down"} color="blue" />
         <StatCard icon={Users} label="Active Customers" value={data.activeCustomers.toLocaleString()} change={`${Math.abs(data.customersChange)}%`} changeType={data.customersChange >= 0 ? "up" : "down"} color="green" />
         <StatCard icon={Truck} label="Drivers On Duty" value={data.driversOnDuty.toLocaleString()} change={`${data.driversPct}%`} changeType="up" color="amber" />
-        <StatCard icon={DollarSign} label="Total Revenue" value={`$${cur(Math.round(data.totalRevenue))}`} change={`${Math.abs(data.revChange)}%`} changeType={data.revChange >= 0 ? "up" : "down"} color="purple" />
+        <StatCard icon={DollarSign} label="Total Revenue" value={`$${cur(data.totalRevenue)}`} change={`${Math.abs(data.revChange)}%`} changeType={data.revChange >= 0 ? "up" : "down"} color="purple" />
       </div>
 
       {/* Charts Section */}
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-4 sm:p-6 overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-bold text-gray-900 text-base">Revenue Overview</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Monthly revenue from shipments/invoices (in $K)</p>
+              <p className="text-xs text-gray-500 mt-0.5">Monthly revenue from paid invoices (in $K)</p>
             </div>
             <TrendingUp className="w-5 h-5 text-green-500" />
           </div>
@@ -235,7 +244,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col justify-between overflow-hidden">
           <div>
             <h3 className="font-bold text-gray-900 text-base mb-1">Shipment Modes</h3>
             <p className="text-xs text-gray-500 mb-4">Distribution by transport type</p>
@@ -253,10 +262,10 @@ export default function AdminDashboard() {
           <div className="space-y-2 mt-4 max-h-[140px] overflow-y-auto pr-1">
             {data.modeData.map((m) => (
               <div key={m.name} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 font-medium text-gray-700">
+                <span className="flex items-center gap-2 font-medium text-gray-700 truncate">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.fill }} /> {m.name}
                 </span>
-                <span className="font-bold text-gray-900">{m.value} <span className="text-gray-400 font-normal">({Math.round((m.value / data.modeTotal) * 100)}%)</span></span>
+                <span className="font-bold text-gray-900 shrink-0">{m.value} <span className="text-gray-400 font-normal">({Math.round((m.value / data.modeTotal) * 100)}%)</span></span>
               </div>
             ))}
             {data.modeData.length === 0 && <div className="text-xs text-gray-400 text-center py-4">No shipment data</div>}
@@ -266,7 +275,7 @@ export default function AdminDashboard() {
 
       {/* Tables Section */}
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-4 sm:p-6 overflow-hidden">
           <h3 className="font-bold text-gray-900 text-base mb-4">Recent Shipments</h3>
 
           {/* 1. MOBILE CARD VIEW FOR RECENT SHIPMENTS */}
@@ -274,7 +283,7 @@ export default function AdminDashboard() {
             {data.recent.map((s, i) => (
               <div key={s.id || i} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-xs text-gray-900">{s.tracking_number || "—"}</span>
+                  <span className="font-mono font-bold text-xs text-gray-900 truncate max-w-[150px]">{s.tracking_number || "—"}</span>
                   <StatusBadge status={s.current_status || s.status} />
                 </div>
                 <div className="flex justify-between text-xs text-gray-600">
@@ -296,22 +305,22 @@ export default function AdminDashboard() {
 
           {/* 2. DESKTOP TABLE VIEW FOR RECENT SHIPMENTS */}
           <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="text-left text-gray-400 border-b border-gray-100 text-xs uppercase tracking-wider">
-                  <th className="pb-3 font-bold">Tracking #</th>
+                  <th className="pb-3 font-bold w-[120px]">Tracking #</th>
                   <th className="pb-3 font-bold">Route</th>
-                  <th className="pb-3 font-bold">Status</th>
-                  <th className="pb-3 font-bold text-right">Price</th>
+                  <th className="pb-3 font-bold w-[120px]">Status</th>
+                  <th className="pb-3 font-bold text-right w-[100px]">Price</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {data.recent.map((s, i) => (
                   <tr key={s.id || i} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="py-3.5 font-bold text-gray-900 text-xs font-mono">{s.tracking_number || "—"}</td>
-                    <td className="py-3.5 text-gray-600 text-xs">{s.origin || "—"} → {s.destination || "—"}</td>
+                    <td className="py-3.5 font-bold text-gray-900 text-xs font-mono truncate" title={s.tracking_number || "—"}>{s.tracking_number || "—"}</td>
+                    <td className="py-3.5 text-gray-600 text-xs truncate" title={`${s.origin || "—"} → ${s.destination || "—"}`}>{s.origin || "—"} → {s.destination || "—"}</td>
                     <td className="py-3.5"><StatusBadge status={s.current_status || s.status} /></td>
-                    <td className="py-3.5 text-right font-bold text-gray-900 text-xs">${Number(s.price || s.cost || 0).toLocaleString()}</td>
+                    <td className="py-3.5 text-right font-bold text-gray-900 text-xs truncate" title={`$${Number(s.price || s.cost || 0).toLocaleString()}`}>${Number(s.price || s.cost || 0).toLocaleString()}</td>
                   </tr>
                 ))}
                 {data.recent.length === 0 && (
@@ -322,7 +331,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col justify-between">
+        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 flex flex-col justify-between overflow-hidden">
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900 text-base">Live Active Shipments</h3>
@@ -338,7 +347,9 @@ export default function AdminDashboard() {
                     <div className="text-xs font-bold text-gray-900 truncate font-mono">{s.tracking_number || "—"}</div>
                     <div className="text-[11px] text-gray-500 truncate">{s.destination || "In transit"}</div>
                   </div>
-                  <StatusBadge status={s.current_status || s.status} />
+                  <div className="shrink-0">
+                    <StatusBadge status={s.current_status || s.status} />
+                  </div>
                 </div>
               ))}
               {data.active.length === 0 && (
@@ -350,13 +361,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Summary KPI Footers */}
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
             <Package className="w-6 h-6 text-green-600" />
           </div>
-          <div>
-            <div className="text-xl font-black text-gray-900">{data.deliveredThisMonth.toLocaleString()}</div>
+          <div className="min-w-0">
+            <div className="text-xl font-black text-gray-900 truncate">{data.deliveredThisMonth.toLocaleString()}</div>
             <div className="text-xs text-gray-500 font-medium">Delivered this month</div>
           </div>
         </div>
@@ -364,8 +375,8 @@ export default function AdminDashboard() {
           <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
             <Truck className="w-6 h-6 text-blue-600" />
           </div>
-          <div>
-            <div className="text-xl font-black text-gray-900">{data.inTransitNow.toLocaleString()}</div>
+          <div className="min-w-0">
+            <div className="text-xl font-black text-gray-900 truncate">{data.inTransitNow.toLocaleString()}</div>
             <div className="text-xs text-gray-500 font-medium">In transit right now</div>
           </div>
         </div>
@@ -373,8 +384,8 @@ export default function AdminDashboard() {
           <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
             <AlertCircle className="w-6 h-6 text-rose-600" />
           </div>
-          <div>
-            <div className="text-xl font-black text-gray-900">{data.delayed.toLocaleString()}</div>
+          <div className="min-w-0">
+            <div className="text-xl font-black text-gray-900 truncate">{data.delayed.toLocaleString()}</div>
             <div className="text-xs text-gray-500 font-medium">Delayed / flagged issues</div>
           </div>
         </div>
