@@ -52,7 +52,7 @@ serve(async (req) => {
       ],
       mode: 'payment',
       success_url: `${origin}/dashboard/invoices`,
-      cancel_url: `${origin}/dashboard/payments?canceled=true`,
+      cancel_url: `${origin}/dashboard/invoices?canceled=true`,
       metadata: {
         invoice_id: String(invoiceId),
       },
