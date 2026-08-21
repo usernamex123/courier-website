@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, ChevronDown, Printer, Loader2, X, CreditCard, AlertCircle, Trash2, CheckCircle2 } from 'lucide-react';
+import { Search, ChevronDown, Printer, Loader2, X, CreditCard, AlertCircle, Trash2, CheckCircle2, Copy, Check } from 'lucide-react';
 import { supabase } from "../lib/supabaseClient";
 import EmptyState from "../components/logistics/EmptyState";
 import { printNode } from "../label/print";
@@ -50,6 +50,9 @@ export default function AdminFinanceInvoices() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkStatusDropdownOpen, setIsBulkStatusDropdownOpen] = useState(false);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+
+  // Copy feedback state
+  const [copiedRef, setCopiedRef] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -231,6 +234,13 @@ export default function AdminFinanceInvoices() {
     } finally {
       setIsProcessingBulk(false);
     }
+  };
+
+  const handleCopyText = (text) => {
+    if (!text || text === "—") return;
+    navigator.clipboard.writeText(text);
+    setCopiedRef(true);
+    setTimeout(() => setCopiedRef(false), 2000);
   };
 
   const printReceipt = (inv) => {
@@ -556,26 +566,59 @@ export default function AdminFinanceInvoices() {
             </div>
 
             <div className="p-6 space-y-4 text-xs text-gray-700">
-              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div>
-                  <span className="text-gray-400 font-bold block mb-1">Invoice Number</span>
-                  <span className="font-bold text-gray-900">{selectedRecord.inv.invoice_number || `INV-${selectedRecord.inv.id.slice(0, 8)}`}</span>
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-gray-400 font-bold block mb-1">Invoice Number</span>
+                    <span className="font-bold text-gray-900">{selectedRecord.inv.invoice_number || `INV-${selectedRecord.inv.id.slice(0, 8)}`}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 font-bold block mb-1">Status</span>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${PAYMENT_STATUS_STYLES[(selectedRecord.pay?.status || selectedRecord.inv.status || 'unpaid').toLowerCase()]}`}>
+                      {selectedRecord.pay?.status || selectedRecord.inv.status || 'unpaid'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 font-bold block mb-1">Total Amount</span>
+                    <span className="font-extrabold text-gray-900 text-sm">{fmtMoney(selectedRecord.inv.total || selectedRecord.inv.amount || 0, selectedRecord.inv.currency)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 font-bold block mb-1">Payment Method</span>
+                    <span className="font-bold capitalize text-gray-900">
+                      {(selectedRecord.inv.payment_method || selectedRecord.pay?.payment_method || selectedRecord.pay?.gateway || "Not Paid").replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-400 font-bold block mb-1">Status</span>
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${PAYMENT_STATUS_STYLES[(selectedRecord.pay?.status || selectedRecord.inv.status || 'unpaid').toLowerCase()]}`}>
-                    {selectedRecord.pay?.status || selectedRecord.inv.status || 'unpaid'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-400 font-bold block mb-1">Total Amount</span>
-                  <span className="font-extrabold text-gray-900 text-sm">{fmtMoney(selectedRecord.inv.total || selectedRecord.inv.amount || 0, selectedRecord.inv.currency)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400 font-bold block mb-1">Payment Method</span>
-                  <span className="font-bold capitalize text-gray-900">
-                    {(selectedRecord.inv.payment_method || selectedRecord.pay?.payment_method || selectedRecord.pay?.gateway || "Not Paid").replace('_', ' ')}
-                  </span>
+
+                {/* Full Transaction Reference Section for Popup Modal with Copy functionality */}
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-gray-400 font-bold">Transaction Reference</span>
+                    {copiedRef && (
+                      <span className="text-[10px] font-bold text-green-600 animate-fadeIn">Copied to clipboard!</span>
+                    )}
+                  </div>
+                  <div 
+                    onClick={() => handleCopyText(selectedRecord.inv.transaction_ref || selectedRecord.pay?.transaction_reference || selectedRecord.pay?.reference_number || "—")}
+                    className="font-mono text-gray-900 text-xs bg-white p-2.5 rounded-lg border border-gray-200 flex items-center justify-between gap-3 cursor-pointer hover:bg-gray-50 transition-colors group"
+                    title="Click anywhere to copy"
+                  >
+                    <span className="break-all select-all flex-1">
+                      {selectedRecord.inv.transaction_ref || selectedRecord.pay?.transaction_reference || selectedRecord.pay?.reference_number || "—"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyText(selectedRecord.inv.transaction_ref || selectedRecord.pay?.transaction_reference || selectedRecord.pay?.reference_number || "—");
+                      }}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-yellow-500 hover:text-white text-gray-700 text-xs font-bold rounded-md transition-colors cursor-pointer shadow-xs"
+                      title="Copy transaction reference"
+                    >
+                      {copiedRef ? <Check className="w-3.5 h-3.5 text-green-600 group-hover:text-white" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedRef ? "Copied" : "Copy"}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
