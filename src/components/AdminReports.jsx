@@ -34,7 +34,7 @@ const reportCards = [
 const getDefaultMonthsData = (yr) => {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   if (yr === 2026) {
-    // Exception: 5 remaining months of 2026 starting from August
+    // Exception: 5 remaining months of 2026 starting from August[cite: 5]
     return ["Aug", "Sep", "Oct", "Nov", "Dec"].map(m => ({
       month: m,
       shipments: 0,
@@ -42,7 +42,7 @@ const getDefaultMonthsData = (yr) => {
       deliveries: 0
     }));
   }
-  // Full 12 months for previous or other years
+  // Full 12 months for previous or other years[cite: 5]
   return monthNames.map(m => ({
     month: m,
     shipments: 0,
@@ -66,7 +66,7 @@ export default function AdminReports() {
       let shipmentsList = [];
       const token = localStorage.getItem('admin_token');
 
-      // 1. Try fetching from backend API
+      // 1. Try fetching from backend API[cite: 5]
       try {
         const res = await fetch(`${API_URL}/api/admin/shipments`, {
           headers: {
@@ -82,7 +82,7 @@ export default function AdminReports() {
         console.warn("API fetch shipments failed, trying Supabase...", e);
       }
 
-      // 2. Fallback to Supabase if API returned nothing
+      // 2. Fallback to Supabase if API returned nothing[cite: 5]
       if (shipmentsList.length === 0 && supabaseUrl && supabaseAnonKey) {
         const { data, error } = await supabase.from('shipments').select('*');
         if (!error && data) {
@@ -90,7 +90,7 @@ export default function AdminReports() {
         }
       }
 
-      // 3. Fallback to localStorage if still empty
+      // 3. Fallback to localStorage if still empty[cite: 5]
       if (shipmentsList.length === 0) {
         const local = localStorage.getItem('shipments') || localStorage.getItem('admin_shipments');
         if (local) {
@@ -100,7 +100,7 @@ export default function AdminReports() {
 
       setShipmentsCount(shipmentsList.length);
 
-      // Initialize month map with 0s for the selected year structure
+      // Initialize month map with 0s for the selected year structure[cite: 5]
       const monthMap = {};
       getDefaultMonthsData(selectedYear).forEach(m => {
         monthMap[m.month] = { ...m };
@@ -108,7 +108,7 @@ export default function AdminReports() {
 
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-      // Aggregate shipments filtered by selected year
+      // Aggregate shipments filtered by selected year[cite: 5]
       shipmentsList.forEach(s => {
         const dateStr = s.created_at || s.date || s.shipping_date || s.createdAt || new Date();
         const date = new Date(dateStr);
@@ -119,7 +119,7 @@ export default function AdminReports() {
         if (isNaN(monthIdx)) monthIdx = 7;
 
         if (year === selectedYear) {
-          // If viewing 2026 (Aug-Dec), clamp any earlier months into August so test shipments show up
+          // If viewing 2026 (Aug-Dec), clamp any earlier months into August so test shipments show up[cite: 5]
           if (selectedYear === 2026 && monthIdx < 7) {
             monthIdx = 7;
           }
@@ -129,7 +129,7 @@ export default function AdminReports() {
           if (monthMap[monthName]) {
             monthMap[monthName].shipments += 1;
 
-            // Prioritize current_status for accurate successful delivery matching
+            // Prioritize current_status for accurate successful delivery matching[cite: 5]
             const status = String(
               s.current_status || 
               s.status || 
@@ -188,7 +188,7 @@ export default function AdminReports() {
       const margin = 40;
       let y = 0;
 
-      // Branded header band
+      // Branded header band[cite: 5]
       doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 96, "F");
       doc.setFillColor(245, 158, 11); doc.rect(0, 96, pageW, 5, "F");
       doc.setTextColor(255, 255, 255);
@@ -200,7 +200,7 @@ export default function AdminReports() {
       doc.text("Confidential · Internal Use", pageW - margin, 60, { align: "right" });
 
       y = 130;
-      // Summary KPI strip
+      // Summary KPI strip[cite: 5]
       doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
       doc.text(`Executive Summary (${selectedYear})`, margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 18;
@@ -221,7 +221,7 @@ export default function AdminReports() {
       });
       y += 84;
 
-      // Monthly data table
+      // Monthly data table[cite: 5]
       doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(17, 24, 39);
       doc.text("Monthly Performance Breakdown", margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 14;
@@ -244,7 +244,7 @@ export default function AdminReports() {
       });
       y += 14;
 
-      // Charts capture
+      // Charts capture[cite: 5]
       const addChart = async (ref, title) => {
         if (!ref?.current) return;
         if (y > pageH - 220) { doc.addPage(); y = margin; }
@@ -262,7 +262,7 @@ export default function AdminReports() {
       await addChart(barRef, "Shipments vs Deliveries");
       await addChart(lineRef, "Revenue Trend");
 
-      // Footer on every page
+      // Footer on every page[cite: 5]
       const pages = doc.internal.getNumberOfPages();
       for (let p = 1; p <= pages; p++) {
         doc.setPage(p);
@@ -281,7 +281,7 @@ export default function AdminReports() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-yellow-600 gap-3 font-bold uppercase tracking-wider text-xs">
+      <div className="flex flex-col items-center justify-center py-24 text-yellow-600 gap-3 font-bold uppercase tracking-wider text-xs px-4 text-center">
         <Loader2 className="w-8 h-8 animate-spin" />
         Syncing report metrics for {selectedYear}...
       </div>
@@ -289,13 +289,13 @@ export default function AdminReports() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full px-2 sm:px-4">
       {/* Top Toolbar with Year Selector */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
         <div>
           <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-            <Package className="w-5 h-5 text-yellow-600" />
-            Shipment Analytics & Reports ({selectedYear})
+            <Package className="w-5 h-5 text-yellow-600 shrink-0" />
+            <span>Shipment Analytics & Reports ({selectedYear})</span>
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
             Real-time data aggregated for year {selectedYear}. Total shipments in system: {shipmentsCount}.
@@ -304,9 +304,11 @@ export default function AdminReports() {
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {/* Year Selector */}
-          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
-            <Calendar className="w-4 h-4 text-yellow-600" />
-            <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Year:</span>
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-yellow-600 shrink-0" />
+              <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Year:</span>
+            </div>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -322,10 +324,10 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Report Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Report Cards Grid (Responsive 1-col on mobile, 2-col on sm, 4-col on lg) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {reportCards.map((r) => (
-          <div key={r.title} className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition-shadow border border-gray-100 flex flex-col justify-between">
+          <div key={r.title} className="bg-white rounded-2xl shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow border border-gray-100 flex flex-col justify-between">
             <div>
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 ${r.color}`}><r.icon className="w-5 h-5" /></div>
               <h3 className="font-semibold text-gray-900 text-sm">{r.title}</h3>
@@ -335,10 +337,10 @@ export default function AdminReports() {
               <Button 
                 size="sm" 
                 variant="outline" 
-                className="h-7 text-xs font-bold uppercase tracking-wider w-full cursor-pointer" 
+                className="h-8 text-xs font-bold uppercase tracking-wider w-full cursor-pointer" 
                 onClick={() => generatePDF(r)}
               >
-                <Download className="w-3 h-3 mr-1" />Generate PDF
+                <Download className="w-3.5 h-3.5 mr-1" />Generate PDF
               </Button>
             </div>
           </div>
@@ -346,39 +348,47 @@ export default function AdminReports() {
       </div>
 
       {/* Bar Chart Container */}
-      <div ref={barRef} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+      <div ref={barRef} className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100 overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm">Shipments vs Deliveries ({selectedYear})</h3>
             <p className="text-xs text-gray-500">Monthly volume comparison from shipment records</p>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={monthlyData}>
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="shipments" name="Total Shipments" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="deliveries" name="Successful Deliveries" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="w-full overflow-x-auto">
+          <div className="min-w-[500px]">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyData}>
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="shipments" name="Total Shipments" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="deliveries" name="Successful Deliveries" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* Line Chart Container */}
-      <div ref={lineRef} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+      <div ref={lineRef} className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100 overflow-hidden">
         <div className="mb-4">
           <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm">Revenue Trend ({selectedYear})</h3>
           <p className="text-xs text-gray-500">Calculated revenue metrics ($K) based on active shipment valuations</p>
         </div>
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={monthlyData}>
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
-            <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
-            <Line type="monotone" dataKey="revenue" name="Revenue ($K)" stroke="#f59e0b" strokeWidth={3} dot={{ fill: "#f59e0b", r: 4 }} />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="w-full overflow-x-auto">
+          <div className="min-w-[500px]">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={monthlyData}>
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
+                <Line type="monotone" dataKey="revenue" name="Revenue ($K)" stroke="#f59e0b" strokeWidth={3} dot={{ fill: "#f59e0b", r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );

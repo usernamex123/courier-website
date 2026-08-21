@@ -55,9 +55,9 @@ export default function AdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
-      {/* Sidebar for Desktop & Mobile */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900" style={{ scrollbarGutter: 'stable' }}>
+      {/* Sidebar for Desktop & Mobile - Locked w-64 with shrink-0 */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 shrink-0 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-16 flex items-center px-6 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center font-black text-gray-900 shadow-sm">JB</span>
@@ -169,7 +169,7 @@ export default function AdminLayout() {
         </nav>
       </aside>
 
-      {/* Main Content Wrapper */}
+      {/* Main Content Wrapper - Locked with lg:pl-64 */}
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
         {/* Top Header Bar */}
         <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 px-6 flex items-center justify-between overflow-visible">

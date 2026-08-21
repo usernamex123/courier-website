@@ -77,7 +77,6 @@ export default function AdminDashboard() {
 
         const revByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
         
-        // Calculate revenue from invoices or fallback to shipments price
         if (activeInvoicesList.length > 0) {
           activeInvoicesList.forEach((inv) => { 
             const d = parseDate(inv.issue_date || inv.created_at || inv.created_date); 
@@ -199,7 +198,7 @@ export default function AdminDashboard() {
   const cur = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`);
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn font-sans">
       {/* Stat Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Package} label="Total Shipments" value={data.totalShipments.toLocaleString()} change={`${Math.abs(data.shipmentsChange)}%`} changeType={data.shipmentsChange >= 0 ? "up" : "down"} color="blue" />
@@ -269,7 +268,34 @@ export default function AdminDashboard() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6">
           <h3 className="font-bold text-gray-900 text-base mb-4">Recent Shipments</h3>
-          <div className="overflow-x-auto">
+
+          {/* 1. MOBILE CARD VIEW FOR RECENT SHIPMENTS */}
+          <div className="lg:hidden space-y-3">
+            {data.recent.map((s, i) => (
+              <div key={s.id || i} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-xs text-gray-900">{s.tracking_number || "—"}</span>
+                  <StatusBadge status={s.current_status || s.status} />
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span className="text-gray-400 font-medium">Route</span>
+                  <span className="font-medium text-gray-800 truncate max-w-[200px]" title={`${s.origin || "—"} → ${s.destination || "—"}`}>
+                    {s.origin || "—"} → {s.destination || "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-gray-200/60">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Price</span>
+                  <span className="font-bold text-xs text-gray-900">${Number(s.price || s.cost || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+            {data.recent.length === 0 && (
+              <div className="text-center py-8 text-gray-400 text-xs">No shipments recorded yet</div>
+            )}
+          </div>
+
+          {/* 2. DESKTOP TABLE VIEW FOR RECENT SHIPMENTS */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-400 border-b border-gray-100 text-xs uppercase tracking-wider">

@@ -138,13 +138,13 @@ export default function AdminDrivers() {
   if (loading) return <div className="flex flex-col items-center justify-center py-24 text-amber-600 gap-3 font-bold uppercase text-xs w-full"><Loader2 className="w-8 h-8 animate-spin" />Loading Drivers...</div>;
 
   return (
-    <div className="w-full space-y-6 pb-12">
-      <div className="flex items-center justify-between bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+    <div className="w-full space-y-6 pb-12 font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <div>
           <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2"><Users className="w-5 h-5 text-amber-600" />Drivers Management</h2>
           <p className="text-xs text-gray-500 mt-0.5">Manage fleet drivers</p>
         </div>
-        <button onClick={openAddModal} className="flex items-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
+        <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
           <Plus className="w-4 h-4 stroke-[3]" /><span>Add Driver</span>
         </button>
       </div>
@@ -171,21 +171,74 @@ export default function AdminDrivers() {
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input type="text" placeholder="Search drivers..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider flex-1 sm:flex-none">
             <option value="all">Status: All</option><option value="active">Active</option><option value="inactive">Inactive</option>
           </select>
-          <select value={licenseFilter} onChange={e => { setLicenseFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+          <select value={licenseFilter} onChange={e => { setLicenseFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider flex-1 sm:flex-none">
             <option value="all">License Type</option><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option>
           </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider flex-1 sm:flex-none">
             <option value="name-asc">Name A-Z</option><option value="name-desc">Name Z-A</option>
           </select>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* 1. MOBILE CARD VIEW FOR DRIVERS */}
+        <div className="lg:hidden space-y-3 p-4">
+          {paginated.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 font-bold"><Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />No drivers found</div>
+          ) : (
+            paginated.map(d => {
+              const active = String(d.status).toLowerCase() === 'active';
+              const trip = d.current_trip || 'Available';
+              const onTrip = String(trip).toLowerCase().includes('trip');
+              return (
+                <div key={d.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-gray-900 cursor-pointer hover:text-amber-600" onClick={() => openEditModal(d)}>{d.name}</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>{active ? 'Active' : 'Inactive'}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 border-t border-gray-200/60 pt-2">
+                    <div>
+                      <span className="text-gray-400 block uppercase font-bold text-[9px]">Contact</span>
+                      <span className="font-medium text-gray-800">{d.phone}</span>
+                      <div className="text-gray-500 text-[10px] truncate">{d.email || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block uppercase font-bold text-[9px]">License</span>
+                      <span className="font-medium text-gray-800">{d.license_number}</span>
+                      <div className="text-gray-500 text-[10px]">{d.license_type}</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 border-t border-gray-200/60 pt-2">
+                    <div>
+                      <span className="text-gray-400 block uppercase font-bold text-[9px]">Vehicle</span>
+                      <span className="font-medium text-gray-800">{d.vehicle_assigned || 'Unassigned'}</span>
+                      <div className="text-gray-500 text-[10px]">{d.vehicle_model || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block uppercase font-bold text-[9px]">Trip Status</span>
+                      <span className="flex items-center gap-1.5 font-bold text-gray-800 mt-0.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${onTrip ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>{trip}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2 border-t border-gray-200/60">
+                    <button onClick={() => openEditModal(d)} className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[11px] font-bold uppercase">Edit</button>
+                    <button onClick={() => setDriverToDelete(d)} className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold uppercase flex items-center gap-1">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* 2. DESKTOP TABLE VIEW FOR DRIVERS */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50">
@@ -221,14 +274,14 @@ export default function AdminDrivers() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between p-4 px-6 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 px-6 border-t border-gray-100">
           <p className="text-xs text-gray-700 font-bold uppercase tracking-wider">Showing {filtered.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}</p>
           <div className="flex items-center gap-1">
-            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
               <button key={p} onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-bold cursor-pointer ${currentPage === p ? 'bg-amber-500 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>{p}</button>
             ))}
-            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
@@ -241,22 +294,22 @@ export default function AdminDrivers() {
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleSaveDriver} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Name *</label><input required placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone *</label><input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
               </div>
               <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email</label><input type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License # *</label><input required placeholder="License" value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License Type</label><select value={formData.license_type} onChange={e => setFormData({ ...formData, license_type: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 uppercase"><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option></select></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Assigned</label><input placeholder="Truck #14" value={formData.vehicle_assigned} onChange={e => setFormData({ ...formData, vehicle_assigned: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Model</label><input placeholder="Model" value={formData.vehicle_model} onChange={e => setFormData({ ...formData, vehicle_model: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl text-xs font-bold uppercase">Cancel</Button>
-                <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase">{submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{editingId ? "Update Driver" : "Save Driver"}</Button>
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl text-xs font-bold uppercase cursor-pointer">Cancel</Button>
+                <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase cursor-pointer">{submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{editingId ? "Update Driver" : "Save Driver"}</Button>
               </div>
             </form>
           </div>
@@ -274,8 +327,8 @@ export default function AdminDrivers() {
               <p className="text-xs text-gray-500 font-medium">Are you sure you want to delete <strong className="text-gray-900">{driverToDelete.name}</strong>? This action cannot be undone.</p>
             </div>
             <div className="flex items-center gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => setDriverToDelete(null)} className="w-full rounded-xl text-xs font-bold uppercase">Cancel</Button>
-              <Button type="button" onClick={confirmDeleteDriver} className="w-full bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold uppercase">Delete</Button>
+              <Button type="button" variant="outline" onClick={() => setDriverToDelete(null)} className="w-full rounded-xl text-xs font-bold uppercase cursor-pointer">Cancel</Button>
+              <Button type="button" onClick={confirmDeleteDriver} className="w-full bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer">Delete</Button>
             </div>
           </div>
         </div>
