@@ -129,9 +129,9 @@ export default function AdminFinancePayments() {
   const filteredRecords = invoices.filter((inv) => {
     const pay = paymentsMap[inv.id];
     const invNum = inv.invoice_number || `INV-${inv.id.slice(0, 8)}`;
-    const refNum = pay?.transaction_reference || pay?.reference_number || "—";
+    const refNum = inv.transaction_ref || pay?.transaction_reference || pay?.reference_number || "—";
     const customerId = inv.customer_id || "";
-    const method = pay?.payment_method || pay?.gateway || "Pending";
+    const method = inv.payment_method || pay?.payment_method || pay?.gateway || "Pending";
 
     const matchesSearch = 
       refNum.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -375,9 +375,9 @@ export default function AdminFinancePayments() {
                   const pay = paymentsMap[inv.id];
                   const statusKey = (pay?.status || inv.status || 'unpaid').toLowerCase();
                   const invNum = inv.invoice_number || `INV-${inv.id.slice(0, 8)}`;
-                  const refNum = pay?.transaction_reference || pay?.reference_number || "—";
+                  const refNum = inv.transaction_ref || pay?.transaction_reference || pay?.reference_number || "—";
                   const amount = inv.total || inv.amount || 0;
-                  const method = pay?.payment_method || pay?.gateway || "—";
+                  const method = inv.payment_method || pay?.payment_method || pay?.gateway || "—"; 
                   const isChecked = selectedIds.includes(inv.id);
 
                   return (
@@ -483,7 +483,9 @@ export default function AdminFinancePayments() {
                 </div>
                 <div>
                   <span className="text-gray-400 font-bold block mb-1">Payment Method</span>
-                  <span className="font-bold capitalize text-gray-900">{(selectedRecord.pay?.payment_method || selectedRecord.pay?.gateway || "Not Paid").replace('_', ' ')}</span>
+                  <span className="font-bold capitalize text-gray-900">
+                    {(selectedRecord.inv.payment_method || selectedRecord.pay?.payment_method || selectedRecord.pay?.gateway || "Not Paid").replace('_', ' ')}
+                  </span>
                 </div>
               </div>
 
@@ -501,9 +503,9 @@ export default function AdminFinancePayments() {
         {invoices.map((inv) => {
           const pay = paymentsMap[inv.id];
           const invNum = inv.invoice_number || `INV-${inv.id.slice(0, 8)}`;
-          const refNum = pay?.transaction_reference || pay?.reference_number || "—";
+          const refNum = inv.transaction_ref || pay?.transaction_reference || pay?.reference_number || "—";
           const amount = inv.total || inv.amount || 0;
-          const method = pay?.payment_method || pay?.gateway || "Pending";
+          const method = inv.payment_method || pay?.payment_method || pay?.gateway || "Pending";
 
           return (
             <div key={inv.id} id={"invoice-receipt-" + inv.id} className="p-10 bg-white font-sans max-w-[650px] mx-auto text-gray-900">

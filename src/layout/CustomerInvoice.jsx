@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Printer, Loader2, X } from "lucide-react";
+import { FileText, Printer, Loader2, X, CreditCard } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import EmptyState from "../components/logistics/EmptyState";
 import PrintableInvoice from "../label/PrintableInvoice";
@@ -36,7 +36,9 @@ const fmtDate = (dateStr) => {
 export default function CustomerInvoice() {
   const [invoices, setInvoices] = useState(null);
   const [shipments, setShipments] = useState({});
+  const [customer, setCustomer] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [loadingPaymentId, setLoadingPaymentId] = useState(null);
 
   useEffect(() => {
     const fetchInvoicesAndShipments = async () => {
@@ -46,6 +48,27 @@ export default function CustomerInvoice() {
           setInvoices([]);
           return;
         }
+
+        let resolvedCustomer = {
+          email: user.email,
+          billing_email: user.email
+        };
+
+        try {
+          const { data: custData } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (custData) {
+            resolvedCustomer = { ...resolvedCustomer, ...custData };
+          }
+        } catch (e) {
+          console.warn("Could not fetch extra customer details, using auth fallback");
+        }
+
+        setCustomer(resolvedCustomer);
 
         let assignedCode = user.user_metadata?.customer_id;
         if (!assignedCode) {
@@ -59,7 +82,6 @@ export default function CustomerInvoice() {
 
         const safeCode = assignedCode ? String(assignedCode).trim() : null;
 
-        // Fetch invoices from Supabase ordered by creation date
         let query = supabase.from('invoices').select('*').order('created_at', { ascending: false }).limit(100);
         
         if (safeCode) {
@@ -74,7 +96,6 @@ export default function CustomerInvoice() {
         const fetchedInvoices = invData || [];
         setInvoices(fetchedInvoices);
 
-        // Fetch related shipments
         const shipmentIds = [...new Set(fetchedInvoices.map((i) => i.shipment_id).filter(Boolean))];
         if (shipmentIds.length > 0) {
           const { data: shipData } = await supabase
@@ -96,7 +117,6 @@ export default function CustomerInvoice() {
 
     fetchInvoicesAndShipments();
 
-    // Real-time subscription to instantly show auto-generated trigger invoices
     const invoiceChannel = supabase
       .channel('public:customer-invoices-view')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
@@ -118,9 +138,36 @@ export default function CustomerInvoice() {
   }
 
   const printInv = (inv) => {
-    // Always targets the hidden original-size element for crisp printing/saving
     const node = document.getElementById("inv-" + inv.id) || document.getElementById("modal-inv-" + inv.id);
     if (node) printNode(node, "Invoice " + (inv.invoice_number || inv.id));
+  };
+
+  const handleStripePayment = async (inv) => {
+    try {
+      setLoadingPaymentId(inv.id);
+
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          invoice_id: inv.id,
+          amount: inv.total || inv.amount || 0,
+          currency: inv.currency || 'USD',
+          invoice_number: inv.invoice_number || `INV-${inv.id.slice(0, 8)}`,
+          customer_email: customer?.email || customer?.billing_email
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned from server.");
+      }
+    } catch (err) {
+      console.error("Stripe payment error:", err);
+      alert("Failed to initialize Stripe payment. Please check console logs.");
+      setLoadingPaymentId(null);
+    }
   };
 
   return (
@@ -224,29 +271,47 @@ export default function CustomerInvoice() {
               </div>
             </div>
 
-            {/* Modal Body / Preview & Total Amount Below */}
-            <div className="p-4 sm:p-8 overflow-x-auto overflow-y-auto max-h-[80vh] flex flex-col items-center bg-slate-100">
-              <div className="shadow-lg bg-white rounded-xl overflow-hidden transform scale-[0.84] sm:scale-[0.88] origin-top">
-                <PrintableInvoice
-                  id={"modal-inv-" + selectedInvoice.id}
-                  shipment={shipments[selectedInvoice.shipment_id]}
-                  invoice={selectedInvoice}
-                />
+            {/* Modal Body */}
+            <div className="p-4 sm:p-8 overflow-y-auto max-h-[80vh] flex flex-col items-center bg-slate-100">
+              <div className="w-full max-w-[800px] h-[520px] sm:h-[600px] overflow-x-auto overflow-y-hidden flex justify-center">
+                <div className="transform scale-[0.55] sm:scale-[0.65] origin-top">
+                  <PrintableInvoice
+                    id={"modal-inv-" + selectedInvoice.id}
+                    shipment={shipments[selectedInvoice.shipment_id]}
+                    invoice={selectedInvoice}
+                    customer={customer}
+                  />
+                </div>
               </div>
 
-              {/* Total Amount Summary Below */}
-              <div className="w-full max-w-[680px] bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-4 mt-4 flex items-center justify-between">
-                <span className="font-bold text-slate-700 text-sm">Total Amount Due:</span>
-                <span className="font-extrabold text-slate-900 text-lg">
-                  {fmtMoney(selectedInvoice.total || selectedInvoice.amount || 0, selectedInvoice.currency)}
-                </span>
-              </div>
+              {/* Real Stripe Pay Now Button */}
+              {selectedInvoice.status?.toLowerCase() !== 'paid' && (
+                <div className="w-full flex justify-center mt-4">
+                  <button
+                    onClick={() => handleStripePayment(selectedInvoice)}
+                    disabled={loadingPaymentId === selectedInvoice.id}
+                    className="inline-flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold px-10 py-3.5 rounded-xl text-sm transition-colors shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {loadingPaymentId === selectedInvoice.id ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Connecting to Stripe...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        Pay Now — {fmtMoney(selectedInvoice.total || selectedInvoice.amount || 0, selectedInvoice.currency)}
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Hidden original-size printable invoices used for high-res PDF generation / printing */}
+      {/* Hidden printable invoices */}
       <div className="hidden">
         {invoices.filter((i) => shipments[i.shipment_id]).map((inv) => (
           <PrintableInvoice 
@@ -254,6 +319,7 @@ export default function CustomerInvoice() {
             id={"inv-" + inv.id} 
             shipment={shipments[inv.shipment_id]} 
             invoice={inv} 
+            customer={customer}
           />
         ))}
       </div>

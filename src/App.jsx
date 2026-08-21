@@ -16,6 +16,7 @@ import MyShipments from "./layout/MyShipments";
 import CustomerNotifications from "./layout/CustomerNotifications";
 import CustomerProfile from "./layout/CustomerProfile";
 import CustomerInvoice from "./layout/CustomerInvoice";
+import CustomerPayments from "./layout/CustomerPayments";
 
 // Import AdminSecure guard and dashboard container components
 import AdminSecure from "./components/AdminSecure";
@@ -88,6 +89,7 @@ export default function App() {
             </div>
           } />
           <Route path="invoices" element={<CustomerInvoice />} />
+          <Route path="payments" element={<CustomerPayments />} />
           <Route path="notifications" element={<CustomerNotifications />} />
           <Route path="profile" element={<CustomerProfile />} />
           <Route path="settings" element={
