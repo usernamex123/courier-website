@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '../../supabase';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 const usStates = [
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", 
@@ -53,20 +53,27 @@ export default function GetStarted() {
     lastName: '', 
     email: '', 
     phone: '', 
-    state: '', 
+    fromState: '', 
+    toState: '', 
     message: '',
     agreed: false 
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [isFromOpen, setIsFromOpen] = useState(false);
+  const [isToOpen, setIsToOpen] = useState(false);
+  
+  const fromDropdownRef = useRef(null);
+  const toDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+      if (fromDropdownRef.current && !fromDropdownRef.current.contains(event.target)) {
+        setIsFromOpen(false);
+      }
+      if (toDropdownRef.current && !toDropdownRef.current.contains(event.target)) {
+        setIsToOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -84,8 +91,10 @@ export default function GetStarted() {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Invalid email address";
     } else if (name === "phone") {
       if (!/^[0-9]{10}$/.test(value)) error = "10-digit number required";
-    } else if (name === "state") {
-      if (!value) error = "Please select a state";
+    } else if (name === "fromState") {
+      if (!value) error = "Select origin";
+    } else if (name === "toState") {
+      if (!value) error = "Select destination";
     } else if (name === "agreed") {
       if (!value) error = "You must agree to the privacy policy";
     }
@@ -95,7 +104,7 @@ export default function GetStarted() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const fieldsToValidate = ['firstName', 'lastName', 'email', 'phone', 'state', 'agreed'];
+    const fieldsToValidate = ['firstName', 'lastName', 'email', 'phone', 'fromState', 'toState', 'agreed'];
     let allValid = true;
 
     fieldsToValidate.forEach(field => {
@@ -114,27 +123,62 @@ export default function GetStarted() {
     if (allValid) {
       setIsSubmitting(true);
       
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      const payload = { 
-        name: fullName,
-        email: formData.email,
-        phone: formData.phone,
-        state: formData.state,
-        message: formData.message,
-        source: 'Get Started Form'
-      };
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      const { error } = await supabase.from('messages').insert([payload]);
+        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+        const fullMessage = `From State: ${formData.fromState}\nTo State: ${formData.toState}\n\nMessage: ${formData.message || 'No additional message provided.'}`;
+        const recipientEmail = "customer_care@jblogisticsservices.com";
 
-      if (error) {
-        toast.error("Failed to send message: " + error.message);
-        console.error("Supabase Error:", error);
-      } else {
+        // Database Payload perfectly matching your messages table columns
+        const dbPayload = { 
+          name: fullName,
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          email: formData.email,
+          phone: formData.phone,
+          from_state: formData.fromState,
+          to_state: formData.toState,
+          message: fullMessage,
+          source: 'Get Started Form',
+          user_id: user ? user.id : null
+        };
+
+        // 1. Insert into Supabase 'messages' table
+        const { error } = await supabase
+          .from('messages')
+          .insert([dbPayload]);
+
+        if (error) throw error;
+
+        // 2. Trigger Edge Function for Email Notification
+        const { error: fnError } = await supabase.functions.invoke('notify-admin', {
+          body: {
+            name: fullName,
+            email: formData.email,
+            phone: formData.phone,
+            from_state: formData.fromState,
+            to_state: formData.toState,
+            message: fullMessage,
+            source: 'Get Started Form',
+            sender: formData.email,
+            recipient: recipientEmail
+          }
+        });
+
+        if (fnError) {
+          console.warn("Email notification warning:", fnError);
+        }
+
         toast.success("Message sent successfully!");
-        setFormData({ firstName: '', lastName: '', email: '', phone: '', state: '', message: '', agreed: false });
+        setFormData({ firstName: '', lastName: '', email: '', phone: '', fromState: '', toState: '', message: '', agreed: false });
         setErrors({});
+      } catch (err) {
+        toast.error("Failed to send message: " + (err.message || err));
+        console.error("Supabase Error:", err);
+      } finally {
+        setIsSubmitting(false);
       }
-      setIsSubmitting(false);
     }
   };
 
@@ -144,14 +188,11 @@ export default function GetStarted() {
       className="w-full relative min-h-[850px] flex items-center bg-cover bg-center overflow-hidden font-brand py-16 md:py-0"
       style={{ backgroundImage: "url('/getstarted.png')" }}
     >
-      {/* Background overlay */}
       <div className="absolute inset-0 bg-black/20 z-0" />
 
-      {/* Right Column Form Container: Mobile padding adjusted to px-6 to prevent cutoff, desktop remains exact md:px-16 */}
       <div className="absolute right-0 top-0 h-full w-full md:w-1/2 z-10 bg-black/85 backdrop-blur-xl px-6 sm:px-8 py-4 md:px-16 md:py-6 flex flex-col justify-center overflow-hidden border-l border-white/10 shadow-2xl">
         <div className="max-w-lg mx-auto w-full my-auto">
           
-          {/* Section Heading with original font sizes */}
           <div className="mb-4 text-left">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white uppercase drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] mb-2">
               Get <span className="text-yellow-500">Started</span>
@@ -170,37 +211,72 @@ export default function GetStarted() {
             <InputField placeholder="Email address *" type="email" value={formData.email} onChange={(val) => setFormData({...formData, email: val})} onBlur={() => validateField('email', formData.email)} error={errors.email} autoComplete="email" />
             <InputField placeholder="Phone number *" type="tel" value={formData.phone} onChange={(val) => setFormData({...formData, phone: val})} onBlur={() => validateField('phone', formData.phone)} error={errors.phone} autoComplete="tel" isNumeric />
             
-            {/* Custom State Dropdown */}
-            <div className="relative w-full" ref={dropdownRef}>
-              <div 
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full py-3.5 px-4 bg-white/5 border ${errors.state ? 'border-red-500' : 'border-white/20 hover:border-white/40'} text-white cursor-pointer flex justify-between items-center shadow-inner transition-all duration-300`}
-              >
-                <span className={formData.state ? "text-white font-medium text-sm md:text-base" : "text-white/50 text-sm md:text-base font-medium"}>
-                  {formData.state || "Select State *"}
-                </span>
-                <ChevronDown size={18} className={`transition-transform duration-300 text-yellow-500 shrink-0 ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
+            {/* From & To State Dropdowns Side-by-Side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* From State Dropdown */}
+              <div className="relative w-full" ref={fromDropdownRef}>
+                <div 
+                  onClick={() => { setIsFromOpen(!isFromOpen); setIsToOpen(false); }}
+                  className={`w-full py-3.5 px-4 bg-white/5 border ${errors.fromState ? 'border-red-500' : 'border-white/20 hover:border-white/40'} text-white cursor-pointer flex justify-between items-center shadow-inner transition-all duration-300`}
+                >
+                  <span className={formData.fromState ? "text-white font-medium text-sm md:text-base truncate pr-2" : "text-white/50 text-sm md:text-base font-medium truncate pr-2"}>
+                    {formData.fromState || "From State *"}
+                  </span>
+                  <ChevronDown size={18} className={`transition-transform duration-300 text-yellow-500 shrink-0 ${isFromOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </div>
+
+                {isFromOpen && (
+                  <div className="absolute top-full left-0 w-full max-h-48 overflow-y-auto z-[60] bg-black/95 backdrop-blur-md border border-white/20 mt-1 shadow-2xl [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black [&::-webkit-scrollbar-thumb]:bg-yellow-500 [&::-webkit-scrollbar-thumb]:rounded-none">
+                    {usStates.map((state) => (
+                      <div 
+                        key={state} 
+                        onClick={() => { 
+                          setFormData({...formData, fromState: state}); 
+                          setIsFromOpen(false); 
+                          validateField('fromState', state);
+                        }} 
+                        className="px-4 py-2.5 hover:bg-yellow-500 hover:text-black cursor-pointer text-left transition-colors text-sm md:text-base text-white font-medium border-b border-white/5 last:border-b-0"
+                      >
+                        {state}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.fromState && <span className="text-red-400 text-xs font-semibold pl-1 text-left block mt-1">{errors.fromState}</span>}
               </div>
 
-              {isOpen && (
-                <div className="absolute top-full left-0 w-full max-h-48 overflow-y-auto z-[60] bg-black/95 backdrop-blur-md border border-white/20 mt-1 shadow-2xl [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black [&::-webkit-scrollbar-thumb]:bg-yellow-500 [&::-webkit-scrollbar-thumb]:rounded-none">
-                  {usStates.map((state) => (
-                    <div 
-                      key={state} 
-                      onClick={() => { 
-                        setFormData({...formData, state}); 
-                        setIsOpen(false); 
-                        validateField('state', state);
-                      }} 
-                      className="px-4 py-2.5 hover:bg-yellow-500 hover:text-black cursor-pointer text-left transition-colors text-sm md:text-base text-white font-medium border-b border-white/5 last:border-b-0"
-                    >
-                      {state}
-                    </div>
-                  ))}
+              {/* To State Dropdown */}
+              <div className="relative w-full" ref={toDropdownRef}>
+                <div 
+                  onClick={() => { setIsToOpen(!isToOpen); setIsFromOpen(false); }}
+                  className={`w-full py-3.5 px-4 bg-white/5 border ${errors.toState ? 'border-red-500' : 'border-white/20 hover:border-white/40'} text-white cursor-pointer flex justify-between items-center shadow-inner transition-all duration-300`}
+                >
+                  <span className={formData.toState ? "text-white font-medium text-sm md:text-base truncate pr-2" : "text-white/50 text-sm md:text-base font-medium truncate pr-2"}>
+                    {formData.toState || "To State *"}
+                  </span>
+                  <ChevronDown size={18} className={`transition-transform duration-300 text-yellow-500 shrink-0 ${isToOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </div>
-              )}
+
+                {isToOpen && (
+                  <div className="absolute top-full left-0 w-full max-h-48 overflow-y-auto z-[60] bg-black/95 backdrop-blur-md border border-white/20 mt-1 shadow-2xl [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black [&::-webkit-scrollbar-thumb]:bg-yellow-500 [&::-webkit-scrollbar-thumb]:rounded-none">
+                    {usStates.map((state) => (
+                      <div 
+                        key={state} 
+                        onClick={() => { 
+                          setFormData({...formData, toState: state}); 
+                          setIsToOpen(false); 
+                          validateField('toState', state);
+                        }} 
+                        className="px-4 py-2.5 hover:bg-yellow-500 hover:text-black cursor-pointer text-left transition-colors text-sm md:text-base text-white font-medium border-b border-white/5 last:border-b-0"
+                      >
+                        {state}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.toState && <span className="text-red-400 text-xs font-semibold pl-1 text-left block mt-1">{errors.toState}</span>}
+              </div>
             </div>
-            {errors.state && <span className="text-red-400 text-xs font-semibold pl-1 text-left block">{errors.state}</span>}
 
             <textarea 
               placeholder="Message (Optional)" 
