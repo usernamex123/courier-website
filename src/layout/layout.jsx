@@ -26,8 +26,10 @@ export default function Layout() {
   // --- ADMIN BACKEND SESSION STATE ---
   const [isAdminAuth, setIsAdminAuth] = useState(false);
 
-  // --- CLIENT USER SESSION STATE ---
+  // --- CLIENT USER & DRIVER ROLE STATE ---
   const [user, setUser] = useState(null);
+  const [isDriver, setIsDriver] = useState(false);
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
 
   const lastScrollY = useRef(0);
   const location = useLocation();
@@ -60,17 +62,64 @@ export default function Layout() {
     checkAdminSession();
   }, [location.pathname]);
 
-  // Check Supabase client user session
+  // Check Supabase client user session and query driver_profiles securely
   useEffect(() => {
+    let isMounted = true;
+
+    const checkDriverStatus = async (userId) => {
+      try {
+        const { data, error } = await supabase
+          .from('driver_profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (isMounted) {
+          if (!error && data) {
+            setIsDriver(true);
+          } else {
+            setIsDriver(false);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking driver profile:', err);
+        if (isMounted) setIsDriver(false);
+      } finally {
+        if (isMounted) setIsCheckingRole(false);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      if (isMounted) setUser(currentUser);
+      if (currentUser) {
+        checkDriverStatus(currentUser.id);
+      } else {
+        if (isMounted) {
+          setIsDriver(false);
+          setIsCheckingRole(false);
+        }
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      if (isMounted) setUser(currentUser);
+      if (currentUser) {
+        setIsCheckingRole(true);
+        checkDriverStatus(currentUser.id);
+      } else {
+        if (isMounted) {
+          setIsDriver(false);
+          setIsCheckingRole(false);
+        }
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -84,6 +133,8 @@ export default function Layout() {
     }
     await supabase.auth.signOut();
     setUser(null);
+    setIsDriver(false);
+    setIsCheckingRole(false);
     setIsAdminAuth(false);
     setIsMobileMenuOpen(false);
     navigate('/');
@@ -205,20 +256,30 @@ export default function Layout() {
         <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm md:text-base font-black uppercase tracking-wider text-white hover:text-yellow-500 cursor-pointer">Contact Us</a>
 
         {user ? (
-          <div className="flex items-center gap-3 ml-2">
-            <Link to="/Dashboard" className="px-6 py-3 rounded-full bg-yellow-500 text-white font-extrabold text-sm tracking-wide shadow-lg cursor-pointer select-none hover:bg-yellow-400 transition-colors flex items-center gap-2">
-              <span>Customer Portal</span>
-            </Link>
-          </div>
+          isCheckingRole ? (
+            <div className="w-36 h-12 rounded-full bg-white/10 animate-pulse ml-2" />
+          ) : (
+            <div className="flex items-center gap-3 ml-2">
+              <Link 
+                to={isDriver ? "/driver-portal" : "/Dashboard"} 
+                className="px-6 py-3 rounded-full bg-yellow-500 text-white font-extrabold text-sm tracking-wide shadow-lg cursor-pointer select-none hover:bg-yellow-400 transition-colors flex items-center gap-2"
+              >
+                <span>{isDriver ? "Driver Portal" : "Customer Portal"}</span>
+              </Link>
+            </div>
+          )
         ) : (
           <Login />
         )}
       </div>
 
       <div className="flex md:hidden items-center gap-2.5">
-        {user && (
-          <Link to="/Dashboard" className="px-3 py-1.5 rounded-full bg-yellow-500 text-white font-bold text-[11px] flex items-center gap-1 shadow">
-            <span>Customer Portal</span>
+        {user && !isCheckingRole && (
+          <Link 
+            to={isDriver ? "/driver-portal" : "/Dashboard"} 
+            className="px-3 py-1.5 rounded-full bg-yellow-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
+          >
+            <span>{isDriver ? "Driver Portal" : "Customer Portal"}</span>
           </Link>
         )}
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white cursor-pointer">
