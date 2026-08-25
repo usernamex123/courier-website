@@ -99,35 +99,6 @@ const getDriverAreaName = async () => {
 export default function DriverMyShipments() {
   const navigate = useNavigate();
 
-  // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shipmentTrackingToUpdate = params.get('openUpdate');
-    if (shipmentTrackingToUpdate && shipments.length > 0) {
-      const target = shipments.find(s => s.tracking_number === shipmentTrackingToUpdate);
-      if (target) {
-        openUpdateModal(target); // open your update status popup
-      }
-    }
-  }, [shipments]);
-  
-  useEffect(() => {
-    const verifyDriverAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const hasLocalData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
-        
-        if (!session && !hasLocalData) {
-          toast.error('Unauthorized access. Please log in as a driver.');
-          navigate('/');
-        }
-      } catch (err) {
-        console.error('Auth verification error:', err);
-      }
-    };
-    verifyDriverAuth();
-  }, [navigate]);
-
   // Driver Authentication State[cite: 4]
   const [driver] = useState(() => {
     try {
@@ -154,6 +125,36 @@ export default function DriverMyShipments() {
   // State for the status update popup modal[cite: 4]
   const [activeModalShipment, setActiveModalShipment] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Auto-open update modal via URL query param (e.g. ?openUpdate=TRACKING_ID)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shipmentTrackingToUpdate = params.get('openUpdate');
+    if (shipmentTrackingToUpdate && shipments.length > 0) {
+      const target = shipments.find(s => s.tracking_number === shipmentTrackingToUpdate);
+      if (target) {
+        setActiveModalShipment(target);
+      }
+    }
+  }, [shipments]);
+  
+  // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection[cite: 4]
+  useEffect(() => {
+    const verifyDriverAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const hasLocalData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
+        
+        if (!session && !hasLocalData) {
+          toast.error('Unauthorized access. Please log in as a driver.');
+          navigate('/');
+        }
+      } catch (err) {
+        console.error('Auth verification error:', err);
+      }
+    };
+    verifyDriverAuth();
+  }, [navigate]);
 
   // Determine the correct driver identifier string (preferring 'DRV-' format)[cite: 4]
   const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
