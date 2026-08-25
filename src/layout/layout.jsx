@@ -37,15 +37,6 @@ export default function Layout() {
   
   // Check backend admin session status
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const trackingCode = params.get('track');
-    if (trackingCode) {
-      setTrackingInput(trackingCode); // set your input state
-      handleTrackSubmit(trackingCode); // trigger your search function
-    }
-  }, []);
-  
-  useEffect(() => {
     const checkAdminSession = async () => {
       try {
         const res = await fetch(`${API_URL}/api/admin/session`, {
