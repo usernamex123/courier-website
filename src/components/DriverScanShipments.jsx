@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 import DriverHeader from './DriverHeader';
 import { toast } from 'sonner';
 import { 
   QrCode, 
   Camera, 
-  Bell, 
-  Calendar, 
   ChevronRight, 
   X, 
-  CheckCircle2, 
   Loader2, 
   Search,
+  Menu,
+  Bell,
+  Truck,
+  LayoutDashboard,
   Package,
-  MapPin,
-  Phone
+  Scan,
+  User
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -27,8 +29,10 @@ const supabase = createClient(
 );
 
 export default function DriverScanShipments() {
+  const navigate = useNavigate();
+
   // Driver Authentication State
-  const [driver, setDriver] = useState(() => {
+  const [driver] = useState(() => {
     try {
       const savedDriverData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
       if (savedDriverData) {
@@ -49,8 +53,8 @@ export default function DriverScanShipments() {
   const [cameraError, setCameraError] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualInput, setManualInput] = useState('');
-  const [scannedShipment, setScannedShipment] = useState(null);
   const [loadingSearch, setLoadingSearch] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Start camera on mount
   useEffect(() => {
@@ -85,7 +89,7 @@ export default function DriverScanShipments() {
     }
   };
 
-  // Handle lookup by scanned or typed tracking number
+  // Handle lookup by scanned or typed tracking number and redirect with popup open
   const handleLookupShipment = async (trackingNum) => {
     const query = trackingNum || manualInput;
     if (!query.trim()) {
@@ -101,28 +105,17 @@ export default function DriverScanShipments() {
         .ilike('tracking_number', `%${query.trim()}%`)
         .limit(1);
 
+      let trackingToOpen = query.trim();
       if (!error && data && data.length > 0) {
-        setScannedShipment(data[0]);
-        setShowManualModal(false);
-        setManualInput('');
-        toast.success(`Found shipment: ${data[0].tracking_number}`);
-      } else {
-        // Fallback mock check if offline or table is empty
-        const mockShipment = {
-          tracking_number: query.toUpperCase().includes('SHP') ? query.toUpperCase() : 'SHP-004',
-          origin: 'Kathmandu',
-          destination: 'Chitwan',
-          client_name: 'Ram Sharma',
-          client_phone: '+977-9800000004',
-          client_address: 'Bharatpur, Chitwan',
-          status: 'In Transit',
-          time: '10:15 AM'
-        };
-        setScannedShipment(mockShipment);
-        setShowManualModal(false);
-        setManualInput('');
-        toast.success(`Found shipment: ${mockShipment.tracking_number}`);
+        trackingToOpen = data[0].tracking_number;
       }
+
+      setShowManualModal(false);
+      setManualInput('');
+      toast.success(`Opening shipment: ${trackingToOpen}`);
+      
+      // Redirect to My Shipments page with openUpdate query parameter to auto-open popup
+      navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
     } catch (err) {
       console.error(err);
       toast.error('Error searching shipment');
@@ -131,36 +124,71 @@ export default function DriverScanShipments() {
     }
   };
 
-  const handleUpdateStatus = async (newStatus) => {
-    if (!scannedShipment) return;
-    try {
-      await supabase
-        .from('shipments')
-        .update({ status: newStatus })
-        .eq('tracking_number', scannedShipment.tracking_number);
-
-      setScannedShipment(prev => ({ ...prev, status: newStatus }));
-      toast.success(`Shipment ${scannedShipment.tracking_number} updated to ${newStatus}!`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to update shipment');
-    }
-  };
+  const driverName = driver?.name || 'Driver';
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans flex">
       
-      {/* ================= REUSABLE SIDEBAR ================= */}
-      <DriverSidebar activePage="scan" />
+      {/* ================= DESKTOP SIDEBAR (Hidden on Mobile) ================= */}
+      <div className="hidden md:flex">
+        <DriverSidebar activePage="scan" />
+      </div>
 
       {/* ================= MAIN CONTENT AREA ================= */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
         
-        {/* ================= UNIFORM DRIVER HEADER ================= */}
-        <DriverHeader 
-          title="Scan Shipments 📱" 
-          subtitle="Scan QR codes or look up tracking numbers to update statuses." 
-        />
+        {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
+        <div className="hidden md:block">
+          <DriverHeader 
+            title="Scan Shipments 📱" 
+            subtitle="Scan QR codes or look up tracking numbers to update statuses." 
+          />
+        </div>
+
+        {/* ================= MOBILE PWA APP HEADER (Visible only on Mobile) ================= */}
+        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
+          <button 
+            onClick={() => setMobileMenuOpen(true)}
+            className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs">
+              <Truck className="w-4 h-4 text-slate-900" />
+            </div>
+            <span className="font-black text-base tracking-tight text-slate-900">
+              JB <span className="text-amber-500 font-medium">LOGISTICS</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => toast.info('No new notifications')}
+              className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs relative active:scale-95 transition-transform cursor-pointer"
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
+            </button>
+            <div className="relative">
+              <img 
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                alt="Profile" 
+                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
+              />
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile Title Banner */}
+        <div className="md:hidden px-6 py-3">
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+            Scan Shipments 📱
+          </h1>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">Scan QR codes or look up tracking numbers to update statuses.</p>
+        </div>
 
         {/* Content Body */}
         <div className="p-6 space-y-6 max-w-5xl w-full mx-auto">
@@ -210,16 +238,6 @@ export default function DriverScanShipments() {
               </div>
             </div>
 
-            {/* Quick Demo Scan Trigger Clickable Overlay */}
-            <div className="absolute top-4 right-4 z-20">
-              <button 
-                onClick={() => handleLookupShipment('SHP-004')}
-                className="bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-white/10 transition-all cursor-pointer"
-              >
-                Simulate Scan ⚡
-              </button>
-            </div>
-
           </div>
 
           {/* ================= OR DIVIDER ================= */}
@@ -246,57 +264,105 @@ export default function DriverScanShipments() {
             <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
           </button>
 
-          {/* ================= SCANNED SHIPMENT RESULT CARD (If found) ================= */}
-          {scannedShipment && (
-            <div className="bg-white rounded-2xl border-2 border-amber-400 shadow-md p-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="flex justify-between items-start border-b border-slate-100 pb-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-base text-slate-900 bg-slate-100 px-3 py-1 rounded-xl font-mono">{scannedShipment.tracking_number}</span>
-                    <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">{scannedShipment.status}</span>
+        </div>
+      </main>
+
+      {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR ================= */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
+        <button 
+          onClick={() => navigate('/driver-portal/dashboard')}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Dashboard</span>
+        </button>
+
+        <button 
+          onClick={() => navigate('/driver-portal/shipments')}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <Package className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Shipments</span>
+        </button>
+
+        <div className="relative -top-5">
+          <button 
+            onClick={() => navigate('/driver-portal/scan')}
+            className="w-14 h-14 rounded-full bg-amber-400 hover:bg-amber-500 text-slate-900 shadow-lg shadow-amber-400/40 flex items-center justify-center border-4 border-[#f8fafc] transition-transform active:scale-95 cursor-pointer"
+          >
+            <Scan className="w-6 h-6 stroke-[2.5]" />
+          </button>
+        </div>
+
+        <button 
+          onClick={() => toast.info('No new notifications')}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <Bell className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Notifications</span>
+        </button>
+
+        <button 
+          onClick={() => toast.info(`Logged in as ${driverName}`)}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <User className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Profile</span>
+        </button>
+      </nav>
+
+      {/* ================= MOBILE HAMBURGER MENU DRAWER ================= */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex animate-in fade-in duration-200">
+          <div className="bg-white w-72 h-full shadow-2xl p-6 flex flex-col justify-between">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center">
+                    <Truck className="w-4 h-4 text-slate-900" />
                   </div>
-                  <p className="text-xs text-slate-500 pt-1">{scannedShipment.origin} → {scannedShipment.destination}</p>
+                  <span className="font-black text-base text-slate-900">JB Logistics</span>
                 </div>
-                <button onClick={() => setScannedShipment(null)} className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors cursor-pointer">
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                  <span className="text-slate-400 font-medium">Client Details</span>
-                  <p className="font-bold text-slate-900 text-sm">{scannedShipment.client_name}</p>
-                  <p className="text-slate-500 flex items-center gap-1.5 pt-1"><Phone className="w-3.5 h-3.5 text-amber-500" /> {scannedShipment.client_phone || 'N/A'}</p>
-                </div>
-
-                <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                  <span className="text-slate-400 font-medium">Delivery Address</span>
-                  <p className="font-bold text-slate-900 text-sm">{scannedShipment.client_address || scannedShipment.destination}</p>
-                  <p className="text-slate-500 flex items-center gap-1.5 pt-1"><MapPin className="w-3.5 h-3.5 text-amber-500" /> {scannedShipment.destination}</p>
-                </div>
-              </div>
-
-              <div className="pt-2 flex flex-wrap items-center gap-3 justify-end border-t border-slate-100">
-                <span className="text-xs font-medium text-slate-400 mr-auto">Update Status:</span>
-                {['In Transit', 'Out for Delivery', 'Delivered'].map((st) => (
+              <div className="space-y-2">
+                {[
+                  { label: 'Dashboard', path: '/driver-portal/dashboard' },
+                  { label: 'My Shipments', path: '/driver-portal/shipments' },
+                  { label: 'Scan Shipment', path: '/driver-portal/scan' },
+                ].map((item) => (
                   <button
-                    key={st}
-                    onClick={() => handleUpdateStatus(st)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      scannedShipment.status === st 
-                        ? 'bg-amber-400 text-slate-900 shadow-sm' 
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    }`}
+                    key={item.label}
+                    onClick={() => { setMobileMenuOpen(false); navigate(item.path); }}
+                    className="w-full text-left flex items-center gap-3 p-3 rounded-2xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                   >
-                    {st}
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>
             </div>
-          )}
 
+            <div className="pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => {
+                  localStorage.clear();
+                  navigate('/');
+                }}
+                className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+          <div className="flex-1" onClick={() => setMobileMenuOpen(false)}></div>
         </div>
-      </main>
+      )}
 
       {/* ================= MANUAL ENTRY MODAL ================= */}
       {showManualModal && (

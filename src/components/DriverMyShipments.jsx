@@ -10,7 +10,13 @@ import {
   CheckCircle2,
   Loader2,
   ChevronRight,
-  X
+  X,
+  Menu,
+  Bell,
+  Truck,
+  LayoutDashboard,
+  Scan,
+  User
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -22,7 +28,7 @@ const supabase = createClient(
   supabaseAnonKey || 'placeholder'
 );
 
-// Define strict status progression order[cite: 4]
+// Define strict status progression order
 const STATUS_FLOW = ['assigned', 'in_transit', 'out_for_delivery', 'delivered'];
 
 // Helper to generate ISO timestamp with Ohio Cleveland timezone (America/New_York) offset
@@ -99,7 +105,7 @@ const getDriverAreaName = async () => {
 export default function DriverMyShipments() {
   const navigate = useNavigate();
 
-  // Driver Authentication State[cite: 4]
+  // Driver Authentication State
   const [driver] = useState(() => {
     try {
       const savedDriverData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
@@ -121,8 +127,9 @@ export default function DriverMyShipments() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // State for the status update popup modal[cite: 4]
+  // State for the status update popup modal
   const [activeModalShipment, setActiveModalShipment] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -138,7 +145,7 @@ export default function DriverMyShipments() {
     }
   }, [shipments]);
   
-  // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection[cite: 4]
+  // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection
   useEffect(() => {
     const verifyDriverAuth = async () => {
       try {
@@ -156,8 +163,9 @@ export default function DriverMyShipments() {
     verifyDriverAuth();
   }, [navigate]);
 
-  // Determine the correct driver identifier string (preferring 'DRV-' format)[cite: 4]
+  // Determine the correct driver identifier string (preferring 'DRV-' format)
   const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
+  const driverName = driver?.name || 'Driver';
 
   useEffect(() => {
     if (activeDriverId) {
@@ -237,7 +245,7 @@ export default function DriverMyShipments() {
     }
   };
 
-  // Filter shipments based on search query and status filter[cite: 4]
+  // Filter shipments based on search query and status filter
   const filteredShipments = shipments.filter(s => {
     const currentStatus = (s.current_status || s.status || "").toLowerCase();
     const matchesSearch = 
@@ -275,25 +283,73 @@ export default function DriverMyShipments() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex">
       
-      {/* ================= REUSABLE SIDEBAR =================[cite: 4] */}
-      <DriverSidebar activePage="shipments" />
+      {/* ================= DESKTOP SIDEBAR (Hidden on Mobile) ================= */}
+      <div className="hidden md:flex">
+        <DriverSidebar activePage="shipments" />
+      </div>
 
-      {/* ================= MAIN CONTENT AREA =================[cite: 4] */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      {/* ================= MAIN CONTENT AREA ================= */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
         
-        {/* ================= UNIFORM DRIVER HEADER =================[cite: 4] */}
-        <DriverHeader 
-          title="My Shipments" 
-          subtitle="" 
-        />
+        {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
+        <div className="hidden md:block">
+          <DriverHeader 
+            title="My Shipments" 
+            subtitle="" 
+          />
+        </div>
 
-        {/* Content Body[cite: 4] */}
+        {/* ================= MOBILE PWA APP HEADER (Visible only on Mobile) ================= */}
+        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
+          <button 
+            onClick={() => setMobileMenuOpen(true)}
+            className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs">
+              <Truck className="w-4 h-4 text-slate-900" />
+            </div>
+            <span className="font-black text-base tracking-tight text-slate-900">
+              JB <span className="text-amber-500 font-medium">LOGISTICS</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/driver-portal/shipments')}
+              className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs relative active:scale-95 transition-transform cursor-pointer"
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
+            </button>
+            <div className="relative">
+              <img 
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                alt="Profile" 
+                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
+              />
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile Title Banner */}
+        <div className="md:hidden px-6 py-3">
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+            My Shipments
+          </h1>
+        </div>
+
+        {/* Content Body */}
         <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* Controls Bar (Search & Filters)[cite: 4] */}
+          {/* Controls Bar (Search & Filters) */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4">
             
-            {/* Search Input[cite: 4] */}
+            {/* Search Input */}
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input 
@@ -305,7 +361,7 @@ export default function DriverMyShipments() {
               />
             </div>
 
-            {/* Status Filters[cite: 4] */}
+            {/* Status Filters */}
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
               {['All', 'In Transit', 'Out for Delivery', 'Delivered'].map((status) => (
                 <button
@@ -324,7 +380,7 @@ export default function DriverMyShipments() {
 
           </div>
 
-          {/* Shipments Table[cite: 4] */}
+          {/* Shipments Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div>
@@ -419,12 +475,109 @@ export default function DriverMyShipments() {
         </div>
       </main>
 
-      {/* ================= STATUS UPDATE POPUP MODAL =================[cite: 4] */}
+      {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR ================= */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
+        <button 
+          onClick={() => navigate('/driver-portal/dashboard')}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Dashboard</span>
+        </button>
+
+        <button 
+          onClick={() => navigate('/driver-portal/shipments')}
+          className="flex flex-col items-center gap-1 text-amber-500 cursor-pointer"
+        >
+          <Package className="w-5 h-5 fill-amber-100" />
+          <span className="text-[10px] font-black">Shipments</span>
+        </button>
+
+        <div className="relative -top-5">
+          <button 
+            onClick={() => navigate('/driver-portal/scan')}
+            className="w-14 h-14 rounded-full bg-amber-400 hover:bg-amber-500 text-slate-900 shadow-lg shadow-amber-400/40 flex items-center justify-center border-4 border-[#f8fafc] transition-transform active:scale-95 cursor-pointer"
+          >
+            <Scan className="w-6 h-6 stroke-[2.5]" />
+          </button>
+        </div>
+
+        <button 
+          onClick={() => toast.info('No new notifications')}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <Bell className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Notifications</span>
+        </button>
+
+        <button 
+          onClick={() => toast.info(`Logged in as ${driverName}`)}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+        >
+          <User className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Profile</span>
+        </button>
+      </nav>
+
+      {/* ================= MOBILE HAMBURGER MENU DRAWER ================= */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex animate-in fade-in duration-200">
+          <div className="bg-white w-72 h-full shadow-2xl p-6 flex flex-col justify-between">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center">
+                    <Truck className="w-4 h-4 text-slate-900" />
+                  </div>
+                  <span className="font-black text-base text-slate-900">JB Logistics</span>
+                </div>
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  { label: 'Dashboard', path: '/driver-portal/dashboard' },
+                  { label: 'My Shipments', path: '/driver-portal/shipments' },
+                  { label: 'Scan Shipment', path: '/driver-portal/scan' },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={() => { setMobileMenuOpen(false); navigate(item.path); }}
+                    className="w-full text-left flex items-center gap-3 p-3 rounded-2xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => {
+                  localStorage.clear();
+                  navigate('/');
+                }}
+                className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+          <div className="flex-1" onClick={() => setMobileMenuOpen(false)}></div>
+        </div>
+      )}
+
+      {/* ================= STATUS UPDATE POPUP MODAL ================= */}
       {activeModalShipment && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">
             
-            {/* Modal Header[cite: 4] */}
+            {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-black text-lg text-slate-900 tracking-tight">Update Shipment Status</h3>
@@ -438,7 +591,7 @@ export default function DriverMyShipments() {
               </button>
             </div>
 
-            {/* Modal Body / Status Options with Strict Progression Enforcement[cite: 4] */}
+            {/* Modal Body / Status Options with Strict Progression Enforcement */}
             <div className="space-y-3">
               <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
               
@@ -488,7 +641,7 @@ export default function DriverMyShipments() {
               })}
             </div>
 
-            {/* Modal Footer[cite: 4] */}
+            {/* Modal Footer */}
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setActiveModalShipment(null)}
