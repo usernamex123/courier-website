@@ -13,8 +13,6 @@ const supabase = createClient(
   supabaseAnonKey || 'placeholder'
 );
 
-const EDGE_FUNCTION_URL = `${supabaseUrl}/functions/v1/notify-admin`;
-
 const STATUS_STYLES = {
   not_replied: "bg-amber-100 text-amber-800 border-amber-300",
   replied: "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -41,48 +39,27 @@ export default function ClientQuotes() {
     setError(null);
 
     try {
-      if (supabaseUrl && supabaseAnonKey) {
-        // 1. Fetch messages
-        const { data: messagesData, error: sbErr } = await supabase
-          .from('messages')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (sbErr) throw sbErr;
-
-        // 2. Fetch profiles to map user_id -> customer_id
-        const { data: profilesData, error: profileErr } = await supabase
-          .from('profiles')
-          .select('user_id, customer_id');
-
-        if (profileErr) {
-          console.error('Profile fetch error:', profileErr);
+      // Fetch messages and customer mapping securely via Express backend session
+      const response = await fetch('/api/admin/messages', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
         }
+      });
 
-        // Build a lookup map: { [user_id]: customer_id }
-        const userToCustomerMap = {};
-        if (profilesData) {
-          profilesData.forEach(p => {
-            if (p.user_id && p.customer_id) {
-              userToCustomerMap[p.user_id] = p.customer_id;
-            }
-          });
-        }
-
-        // 3. Attach the resolved customer_id to each message
-        const formattedData = (messagesData || []).map(msg => {
-          const resolvedCustomerId = msg.customer_id || (msg.user_id ? userToCustomerMap[msg.user_id] : null);
-          return {
-            ...msg,
-            customer_id: resolvedCustomerId,
-            status: msg.status === 'replied' ? 'replied' : 'not_replied'
-          };
-        });
-
-        setQuotes(formattedData);
-      } else {
-        throw new Error('Supabase configuration missing');
+      if (!response.ok) {
+        throw new Error('Unauthorized or failed to fetch client messages.');
       }
+
+      const data = await response.json();
+
+      const formattedData = (data || []).map(msg => ({
+        ...msg,
+        status: msg.status === 'replied' ? 'replied' : 'not_replied'
+      }));
+
+      setQuotes(formattedData);
     } catch (err) {
       console.error('Failed to load quotes:', err);
       setError(err.message || 'Failed to load client messages');
@@ -123,10 +100,12 @@ export default function ClientQuotes() {
     setDeletingId(id);
 
     try {
-      if (supabaseUrl && supabaseAnonKey) {
-        const { error: sbErr } = await supabase.from('messages').delete().eq('id', id);
-        if (sbErr) throw sbErr;
-      }
+      const res = await fetch(`/api/admin/messages/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!res.ok) throw new Error('Failed to delete message');
 
       setQuotes(prev => prev.filter(q => q.id !== id));
       toast.success('Message deleted successfully');
@@ -150,17 +129,15 @@ export default function ClientQuotes() {
 
     setSendingReply(true);
     const quoteId = replyingQuote.id;
-    const token = supabaseAnonKey;
 
     try {
-      const res = await fetch(EDGE_FUNCTION_URL, {
+      const res = await fetch('/api/admin/reply', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          type: 'admin_reply',
           messageId: quoteId,
           subject: replySubject,
           message: replyBody,
@@ -171,11 +148,7 @@ export default function ClientQuotes() {
       const resData = await res.json();
 
       if (!res.ok) {
-        throw new Error(resData.error || 'Failed to send email via Edge Function');
-      }
-
-      if (supabaseUrl && supabaseAnonKey) {
-        await supabase.from('messages').update({ status: 'replied' }).eq('id', quoteId);
+        throw new Error(resData.error || 'Failed to send email reply');
       }
 
       setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'replied' } : q));

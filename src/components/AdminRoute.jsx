@@ -60,6 +60,34 @@ export const authenticatedFetch = async (url, options = {}) => {
 // 1. ADMIN ROUTE GUARDS
 // ==========================================
 export default function AdminRoute() {
+  const [authorized, setAuthorized] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/admin/session`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(data => {
+        setAuthorized(data && data.authenticated);
+      })
+      .catch(() => {
+        setAuthorized(false);
+      });
+  }, []);
+
+  if (authorized === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-yellow-600 font-bold text-xs uppercase gap-2">
+        <Loader2 className="w-6 h-6 animate-spin" /> Verifying Security...
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
   return <Outlet />;
 }
 
@@ -95,6 +123,7 @@ const bottomNavItems = [
 
 function AdminSidebar({ open, onClose }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isFinanceActive = location.pathname.startsWith('/admin/dashboard/finance');
   const [financeOpen, setFinanceOpen] = useState(isFinanceActive);
 
@@ -104,6 +133,24 @@ function AdminSidebar({ open, onClose }) {
       setFinanceOpen(true);
     }
   }, [isFinanceActive]);
+
+  // Terminate session and clear credentials when returning to site
+  const handleBackToSite = async (e) => {
+    e.preventDefault();
+    try {
+      await supabase.auth.signOut();
+      await fetch(`${API_URL}/api/admin/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      }).catch(() => {});
+      localStorage.clear();
+      onClose();
+      navigate('/');
+    } catch (err) {
+      console.error("Error signing out:", err);
+      navigate('/');
+    }
+  };
 
   return (
     <>
@@ -188,9 +235,12 @@ function AdminSidebar({ open, onClose }) {
         </div>
 
         <div className="p-3 border-t border-gray-200 shrink-0 bg-gray-50">
-          <NavLink to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:text-gray-900 font-medium">
+          <button 
+            onClick={handleBackToSite}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:text-gray-900 font-medium cursor-pointer text-left"
+          >
             <ChevronLeft className="w-4 h-4" /> Back to Site
-          </NavLink>
+          </button>
         </div>
       </aside>
     </>

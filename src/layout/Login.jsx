@@ -27,6 +27,23 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Clear stale temporary tokens on load without destroying active Supabase client sessions
+  useEffect(() => {
+    const terminateActiveSessions = async () => {
+      try {
+        localStorage.removeItem('driver_token');
+        await fetch(`${API_URL}/api/admin/logout`, {
+          method: 'POST',
+          credentials: 'include'
+        }).catch(() => {});
+      } catch (err) {
+        // Silent catch for network drops during cleanup
+      }
+    };
+
+    terminateActiveSessions();
+  }, []);
+
   const toggleModal = (open) => {
     if (open) {
       setShouldRender(true);
@@ -68,41 +85,68 @@ export default function Login() {
         if (error) throw error;
         toast.success('Registration successful!');
         setIsSignUp(false);
-      } else {
-        // --- SMART SIGN IN: Check Admin First, Fallback to Client ---
-        let isAdmin = false;
-        
-        try {
-          const adminRes = await fetch(`${API_URL}/api/admin/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email.trim(), password }),
-            credentials: 'include'
-          });
-          const adminData = await adminRes.json();
-          if (adminRes.ok && adminData.success) {
-            isAdmin = true;
-          }
-        } catch (adminErr) {
-          // Not an admin or backend offline, proceed to client check
-        }
-
-        if (isAdmin) {
-          toast.success('Admin authenticated successfully!');
-          toggleModal(false);
-          navigate('/admin/dashboard');
-        } else {
-          // Fallback to Supabase client authentication
-          const { error } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password
-          });
-          if (error) throw error;
-          toast.success('Welcome back!');
-          toggleModal(false);
-          navigate('/');
-        }
+        setLoading(false);
+        return;
       }
+
+      const cleanEmail = email.trim();
+
+      // 1. Try Admin Login First (Handled securely by Express backend sessions)
+      try {
+        const adminRes = await fetch(`${API_URL}/api/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+          credentials: 'include'
+        });
+
+        if (adminRes.ok) {
+          const adminData = await adminRes.json();
+          if (adminData.success) {
+            toast.success('Admin authenticated successfully!');
+            toggleModal(false);
+            navigate('/admin/dashboard');
+            return;
+          }
+        } else if (adminRes.status >= 500) {
+          throw new Error('Server error during admin authentication.');
+        }
+      } catch (adminNetErr) {
+        if (adminNetErr.message.includes('Server error')) throw adminNetErr;
+        // Otherwise, move on to Supabase authentication check
+      }
+
+      // 2. Authenticate via Supabase Auth (Handles both Clients and Drivers natively)
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password
+      });
+
+      if (authError) {
+        throw new Error('Invalid email or password.');
+      }
+
+      // 3. Check if this authenticated user is a registered driver
+      const { data: driverProfile, error: driverProfileError } = await supabase
+        .from('driver_profiles')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (!driverProfileError && driverProfile) {
+        // Driver matched: Store driver context and direct to driver portal
+        localStorage.setItem('driver_data', JSON.stringify(driverProfile));
+        toast.success('Welcome back, driver!');
+        toggleModal(false);
+        navigate('/driver-portal');
+        return;
+      }
+
+      // 4. Fallback to Standard Client Portal
+      toast.success('Welcome back!');
+      toggleModal(false);
+      navigate('/');
+
     } catch (err) {
       console.error('Auth error:', err);
       toast.error(err.message || 'Authentication failed');

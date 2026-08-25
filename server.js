@@ -20,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Express Session Middleware - Configured with a short expiration (e.g., 30 seconds)
+// Express Session Middleware - Configured for Admin Auth
 app.use(session({
     secret: process.env.SESSION_SECRET || 'jb-logistics-admin-secret-key-2026',
     resave: false,
@@ -29,7 +29,7 @@ app.use(session({
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production', // true on HTTPS production environments
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 1000 * 30 // Expires after 30 seconds of inactivity/time elapsed
+        maxAge: 1000 * 60 * 60 * 2
     }
 }));
 
@@ -53,7 +53,7 @@ if (!ADMIN_CREDENTIALS.email || !ADMIN_CREDENTIALS.password) {
     console.error("CRITICAL ERROR: ADMIN_EMAIL or ADMIN_PASSWORD missing in .env file.");
 }
 
-// Middleware to protect internal API endpoints
+// Middleware to protect internal Admin API endpoints
 function requireAdminAuth(req, res, next) {
     if (req.session && req.session.isAdmin) {
         return next();
@@ -61,7 +61,7 @@ function requireAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Admin session required.' });
 }
 
-// ==================== AUTH ENDPOINTS ====================
+// ==================== ADMIN AUTH ENDPOINTS ====================
 
 /**
  * Direct Admin Login
@@ -96,7 +96,7 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 /**
- * Endpoint for checking active session status
+ * Endpoint for checking active admin session status
  */
 app.get('/api/admin/session', (req, res) => {
     if (req.session && req.session.isAdmin) {
@@ -118,11 +118,14 @@ app.post('/api/admin/logout', (req, res) => {
     });
 });
 
-// ==================== PROTECTED API DATA ENDPOINTS ====================
+// NOTE: /api/driver/login has been removed. 
+// Drivers now authenticate natively on the client using Supabase Auth SDK.
+
+// ==================== PROTECTED ADMIN API DATA ENDPOINTS ====================
 
 app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
     try {
-        const { data, error } = await supabase.from('quotes').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
@@ -133,12 +136,51 @@ app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
 
 app.get('/api/admin/drivers', requireAdminAuth, async (req, res) => {
     try {
-        const { data, error } = await supabase.from('drivers').select('*');
+        const { data, error } = await supabase.from('driver_profiles').select('*');
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
         console.error('Error fetching drivers:', err);
         return res.status(500).json({ error: 'Failed to fetch drivers.' });
+    }
+});
+
+app.post('/api/admin/reply', requireAdminAuth, async (req, res) => {
+    try {
+        const { messageId, subject, message, recipient } = req.body;
+        
+        const edgeFunctionUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/notify-admin`;
+        const edgeRes = await fetch(edgeFunctionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+                type: 'admin_reply',
+                messageId,
+                subject,
+                message,
+                recipient
+            })
+        });
+
+        if (!edgeRes.ok) {
+            const errData = await edgeRes.json().catch(() => ({}));
+            throw new Error(errData.error || 'Failed to send reply through notification service.');
+        }
+
+        const { error: updateErr } = await supabase
+            .from('messages')
+            .update({ status: 'replied' })
+            .eq('id', messageId);
+
+        if (updateErr) throw updateErr;
+
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('Error sending reply:', err);
+        return res.status(500).json({ error: err.message || 'Failed to send reply.' });
     }
 });
 

@@ -529,6 +529,10 @@ export default function AdminShipments() {
         <ShipmentsDetail 
           shipment={viewingDetail} 
           onClose={() => setViewingDetail(null)} 
+          onUpdate={(updatedShipment) => {
+            setItems((prev) => prev.map((s) => s.id === updatedShipment.id ? updatedShipment : s));
+            setViewingDetail(updatedShipment);
+          }}
         />
       )}
 

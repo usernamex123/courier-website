@@ -2,12 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Truck, UserX, Search, ChevronLeft, ChevronRight, Loader2, Plus, X, Trash2 } from "lucide-react";
 import { Button } from "./ui/Button";
 import { toast } from "sonner";
-import { createClient } from "@supabase/supabase-js";
-
-const sbUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const sbKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(sbUrl || 'https://placeholder.supabase.co', sbKey || 'placeholder');
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname || 'localhost'}:5000`;
 
 export default function AdminDrivers() {
   const [loading, setLoading] = useState(true);
@@ -22,28 +16,30 @@ export default function AdminDrivers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [driverToDelete, setDriverToDelete] = useState(null);
-  const [formData, setFormData] = useState({ name: "", phone: "", email: "", license_number: "", license_type: "CDL Class A", vehicle_assigned: "", vehicle_model: "", status: "Active", current_trip: "Available" });
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    phone: "", 
+    email: "", 
+    password: "", 
+    license_number: "", 
+    license_type: "CDL Class A", 
+    vehicle_assigned: "", 
+    vehicle_model: "", 
+    status: "Active", 
+    current_trip: "Available" 
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchDrivers = async () => {
     setLoading(true);
     try {
-      let list = [];
-      const token = localStorage.getItem('admin_token');
-      try {
-        const res = await fetch(`${API_URL}/api/admin/drivers`, { headers: token ? { 'Authorization': `Bearer ${token}` } : {}, credentials: 'include' });
-        if (res.ok) { const json = await res.json(); list = Array.isArray(json) ? json : (json.drivers || json.data || []); }
-      } catch (e) {}
-      if (list.length === 0 && sbUrl && sbKey) {
-        const { data } = await supabase.from('drivers').select('*');
-        if (data) list = data;
-      }
-      if (list.length === 0) {
-        try { list = JSON.parse(localStorage.getItem('admin_drivers') || '[]'); } catch (e) {}
-      }
-      setDriversList(list);
+      const res = await fetch('/api/admin/drivers');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load drivers');
+      setDriversList(data || []);
     } catch (err) {
-      toast.error("Failed to load drivers");
+      console.error("Failed to load drivers:", err.message);
+      toast.error("Failed to load drivers from database");
     } finally {
       setLoading(false);
     }
@@ -53,49 +49,87 @@ export default function AdminDrivers() {
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ name: "", phone: "", email: "", license_number: "", license_type: "CDL Class A", vehicle_assigned: "", vehicle_model: "", status: "Active", current_trip: "Available" });
+    setFormData({ 
+      name: "", 
+      phone: "", 
+      email: "", 
+      password: "", 
+      license_number: "", 
+      license_type: "CDL Class A", 
+      vehicle_assigned: "", 
+      vehicle_model: "", 
+      status: "Active", 
+      current_trip: "Available" 
+    });
     setIsModalOpen(true);
   };
 
   const openEditModal = (d) => {
     setEditingId(d.id);
-    setFormData({ name: d.name || "", phone: d.phone || "", email: d.email || "", license_number: d.license_number || "", license_type: d.license_type || "CDL Class A", vehicle_assigned: d.vehicle_assigned || "", vehicle_model: d.vehicle_model || "", status: d.status || "Active", current_trip: d.current_trip || "Available" });
+    setFormData({ 
+      name: d.name || "", 
+      phone: d.phone || "", 
+      email: d.email || "", 
+      password: "", 
+      license_number: d.license_number || "", 
+      license_type: d.license_type || "CDL Class A", 
+      vehicle_assigned: d.vehicle_assigned || "", 
+      vehicle_model: d.vehicle_model || "", 
+      status: d.status || "Active", 
+      current_trip: d.current_trip || "Available" 
+    });
     setIsModalOpen(true);
   };
 
   const handleSaveDriver = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.phone || !formData.license_number) return toast.error("Fill required fields.");
+    if (!editingId && (!formData.email || !formData.password)) {
+      return toast.error("Email and Password are required to create a driver login account.");
+    }
+
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('admin_token');
       if (editingId) {
-        const updatedList = driversList.map(d => d.id === editingId ? { ...d, ...formData } : d);
-        let ok = false;
-        try {
-          const res = await fetch(`${API_URL}/api/admin/drivers/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(formData), credentials: 'include' });
-          if (res.ok) ok = true;
-        } catch (e) {}
-        if (!ok && sbUrl && sbKey) await supabase.from('drivers').update(formData).eq('id', editingId);
-        setDriversList(updatedList);
-        localStorage.setItem('admin_drivers', JSON.stringify(updatedList));
-        toast.success("Driver updated!");
+        const { password, email, ...updateData } = formData; 
+        const res = await fetch(`/api/admin/drivers/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update driver');
+
+        toast.success("Driver updated successfully!");
+        setIsModalOpen(false);
+        fetchDrivers();
       } else {
-        const newDriver = { id: Date.now(), ...formData };
-        let ok = false;
-        try {
-          const res = await fetch(`${API_URL}/api/admin/drivers`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }, body: JSON.stringify(newDriver), credentials: 'include' });
-          if (res.ok) ok = true;
-        } catch (e) {}
-        if (!ok && sbUrl && sbKey) await supabase.from('drivers').insert([newDriver]);
-        const updated = [newDriver, ...driversList];
-        setDriversList(updated);
-        localStorage.setItem('admin_drivers', JSON.stringify(updated));
-        toast.success("Driver added!");
+        const res = await fetch('/api/admin/drivers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email: formData.email, 
+            password: formData.password,
+            name: formData.name,
+            phone: formData.phone,
+            license_number: formData.license_number,
+            license_type: formData.license_type,
+            vehicle_assigned: formData.vehicle_assigned,
+            vehicle_model: formData.vehicle_model,
+            status: formData.status,
+            current_trip: formData.current_trip,
+            role: 'driver'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create driver account');
+
+        toast.success("Driver account & profile created successfully!");
+        setIsModalOpen(false);
+        fetchDrivers();
       }
-      setIsModalOpen(false);
     } catch (err) {
-      toast.error("Operation failed");
+      toast.error(err.message || "Operation failed");
     } finally {
       setSubmitting(false);
     }
@@ -105,15 +139,16 @@ export default function AdminDrivers() {
     if (!driverToDelete) return;
     const id = driverToDelete.id;
     try {
-      const token = localStorage.getItem('admin_token');
-      await fetch(`${API_URL}/api/admin/drivers/${id}`, { method: 'DELETE', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, credentials: 'include' }).catch(() => {});
-      if (sbUrl && sbKey) await supabase.from('drivers').delete().eq('id', id);
-      const updated = driversList.filter(d => d.id !== id);
-      setDriversList(updated);
-      localStorage.setItem('admin_drivers', JSON.stringify(updated));
-      toast.success("Driver deleted");
+      const res = await fetch(`/api/admin/drivers/${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete driver');
+
+      setDriversList(driversList.filter(d => d.id !== id));
+      toast.success("Driver deleted successfully");
     } catch (e) {
-      toast.error("Delete failed");
+      toast.error(e.message || "Delete failed");
     } finally {
       setDriverToDelete(null);
     }
@@ -142,7 +177,7 @@ export default function AdminDrivers() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <div>
           <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2"><Users className="w-5 h-5 text-amber-600" />Drivers Management</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Manage fleet drivers</p>
+          <p className="text-xs text-gray-500 mt-0.5">Manage fleet drivers via Supabase</p>
         </div>
         <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
           <Plus className="w-4 h-4 stroke-[3]" /><span>Add Driver</span>
@@ -185,7 +220,7 @@ export default function AdminDrivers() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* 1. MOBILE CARD VIEW FOR DRIVERS */}
+        {/* MOBILE CARD VIEW */}
         <div className="lg:hidden space-y-3 p-4">
           {paginated.length === 0 ? (
             <div className="text-center py-16 text-gray-400 font-bold"><Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />No drivers found</div>
@@ -237,7 +272,7 @@ export default function AdminDrivers() {
           )}
         </div>
 
-        {/* 2. DESKTOP TABLE VIEW FOR DRIVERS */}
+        {/* DESKTOP TABLE VIEW */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -290,7 +325,7 @@ export default function AdminDrivers() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-gray-100 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">{editingId ? "Edit Driver" : "Add Driver"}</h3>
+              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">{editingId ? "Edit Driver" : "Add Driver & Login"}</h3>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleSaveDriver} className="p-6 space-y-4">
@@ -298,7 +333,20 @@ export default function AdminDrivers() {
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Name *</label><input required placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone *</label><input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
               </div>
-              <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email</label><input type="email" placeholder="Email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email {editingId ? "" : "*"}</label>
+                  <input type="email" required={!editingId} placeholder="driver@jblogistics.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
+                </div>
+                {!editingId && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Password * (Min 6 chars)</label>
+                    <input type="password" required placeholder="At least 6 characters" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License # *</label><input required placeholder="License" value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
                 <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License Type</label><select value={formData.license_type} onChange={e => setFormData({ ...formData, license_type: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 uppercase"><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option></select></div>
@@ -309,7 +357,10 @@ export default function AdminDrivers() {
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl text-xs font-bold uppercase cursor-pointer">Cancel</Button>
-                <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase cursor-pointer">{submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}{editingId ? "Update Driver" : "Save Driver"}</Button>
+                <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase cursor-pointer">
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
+                  {editingId ? "Update Driver" : "Create Account & Save"}
+                </Button>
               </div>
             </form>
           </div>

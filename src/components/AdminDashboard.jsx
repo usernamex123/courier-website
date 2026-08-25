@@ -54,7 +54,7 @@ export default function AdminDashboard() {
         } catch (e) {}
 
         try {
-          const res = await supabase.from("drivers").select("*");
+          const res = await supabase.from("driver_profiles").select("*");
           if (res.data) drivers = res.data;
         } catch (e) {}
 
