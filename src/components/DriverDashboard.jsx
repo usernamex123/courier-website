@@ -441,7 +441,6 @@ export default function DriverDashboard() {
       {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR (Exact PWA Nav) ================= */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
         
-        {/* Tab 1: Dashboard (Corrected from /driver-portal/dashboard to /driver-portal) */}
         <button 
           onClick={() => navigate('/driver-portal')}
           className="flex flex-col items-center gap-1 text-amber-500 cursor-pointer"
@@ -511,7 +510,7 @@ export default function DriverDashboard() {
 
               <div className="space-y-2">
                 {[
-                  { label: 'Dashboard', path: '/driver-portal' }, // Corrected from /driver-portal/dashboard to /driver-portal
+                  { label: 'Dashboard', path: '/driver-portal' },
                   { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
                   { label: 'Profile Settings', path: '/driver-portal/profile' },

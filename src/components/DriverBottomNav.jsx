@@ -12,7 +12,7 @@ export default function DriverBottomNav() {
       
       {/* Tab 1: Dashboard */}
       <button 
-        onClick={() => navigate('/driver-portal/dashboard')}
+        onClick={() => navigate('/driver-portal')}
         className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
           currentPath.includes('/dashboard') ? 'text-amber-500' : 'text-slate-400 hover:text-slate-700'
         }`}

@@ -1,7 +1,7 @@
 {
     "name": "JB Logistics Driver Portal",
     "short_name": "JB Logistics Driver",
-    "start_url": "/driver-portal/dashboard",
+    "start_url": "/driver-portal",
     "display": "standalone",
     "background_color": "#f8fafc",
     "theme_color": "#0f172a",

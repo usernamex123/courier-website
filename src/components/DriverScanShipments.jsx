@@ -270,7 +270,7 @@ export default function DriverScanShipments() {
       {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR ================= */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
         <button 
-          onClick={() => navigate('/driver-portal/dashboard')}
+          onClick={() => navigate('/driver-portal')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
         >
           <LayoutDashboard className="w-5 h-5" />
@@ -333,7 +333,7 @@ export default function DriverScanShipments() {
 
               <div className="space-y-2">
                 {[
-                  { label: 'Dashboard', path: '/driver-portal/dashboard' },
+                  { label: 'Dashboard', path: '/driver-portal' },
                   { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
                 ].map((item) => (
