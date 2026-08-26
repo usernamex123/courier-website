@@ -56,7 +56,6 @@ export default function DriverProfile() {
     async function loadDriverProfile() {
       setLoading(true);
       try {
-        // 1. Get the authenticated user straight from Supabase Auth
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !user) {
@@ -65,7 +64,6 @@ export default function DriverProfile() {
           return;
         }
 
-        // 2. Fetch the corresponding driver profile using the secure Auth UID
         const { data: profileData, error: profileError } = await supabase
           .from('driver_profiles')
           .select('*')
@@ -77,7 +75,6 @@ export default function DriverProfile() {
           return;
         }
 
-        // 3. Format member since date
         let formattedMemberSince = '2026 August 23';
         if (profileData.created_at) {
           const dateObj = new Date(profileData.created_at);
@@ -86,7 +83,6 @@ export default function DriverProfile() {
           }
         }
 
-        // 4. Fetch delivery count for this specific driver ID
         let deliveryCount = '0';
         if (profileData.driver_id) {
           const { count, error: countError } = await supabase
@@ -100,7 +96,6 @@ export default function DriverProfile() {
           }
         }
 
-        // 5. Populate state cleanly
         setDriver({
           id: profileData.id,
           driver_id: profileData.driver_id || 'DRV-1001',
@@ -209,12 +204,10 @@ export default function DriverProfile() {
     }
   };
 
-  const driverName = driver?.name || 'Driver';
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans flex">
       
-      {/* ================= DESKTOP SIDEBAR (Hidden on Mobile) ================= */}
+      {/* ================= DESKTOP SIDEBAR ================= */}
       <div className="hidden md:flex">
         <DriverSidebar activePage="profile" />
       </div>
@@ -222,7 +215,7 @@ export default function DriverProfile() {
       {/* ================= MAIN CONTENT AREA ================= */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
         
-        {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
+        {/* ================= DESKTOP HEADER ================= */}
         <div className="hidden md:block">
           <DriverHeader 
             title="Driver Profile" 
@@ -230,7 +223,7 @@ export default function DriverProfile() {
           />
         </div>
 
-        {/* ================= MOBILE PWA APP HEADER (Visible only on Mobile) ================= */}
+        {/* ================= MOBILE PWA APP HEADER ================= */}
         <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
@@ -256,12 +249,20 @@ export default function DriverProfile() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
             </button>
+            
+            {/* Grey Default Avatar Fallback */}
             <div className="relative">
-              <img 
-                src={driver.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"} 
-                alt="Profile" 
-                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-              />
+              {driver.avatar ? (
+                <img 
+                  src={driver.avatar} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-slate-300 flex items-center justify-center text-slate-600 shadow-xs">
+                  <User className="w-5 h-5" />
+                </div>
+              )}
               <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
             </div>
           </div>
@@ -663,7 +664,7 @@ export default function DriverProfile() {
               <div className="space-y-2">
                 {[
                   { label: 'Dashboard', path: '/driver-portal/dashboard' },
-                  { label: 'My Shipments', path: '/driver-portal/shipments' },
+                  { label: 'My Shipments', path: '/portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
                   { label: 'Profile Settings', path: '/driver-portal/profile' },
                 ].map((item) => (

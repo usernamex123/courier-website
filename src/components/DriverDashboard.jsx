@@ -15,8 +15,6 @@ import {
   Bell,
   ChevronRight,
   Scan,
-  Navigation,
-  MessageSquare,
   LayoutDashboard,
   User,
   X
@@ -480,9 +478,9 @@ export default function DriverDashboard() {
           <span className="text-[10px] font-bold">Notifications</span>
         </button>
 
-        {/* Tab 5: Profile */}
+        {/* Tab 5: Profile - FIXED: Now navigates directly to profile page */}
         <button 
-          onClick={() => toast.info(`Logged in as ${driverName}`)}
+          onClick={() => navigate('/driver-portal/profile')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
         >
           <User className="w-5 h-5" />
@@ -516,10 +514,14 @@ export default function DriverDashboard() {
                   { label: 'Dashboard', path: '/driver-portal/dashboard' },
                   { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
+                  { label: 'Profile Settings', path: '/driver-portal/profile' },
                 ].map((item) => (
                   <button
                     key={item.label}
-                    onClick={() => { setMobileMenuOpen(false); navigate(item.path); }}
+                    onClick={() => { 
+                      setMobileMenuOpen(false); // FIXED: Closes overlay instantly to prevent black screen bug
+                      navigate(item.path); 
+                    }}
                     className="w-full text-left flex items-center gap-3 p-3 rounded-2xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                   >
                     <span>{item.label}</span>

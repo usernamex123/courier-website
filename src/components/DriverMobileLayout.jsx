@@ -27,6 +27,13 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
   const location = useLocation();
   const currentPath = location.pathname;
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Automatically close mobile menu when route changes to prevent overlay bugs
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
   // Security Verification
   useEffect(() => {
     const verifyDriverAuth = async () => {
@@ -54,11 +61,9 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
     } catch (e) {}
     return {
       name: 'Driver',
+      avatar: null
     };
   });
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const driverName = driver?.name || 'Driver';
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex">
@@ -104,12 +109,20 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
               <Bell className="w-5 h-5" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
             </button>
+            
+            {/* Grey Default Avatar Fallback */}
             <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
-                alt="Profile" 
-                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-              />
+              {driver?.avatar ? (
+                <img 
+                  src={driver.avatar} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-slate-300 flex items-center justify-center text-slate-600 shadow-xs">
+                  <User className="w-5 h-5" />
+                </div>
+              )}
               <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
             </div>
           </div>
@@ -140,7 +153,7 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
           }`}
         >
           <LayoutDashboard className={`w-5 h-5 ${currentPath.includes('/dashboard') ? 'fill-amber-100' : ''}`} />
-          <span className="text-[10px] font-black">Dashboard</span>
+          <span className={`text-[10px] ${currentPath.includes('/dashboard') ? 'font-black' : 'font-bold'}`}>Dashboard</span>
         </button>
 
         <button 
@@ -150,7 +163,7 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
           }`}
         >
           <Package className={`w-5 h-5 ${currentPath.includes('/shipments') ? 'fill-amber-100' : ''}`} />
-          <span className="text-[10px] font-bold">Shipments</span>
+          <span className={`text-[10px] ${currentPath.includes('/shipments') ? 'font-black' : 'font-bold'}`}>Shipments</span>
         </button>
 
         <div className="relative -top-5">
@@ -171,11 +184,13 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
         </button>
 
         <button 
-          onClick={() => toast.info(`Logged in as ${driverName}`)}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+          onClick={() => navigate('/driver-portal/profile')}
+          className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
+            currentPath.includes('/profile') ? 'text-amber-500' : 'text-slate-400 hover:text-slate-700'
+          }`}
         >
-          <User className="w-5 h-5" />
-          <span className="text-[10px] font-bold">Profile</span>
+          <User className={`w-5 h-5 ${currentPath.includes('/profile') ? 'fill-amber-100' : ''}`} />
+          <span className={`text-[10px] ${currentPath.includes('/profile') ? 'font-black' : 'font-bold'}`}>Profile</span>
         </button>
       </nav>
 
@@ -204,6 +219,7 @@ export default function DriverMobileLayout({ children, title, subtitle, activePa
                   { label: 'Dashboard', path: '/driver-portal/dashboard' },
                   { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
+                  { label: 'Profile Settings', path: '/driver-portal/profile' },
                 ].map((item) => (
                   <button
                     key={item.label}
