@@ -16,7 +16,8 @@ import {
   LayoutDashboard,
   Package,
   Scan,
-  User
+  User,
+  Flashlight
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -51,6 +52,7 @@ export default function DriverScanShipments() {
   const videoRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [flashlightOn, setFlashlightOn] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -86,6 +88,27 @@ export default function DriverScanShipments() {
       const stream = videoRef.current.srcObject;
       const tracks = stream.getTracks();
       tracks.forEach(track => track.stop());
+    }
+  };
+
+  const toggleFlashlight = async () => {
+    try {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject;
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities();
+        if (capabilities.torch) {
+          const newTorchState = !flashlightOn;
+          await track.applyConstraints({ advanced: [{ torch: newTorchState }] });
+          setFlashlightOn(newTorchState);
+          toast.success(newTorchState ? 'Flashlight enabled' : 'Flashlight disabled');
+        } else {
+          toast.info('Flashlight not supported on this device');
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling flashlight:', err);
+      toast.error('Unable to toggle flashlight');
     }
   };
 
@@ -145,8 +168,8 @@ export default function DriverScanShipments() {
           />
         </div>
 
-        {/* ================= MOBILE PWA APP HEADER (Visible only on Mobile) ================= */}
-        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
+        {/* ================= MOBILE APP BAR HEADER ================= */}
+        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
             className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
@@ -154,47 +177,18 @@ export default function DriverScanShipments() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs">
-              <Truck className="w-4 h-4 text-slate-900" />
-            </div>
-            <span className="font-black text-base tracking-tight text-slate-900">
-              JB <span className="text-amber-500 font-medium">LOGISTICS</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => toast.info('No new notifications')}
-              className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs relative active:scale-95 transition-transform cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
-            </button>
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
-                alt="Profile" 
-                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-              />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
-            </div>
-          </div>
-        </header>
-
-        {/* Mobile Title Banner */}
-        <div className="md:hidden px-6 py-3">
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">
-            Scan Shipments 📱
+          <h1 className="text-base font-black text-slate-900 tracking-tight">
+            Scan Shipment
           </h1>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">Scan QR codes or look up tracking numbers to update statuses.</p>
-        </div>
+
+          <div className="w-10"></div>
+        </header>
 
         {/* Content Body */}
         <div className="p-6 space-y-6 max-w-5xl w-full mx-auto">
           
           {/* ================= CAMERA VIEWPORT CARD ================= */}
-          <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-200 shadow-sm aspect-[16/10] sm:aspect-[21/9] lg:aspect-[16/7] flex items-center justify-center group">
+          <div className="relative rounded-3xl overflow-hidden bg-neutral-950 border border-slate-200 shadow-sm aspect-[4/5] sm:aspect-[21/9] lg:aspect-[16/7] flex items-center justify-center group">
             
             {/* Live Camera Feed */}
             <video 
@@ -220,22 +214,32 @@ export default function DriverScanShipments() {
             )}
 
             {/* Scanning Overlay Box with Corner Guides */}
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8">
-              <div className="relative w-72 sm:w-80 h-48 sm:h-52 border-2 border-white/20 rounded-2xl flex items-center justify-center">
+            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-8">
+              <div className="relative w-72 sm:w-80 h-64 sm:h-52 border-2 border-white/15 rounded-3xl flex items-center justify-center">
                 {/* Corner Accents */}
-                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-xl"></div>
-                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-xl"></div>
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-xl"></div>
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-xl"></div>
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-2xl"></div>
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-2xl"></div>
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-2xl"></div>
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-2xl"></div>
 
-                {/* Laser scan line animation simulation */}
-                <div className="absolute inset-x-0 h-0.5 bg-amber-400 shadow-[0_0_12px_#fbbf24] animate-pulse"></div>
-
-                {/* Bottom Pill Inside Viewport */}
-                <div className="absolute -bottom-14 bg-slate-900/80 backdrop-blur-md text-white text-xs font-medium px-4 py-2 rounded-full border border-white/10 shadow-lg whitespace-nowrap">
-                  Position the QR code or barcode within the frame
-                </div>
+                {/* Instruction Text inside/middle of frame */}
+                <p className="text-white/80 text-xs font-medium text-center px-6 max-w-[220px]">
+                  Position barcode or QR code within the frame
+                </p>
               </div>
+            </div>
+
+            {/* Flashlight Toggle Button at Bottom Center of Camera Box */}
+            <div className="absolute bottom-6 z-10">
+              <button 
+                onClick={toggleFlashlight}
+                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer ${
+                  flashlightOn ? 'bg-amber-400 text-slate-900' : 'bg-white/20 backdrop-blur-md text-white hover:bg-white/30'
+                }`}
+                title="Toggle Flashlight"
+              >
+                <Flashlight className="w-5 h-5" />
+              </button>
             </div>
 
           </div>
@@ -258,7 +262,6 @@ export default function DriverScanShipments() {
               </div>
               <div className="text-left">
                 <h4 className="font-black text-slate-900 text-sm">Enter Tracking Number</h4>
-                <p className="text-xs text-slate-400">Type waybill code manually</p>
               </div>
             </div>
             <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -303,7 +306,7 @@ export default function DriverScanShipments() {
         </button>
 
         <button 
-          onClick={() => toast.info(`Logged in as ${driverName}`)}
+          onClick={() => navigate('/driver-portal/profile')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
         >
           <User className="w-5 h-5" />
@@ -336,6 +339,7 @@ export default function DriverScanShipments() {
                   { label: 'Dashboard', path: '/driver-portal' },
                   { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
+                  { label: 'Profile', path: '/driver-portal/profile' },
                 ].map((item) => (
                   <button
                     key={item.label}
