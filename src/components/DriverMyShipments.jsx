@@ -16,8 +16,7 @@ import {
   Truck,
   LayoutDashboard,
   Scan,
-  User,
-  Filter
+  User
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -305,7 +304,7 @@ export default function DriverMyShipments() {
           />
         </div>
 
-        {/* ================= MOBILE APP BAR HEADER (Matching Reference Layout) ================= */}
+        {/* ================= MOBILE APP BAR HEADER (Filter Icon Removed) ================= */}
         <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
@@ -318,12 +317,7 @@ export default function DriverMyShipments() {
             My Shipments
           </h1>
 
-          <button 
-            onClick={() => toast.info('Filter options')}
-            className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
-          >
-            <Filter className="w-5 h-5" />
-          </button>
+          <div className="w-10"></div>
         </header>
 
         {/* Content Body */}
@@ -363,7 +357,7 @@ export default function DriverMyShipments() {
 
           </div>
 
-          {/* ================= MOBILE SHIPMENT CARD LIST (Visible on Mobile) ================= */}
+          {/* ================= MOBILE SHIPMENT CARD LIST ================= */}
           <div className="md:hidden space-y-3">
             {loading ? (
               <div className="py-20 flex justify-center items-center">
@@ -421,7 +415,7 @@ export default function DriverMyShipments() {
             )}
           </div>
 
-          {/* ================= DESKTOP SHIPMENT TABLE (Visible on Desktop) ================= */}
+          {/* ================= DESKTOP SHIPMENT TABLE ================= */}
           <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div>
@@ -540,7 +534,7 @@ export default function DriverMyShipments() {
         </button>
 
         <button 
-          onClick={() => toast.info(`Logged in as ${driverName}`)}
+          onClick={() => navigate('/driver-portal/profile')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
         >
           <User className="w-5 h-5" />
@@ -573,6 +567,7 @@ export default function DriverMyShipments() {
                   { label: 'Dashboard', path: '/driver-portal' },
                   { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
+                  { label: 'Profile', path: '/driver-portal/profile' },
                 ].map((item) => (
                   <button
                     key={item.label}
