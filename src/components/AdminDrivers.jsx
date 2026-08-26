@@ -34,12 +34,12 @@ export default function AdminDrivers() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/drivers');
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load drivers');
-      setDriversList(data || []);
+      setDriversList(Array.isArray(data) ? data : data.drivers || []);
     } catch (err) {
-      console.error("Failed to load drivers:", err.message);
-      toast.error("Failed to load drivers from database");
+      console.error("Failed to load drivers:", err);
+      toast.error("Failed to load drivers from backend server");
     } finally {
       setLoading(false);
     }
@@ -90,44 +90,23 @@ export default function AdminDrivers() {
 
     setSubmitting(true);
     try {
-      if (editingId) {
-        const { password, email, ...updateData } = formData; 
-        const res = await fetch(`/api/admin/drivers/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updateData)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to update driver');
+      const url = editingId ? `/api/admin/drivers/${editingId}` : '/api/admin/drivers';
+      const method = editingId ? 'PUT' : 'POST';
 
-        toast.success("Driver updated successfully!");
-        setIsModalOpen(false);
-        fetchDrivers();
-      } else {
-        const res = await fetch('/api/admin/drivers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            email: formData.email, 
-            password: formData.password,
-            name: formData.name,
-            phone: formData.phone,
-            license_number: formData.license_number,
-            license_type: formData.license_type,
-            vehicle_assigned: formData.vehicle_assigned,
-            vehicle_model: formData.vehicle_model,
-            status: formData.status,
-            current_trip: formData.current_trip,
-            role: 'driver'
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to create driver account');
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
 
-        toast.success("Driver account & profile created successfully!");
-        setIsModalOpen(false);
-        fetchDrivers();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Operation failed");
       }
+
+      toast.success(editingId ? "Driver updated successfully!" : "Driver created successfully!");
+      setIsModalOpen(false);
+      fetchDrivers();
     } catch (err) {
       toast.error(err.message || "Operation failed");
     } finally {
@@ -139,11 +118,8 @@ export default function AdminDrivers() {
     if (!driverToDelete) return;
     const id = driverToDelete.id;
     try {
-      const res = await fetch(`/api/admin/drivers/${id}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete driver');
+      const res = await fetch(`/api/admin/drivers/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error("Failed to delete driver");
 
       setDriversList(driversList.filter(d => d.id !== id));
       toast.success("Driver deleted successfully");
@@ -177,7 +153,7 @@ export default function AdminDrivers() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <div>
           <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2"><Users className="w-5 h-5 text-amber-600" />Drivers Management</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Manage fleet drivers via Supabase</p>
+          <p className="text-xs text-gray-500 mt-0.5">Manage fleet drivers via Express Backend</p>
         </div>
         <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
           <Plus className="w-4 h-4 stroke-[3]" /><span>Add Driver</span>

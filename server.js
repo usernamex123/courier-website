@@ -145,6 +145,107 @@ app.get('/api/admin/drivers', requireAdminAuth, async (req, res) => {
     }
 });
 
+// ==================== ADDED DRIVER CRUD ENDPOINTS (FIXES 404) ====================
+
+app.post('/api/admin/drivers', requireAdminAuth, async (req, res) => {
+    try {
+        const { email, password, name, phone, license_number, license_type, vehicle_assigned, vehicle_model, status, current_trip } = req.body;
+
+        let authUserId = null;
+        if (email && password) {
+            const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+                email,
+                password,
+                email_confirm: true,
+                user_metadata: { name, role: 'driver' }
+            });
+            if (authError) throw authError;
+            authUserId = authData.user?.id;
+        }
+
+        const insertPayload = {
+            name,
+            phone,
+            email,
+            license_number,
+            license_type,
+            vehicle_assigned,
+            vehicle_model,
+            status: status || 'Active',
+            current_trip: current_trip || 'Available'
+        };
+
+        if (authUserId) {
+            insertPayload.id = authUserId;
+        }
+
+        const { data, error } = await supabase
+            .from('driver_profiles')
+            .insert([insertPayload])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return res.status(201).json(data);
+    } catch (err) {
+        console.error('Error creating driver:', err);
+        return res.status(500).json({ error: err.message || 'Failed to create driver.' });
+    }
+});
+
+app.put('/api/admin/drivers/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, phone, license_number, license_type, vehicle_assigned, vehicle_model, status, current_trip } = req.body;
+
+        const { data, error } = await supabase
+            .from('driver_profiles')
+            .update({
+                name,
+                phone,
+                license_number,
+                license_type,
+                vehicle_assigned,
+                vehicle_model,
+                status,
+                current_trip
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return res.json(data);
+    } catch (err) {
+        console.error('Error updating driver:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update driver.' });
+    }
+});
+
+app.delete('/api/admin/drivers/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('driver_profiles')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        await supabase.auth.admin.deleteUser(id).catch(() => {});
+
+        return res.json({ success: true, message: 'Driver deleted successfully.' });
+    } catch (err) {
+        console.error('Error deleting driver:', err);
+        return res.status(500).json({ error: err.message || 'Failed to delete driver.' });
+    }
+});
+
+// ==============================================================================
+
 app.post('/api/admin/reply', requireAdminAuth, async (req, res) => {
     try {
         const { messageId, subject, message, recipient } = req.body;

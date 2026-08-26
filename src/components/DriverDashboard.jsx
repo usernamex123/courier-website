@@ -97,19 +97,11 @@ export default function DriverDashboard() {
         .select('*')
         .eq('driver_id', activeDriverId);
 
-      if (!error && data && data.length > 0) {
-        setShipments(data);
-      } else {
-        // Fallback mock dataset if backend returns empty for this ID
-        setShipments([
-          { tracking_number: 'SHP-001', time: '09:30 AM', origin: 'Kathmandu', destination: 'Pokhara', client_name: 'John Doe', client_address: 'New Road, Kathmandu', status: 'Assigned', current_status: 'assigned' },
-          { tracking_number: 'SHP-004', time: '10:15 AM', origin: 'Kathmandu', destination: 'Chitwan', client_name: 'Ram Sharma', client_address: 'Bharatpur, Chitwan', status: 'In Transit', current_status: 'in_transit' },
-          { tracking_number: 'SHP-006', time: '11:45 AM', origin: 'Kathmandu', destination: 'Butwal', client_name: 'Sushil Thapa', client_address: 'Butwal, Rupandehi', status: 'Out for Delivery', current_status: 'out_for_delivery' },
-          { tracking_number: 'SHP-009', time: '01:30 PM', origin: 'Lalitpur', destination: 'Kathmandu', client_name: 'Maya Shrestha', client_address: 'Maitighar, Kathmandu', status: 'Delivered', current_status: 'delivered' },
-        ]);
-      }
+      if (error) throw error;
+      setShipments(data || []);
     } catch (err) {
       console.error('Error fetching shipments:', err);
+      setShipments([]);
     } finally {
       setLoading(false);
     }
@@ -235,39 +227,39 @@ export default function DriverDashboard() {
         {/* Dashboard Body Container */}
         <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* ================= UNIFIED YELLOW STAT SUMMARY BANNER ================= */}
-          <div className="bg-amber-400 rounded-3xl p-6 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden">
+          {/* ================= UNIFIED YELLOW STAT SUMMARY BANNER (Horizontal 3-Column Layout) ================= */}
+          <div className="bg-amber-400 rounded-3xl p-4 md:p-6 shadow-sm grid grid-cols-3 gap-2 md:gap-6 relative overflow-hidden">
             
             {/* Assigned Shipments */}
-            <div className="flex flex-col justify-between space-y-4 md:border-r md:border-amber-500/40 md:pr-6">
-              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
-                <Package className="w-6 h-6" />
+            <div className="flex flex-col justify-between space-y-3 md:space-y-4 border-r border-amber-500/40 pr-2 md:pr-6">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
+                <Package className="w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div>
-                <div className="text-3xl font-black text-slate-900 tracking-tight">{counts.assigned}</div>
-                <div className="text-sm font-black text-slate-900 mt-1">Assigned Shipments</div>
+                <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{counts.assigned}</div>
+                <div className="text-[11px] md:text-sm font-black text-slate-900 mt-0.5 md:mt-1">Assigned Shipments</div>
               </div>
             </div>
 
             {/* In Transit */}
-            <div className="flex flex-col justify-between space-y-4 md:border-r md:border-amber-500/40 md:px-6">
-              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
-                <Truck className="w-6 h-6" />
+            <div className="flex flex-col justify-between space-y-3 md:space-y-4 border-r border-amber-500/40 px-2 md:px-6">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
+                <Truck className="w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div>
-                <div className="text-3xl font-black text-slate-900 tracking-tight">{counts.inTransit}</div>
-                <div className="text-sm font-black text-slate-900 mt-1">In Transit</div>
+                <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{counts.inTransit}</div>
+                <div className="text-[11px] md:text-sm font-black text-slate-900 mt-0.5 md:mt-1">In Transit</div>
               </div>
             </div>
 
             {/* Delivered Today */}
-            <div className="flex flex-col justify-between space-y-4 md:pl-6">
-              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6" />
+            <div className="flex flex-col justify-between space-y-3 md:space-y-4 pl-2 md:pl-6">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div>
-                <div className="text-3xl font-black text-slate-900 tracking-tight">{counts.deliveredToday}</div>
-                <div className="text-sm font-black text-slate-900 mt-1">Delivered Today</div>
+                <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{counts.deliveredToday}</div>
+                <div className="text-[11px] md:text-sm font-black text-slate-900 mt-0.5 md:mt-1">Delivered Today</div>
               </div>
             </div>
 
