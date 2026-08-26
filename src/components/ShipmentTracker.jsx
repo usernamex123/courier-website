@@ -120,7 +120,7 @@ export default function ShipmentTracker() {
   };
 
   return (
-    <div className="w-full bg-[#f3f6fb] py-16 px-6 relative z-30 font-sans">
+    <div id="track" className="w-full bg-[#f3f6fb] py-16 px-6 relative z-30 font-sans">
       <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 sm:p-10 shadow-xl">
         
         {/* Header & Centered Search Section */}

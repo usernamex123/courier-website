@@ -47,17 +47,17 @@ function Hero() {
       {/* Content */}
       <div className="w-full max-w-4xl relative z-10 text-left flex flex-col items-start text-white">
         
-        <motion.h1 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", fontWeight: 800 }}
-          className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95] text-white normal-case drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
-        >
-          Delivering <br />
-          <span className="text-yellow-500 drop-shadow-[0_0_25px_rgba(234,179,8,0.4)]">Trust</span> Across <br />
-          America<span className="text-yellow-500">.</span>
-        </motion.h1>
+      <motion.h1 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", fontWeight: 800 }}
+        className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-[0.95] text-white normal-case drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
+      >
+        Delivering <br />
+        <span className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-yellow-500 drop-shadow-[0_0_25px_rgba(234,179,8,0.4)]">Trust</span> Across <br />
+        America<span className="text-yellow-500">.</span>
+      </motion.h1>
         
         <motion.p 
           initial={{ opacity: 0, y: 20 }}
@@ -68,20 +68,30 @@ function Hero() {
           End-to-end logistics and courier solutions that connect businesses and people across the nation.
         </motion.p>
         
-        {/* Request A Quote Button */}
+        {/* Buttons Container */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-6 md:mt-8 flex items-center gap-4"
+          className="mt-6 md:mt-8 flex flex-wrap items-center gap-4"
         >
+          {/* Request A Quote Button */}
           <a 
             href="#get-started" 
             onClick={(e) => handleHomeScroll(e, 'get-started')}
-            className="bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black px-6 sm:px-8 py-3.5 sm:py-4 rounded-none font-bold text-xs sm:text-sm md:text-base tracking-wider inline-flex items-center gap-3 text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.4)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
+            className="bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black border-2 border-transparent px-6 sm:px-8 py-3.5 sm:py-4 rounded-none font-bold text-xs sm:text-sm md:text-base tracking-wider inline-flex items-center gap-3 text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(234,179,8,0.4)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
           >
             <span>REQUEST A QUOTE</span>
             <ArrowRight size={18} className="transition-transform duration-300 hover:translate-x-1" />
+          </a>
+
+          {/* Track A Shipment Button */}
+          <a 
+            href="#track" 
+            onClick={(e) => handleHomeScroll(e, 'track')}
+            className="bg-black border-2 border-yellow-500 text-white hover:bg-yellow-500 hover:text-black active:scale-95 px-6 sm:px-8 py-3.5 sm:py-4 rounded-none font-bold text-xs sm:text-sm md:text-base tracking-wider inline-flex items-center justify-center text-center transition-all duration-300 shrink-0 cursor-pointer shadow-[0_0_25px_rgba(0,0,0,0.5)] hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] uppercase"
+          >
+            <span>TRACK A SHIPMENT</span>
           </a>
         </motion.div>
       </div>
