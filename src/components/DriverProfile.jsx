@@ -34,11 +34,12 @@ export default function DriverProfile() {
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Change Password Modal States
+  // Change Password Modal States & Error Tracking
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   const [driver, setDriver] = useState({
@@ -213,16 +214,22 @@ export default function DriverProfile() {
 
   const handleChangePasswordSubmit = async (e) => {
     e.preventDefault();
+    setPasswordError('');
+
     if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error('Please fill in all password fields.');
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError('New password cannot be the same as your current password.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match.');
+      setPasswordError('New and confirm passwords do not match.');
       return;
     }
     if (newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters long.');
+      setPasswordError('New password must be at least 6 characters long.');
       return;
     }
 
@@ -235,7 +242,7 @@ export default function DriverProfile() {
       });
 
       if (signInError) {
-        toast.error('Incorrect current password.');
+        setPasswordError("Current password doesn't match.");
         setPasswordLoading(false);
         return;
       }
@@ -252,9 +259,10 @@ export default function DriverProfile() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setPasswordError('');
     } catch (err) {
       console.error('Error changing password:', err);
-      toast.error(err.message || 'Failed to update password.');
+      setPasswordError(err.message || 'Failed to update password.');
     } finally {
       setPasswordLoading(false);
     }
@@ -595,7 +603,13 @@ export default function DriverProfile() {
                   
                   <div className="space-y-2">
                     <button 
-                      onClick={() => setIsPasswordModalOpen(true)}
+                      onClick={() => {
+                        setPasswordError('');
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setIsPasswordModalOpen(true);
+                      }}
                       className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100/80 transition-colors text-xs font-bold text-slate-800 cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
@@ -639,6 +653,14 @@ export default function DriverProfile() {
             </div>
 
             <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-xs">
+              
+              {/* Error Message Notice in Red Text */}
+              {passwordError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 font-semibold text-xs animate-shake">
+                  {passwordError}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-slate-500 font-medium">Current Password</label>
                 <input 
@@ -647,7 +669,6 @@ export default function DriverProfile() {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter current password"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:outline-none focus:border-amber-400"
-                  required
                 />
               </div>
 
@@ -659,7 +680,6 @@ export default function DriverProfile() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:outline-none focus:border-amber-400"
-                  required
                 />
               </div>
 
@@ -671,7 +691,6 @@ export default function DriverProfile() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:outline-none focus:border-amber-400"
-                  required
                 />
               </div>
 

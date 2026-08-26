@@ -179,8 +179,8 @@ export default function DriverDashboard() {
           />
         </div>
 
-        {/* ================= MOBILE PWA APP HEADER (Visible only on Mobile) ================= */}
-        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
+        {/* ================= MOBILE APP BAR HEADER ================= */}
+        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
             className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
@@ -188,39 +188,18 @@ export default function DriverDashboard() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs">
-              <Truck className="w-4 h-4 text-slate-900" />
-            </div>
-            <span className="font-black text-base tracking-tight text-slate-900">
-              JB <span className="text-amber-500 font-medium">LOGISTICS</span>
-            </span>
-          </div>
+          <h1 className="text-base font-black text-slate-900 tracking-tight">
+            Dashboard
+          </h1>
 
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/driver-portal/shipments')}
-              className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs relative active:scale-95 transition-transform cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
-            </button>
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
-                alt="Profile" 
-                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-              />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
-            </div>
-          </div>
+          <div className="w-10"></div>
         </header>
 
         {/* Mobile Greeting Banner */}
-        <div className="md:hidden px-6 py-3">
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+        <div className="md:hidden px-6 py-2">
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">
             Good morning, {driverName} 👋
-          </h1>
+          </h2>
           <p className="text-xs font-medium text-slate-500">Here's what's happening with your deliveries today.</p>
         </div>
 
