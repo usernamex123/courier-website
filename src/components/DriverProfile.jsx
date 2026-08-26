@@ -34,6 +34,13 @@ export default function DriverProfile() {
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Change Password Modal States
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   const [driver, setDriver] = useState({
     id: '',          
     driver_id: 'DRV-1001',   
@@ -201,6 +208,55 @@ export default function DriverProfile() {
       toast.error('Failed to update vehicle info');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters long.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      // 1. Verify current password by attempting sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: driver.email,
+        password: currentPassword
+      });
+
+      if (signInError) {
+        toast.error('Incorrect current password.');
+        setPasswordLoading(false);
+        return;
+      }
+
+      // 2. Update to new password in Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) throw updateError;
+
+      toast.success('Password updated successfully!');
+      setIsPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      console.error('Error changing password:', err);
+      toast.error(err.message || 'Failed to update password.');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -539,7 +595,7 @@ export default function DriverProfile() {
                   
                   <div className="space-y-2">
                     <button 
-                      onClick={() => toast.message('Password change feature coming soon')}
+                      onClick={() => setIsPasswordModalOpen(true)}
                       className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-slate-100/80 transition-colors text-xs font-bold text-slate-800 cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
@@ -559,6 +615,86 @@ export default function DriverProfile() {
           )}
         </div>
       </main>
+
+      {/* ================= CHANGE PASSWORD POPUP MODAL ================= */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Change Password</h3>
+                  <p className="text-xs text-slate-500">Secure your account with a new password</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-medium">Current Password</label>
+                <input 
+                  type="password" 
+                  value={currentPassword} 
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:outline-none focus:border-amber-400"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-medium">New Password</label>
+                <input 
+                  type="password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:outline-none focus:border-amber-400"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-medium">Confirm New Password</label>
+                <input 
+                  type="password" 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-bold focus:outline-none focus:border-amber-400"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={passwordLoading}
+                  className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl font-bold shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  {passwordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR ================= */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
