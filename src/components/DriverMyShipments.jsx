@@ -16,7 +16,8 @@ import {
   Truck,
   LayoutDashboard,
   Scan,
-  User
+  User,
+  Filter
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -75,7 +76,6 @@ const getDriverAreaName = async () => {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          // Fetch readable area name from OpenStreetMap Nominatim reverse geocoding
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`, {
             headers: { 'User-Agent': 'LogisticsDriverPortal/1.0' }
           });
@@ -253,7 +253,13 @@ export default function DriverMyShipments() {
       (s.destination || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (s.recipient_name || s.client_name || "").toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = statusFilter === 'All' || currentStatus === statusFilter.toLowerCase().replace(/ /g, '_');
+    let matchesStatus = true;
+    if (statusFilter === 'Pending') {
+      matchesStatus = currentStatus === 'assigned' || currentStatus === 'pending';
+    } else if (statusFilter !== 'All') {
+      matchesStatus = currentStatus === statusFilter.toLowerCase().replace(/ /g, '_');
+    }
+
     return matchesSearch && matchesStatus;
   });
 
@@ -299,8 +305,8 @@ export default function DriverMyShipments() {
           />
         </div>
 
-        {/* ================= MOBILE PWA APP HEADER (Visible only on Mobile) ================= */}
-        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
+        {/* ================= MOBILE APP BAR HEADER (Matching Reference Layout) ================= */}
+        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
             className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
@@ -308,40 +314,17 @@ export default function DriverMyShipments() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs">
-              <Truck className="w-4 h-4 text-slate-900" />
-            </div>
-            <span className="font-black text-base tracking-tight text-slate-900">
-              JB <span className="text-amber-500 font-medium">LOGISTICS</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/driver-portal/shipments')}
-              className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs relative active:scale-95 transition-transform cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
-            </button>
-            <div className="relative">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
-                alt="Profile" 
-                className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-              />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
-            </div>
-          </div>
-        </header>
-
-        {/* Mobile Title Banner */}
-        <div className="md:hidden px-6 py-3">
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-base font-black text-slate-900 tracking-tight">
             My Shipments
           </h1>
-        </div>
+
+          <button 
+            onClick={() => toast.info('Filter options')}
+            className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
+          >
+            <Filter className="w-5 h-5" />
+          </button>
+        </header>
 
         {/* Content Body */}
         <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
@@ -351,10 +334,10 @@ export default function DriverMyShipments() {
             
             {/* Search Input */}
             <div className="relative w-full sm:w-96">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Search tracking #, destination, client..." 
+                placeholder="Search tracking number" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-400 transition-colors placeholder:font-semibold placeholder:text-slate-400"
@@ -363,7 +346,7 @@ export default function DriverMyShipments() {
 
             {/* Status Filters */}
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-              {['All', 'In Transit', 'Out for Delivery', 'Delivered'].map((status) => (
+              {['All', 'Pending', 'In Transit', 'Delivered'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
@@ -380,8 +363,66 @@ export default function DriverMyShipments() {
 
           </div>
 
-          {/* Shipments Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {/* ================= MOBILE SHIPMENT CARD LIST (Visible on Mobile) ================= */}
+          <div className="md:hidden space-y-3">
+            {loading ? (
+              <div className="py-20 flex justify-center items-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+              </div>
+            ) : filteredShipments.length === 0 ? (
+              <div className="py-16 text-center space-y-3 bg-white rounded-2xl border border-slate-200 p-6">
+                <Package className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="font-bold text-slate-800 text-sm">No shipments assigned</h4>
+                <p className="text-xs font-semibold text-slate-500">No shipments found for driver ID ({activeDriverId}).</p>
+              </div>
+            ) : (
+              filteredShipments.map((s) => {
+                const currentStatus = s.current_status || s.status || 'Assigned';
+                const formattedDate = s.created_at ? new Date(s.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Today';
+                const formattedTime = s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:30 AM';
+                const originText = s.origin || 'CLE';
+                const destText = s.destination || 'COL';
+
+                return (
+                  <div 
+                    key={s.id || s.tracking_number}
+                    onClick={() => setActiveModalShipment(s)}
+                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 active:scale-[0.99] transition-transform cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-800 shrink-0">
+                          <Package className="w-5 h-5 text-slate-700" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 text-xs font-mono">{s.tracking_number}</h4>
+                          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mt-0.5">
+                            {originText.slice(0, 3).toUpperCase()} → {destText.slice(0, 3).toUpperCase()}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        {getStatusBadge(currentStatus)}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-end pt-2 border-t border-slate-100 text-[11px]">
+                      <span className="font-medium text-slate-500 truncate max-w-[210px]">
+                        {s.client_address || s.destination}
+                      </span>
+                      <div className="text-right shrink-0 font-mono text-slate-400">
+                        <div className="font-bold text-slate-600">{formattedDate}</div>
+                        <div className="text-[10px]">{formattedTime}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* ================= DESKTOP SHIPMENT TABLE (Visible on Desktop) ================= */}
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div>
                 <h3 className="font-black text-lg text-slate-900 tracking-tight">Shipment Directory</h3>
@@ -426,32 +467,22 @@ export default function DriverMyShipments() {
 
                       return (
                         <tr key={s.id || s.tracking_number} className="hover:bg-slate-50/60 transition-colors">
-                          
-                          {/* Shipment Column */}
                           <td className="py-4 px-6 space-y-1">
                             <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono inline-block text-xs">
                               {s.tracking_number}
                             </span>
                             <div className="font-bold text-slate-800 pl-0.5">{clientName}</div>
                           </td>
-
-                          {/* Route Column */}
                           <td className="py-4 px-6 font-bold text-slate-900">
                             {s.origin || 'Kathmandu'} → {s.destination}
                           </td>
-
-                          {/* Status Column */}
                           <td className="py-4 px-6">
                             {getStatusBadge(currentStatus)}
                           </td>
-
-                          {/* Pickup Date Column */}
                           <td className="py-4 px-6 font-mono font-bold text-slate-700">
                             <div>{formattedDate}</div>
                             <div className="text-[10px] font-semibold text-slate-400">{formattedTime}</div>
                           </td>
-
-                          {/* Action Column */}
                           <td className="py-4 px-6 text-right">
                             <button 
                               onClick={() => setActiveModalShipment(s)}
@@ -461,7 +492,6 @@ export default function DriverMyShipments() {
                               <ChevronRight className="w-4 h-4" />
                             </button>
                           </td>
-
                         </tr>
                       );
                     })}
@@ -469,7 +499,6 @@ export default function DriverMyShipments() {
                 </table>
               </div>
             )}
-
           </div>
 
         </div>
