@@ -223,8 +223,8 @@ export default function DriverProfile() {
           />
         </div>
 
-        {/* ================= MOBILE PWA APP HEADER ================= */}
-        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-2 bg-[#f8fafc]">
+        {/* ================= MOBILE APP BAR HEADER ================= */}
+        <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
             className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs active:scale-95 transition-transform cursor-pointer"
@@ -232,49 +232,12 @@ export default function DriverProfile() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs">
-              <Truck className="w-4 h-4 text-slate-900" />
-            </div>
-            <span className="font-black text-base tracking-tight text-slate-900">
-              JB <span className="text-amber-500 font-medium">LOGISTICS</span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => toast.info('No new notifications')}
-              className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs relative active:scale-95 transition-transform cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full"></span>
-            </button>
-            
-            {/* Grey Default Avatar Fallback */}
-            <div className="relative">
-              {driver.avatar ? (
-                <img 
-                  src={driver.avatar} 
-                  alt="Profile" 
-                  className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-slate-300 flex items-center justify-center text-slate-600 shadow-xs">
-                  <User className="w-5 h-5" />
-                </div>
-              )}
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
-            </div>
-          </div>
-        </header>
-
-        {/* Mobile Title Banner */}
-        <div className="md:hidden px-6 py-3">
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">
-            Driver Profile
+          <h1 className="text-base font-black text-slate-900 tracking-tight">
+            Profile
           </h1>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">Manage your personal and vehicle details.</p>
-        </div>
+
+          <div className="w-10"></div>
+        </header>
 
         <div className="p-6 space-y-6 max-w-6xl w-full mx-auto">
           {loading && driver.name === 'Loading...' ? (
@@ -289,7 +252,7 @@ export default function DriverProfile() {
                 <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs flex flex-col items-center text-center space-y-4">
                   
                   <div className="relative group">
-                    <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-amber-400 to-amber-200 shadow-inner flex items-center justify-center overflow-hidden">
+                    <div className="w-28 h-28 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shadow-xs">
                       {driver.avatar ? (
                         <img 
                           src={driver.avatar} 
@@ -664,7 +627,7 @@ export default function DriverProfile() {
               <div className="space-y-2">
                 {[
                   { label: 'Dashboard', path: '/driver-portal' },
-                  { label: 'My Shipments', path: '/portal/shipments' },
+                  { label: 'My Shipments', path: '/driver-portal/shipments' },
                   { label: 'Scan Shipment', path: '/driver-portal/scan' },
                   { label: 'Profile Settings', path: '/driver-portal/profile' },
                 ].map((item) => (

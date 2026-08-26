@@ -96,15 +96,35 @@ export default function DriverScanShipments() {
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject;
         const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities();
-        if (capabilities.torch) {
-          const newTorchState = !flashlightOn;
-          await track.applyConstraints({ advanced: [{ torch: newTorchState }] });
+        
+        if (!track) {
+          toast.error('No camera track available');
+          return;
+        }
+
+        const newTorchState = !flashlightOn;
+
+        try {
+          // Attempt direct constraint application for broad mobile compatibility
+          await track.applyConstraints({
+            advanced: [{ torch: newTorchState }]
+          });
           setFlashlightOn(newTorchState);
           toast.success(newTorchState ? 'Flashlight enabled' : 'Flashlight disabled');
-        } else {
-          toast.info('Flashlight not supported on this device');
+        } catch (constraintErr) {
+          console.warn('Direct torch constraint failed, checking capabilities:', constraintErr);
+          const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+          
+          if (capabilities.torch) {
+            await track.applyConstraints({ advanced: [{ torch: newTorchState }] });
+            setFlashlightOn(newTorchState);
+            toast.success(newTorchState ? 'Flashlight enabled' : 'Flashlight disabled');
+          } else {
+            toast.info('Flashlight is not supported by your device camera');
+          }
         }
+      } else {
+        toast.error('Camera is not active');
       }
     } catch (err) {
       console.error('Error toggling flashlight:', err);
