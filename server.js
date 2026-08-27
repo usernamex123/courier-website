@@ -11,7 +11,7 @@ const app = express();
 // Trust proxy is required when deployed behind reverse proxies (Render, Heroku, Vercel, etc.)
 app.set('trust proxy', 1);
 
-// Configure CORS to allow credentials (cookies)
+// Configure CORS to allow credentials (cookies) and cross-site requests
 app.use(cors({
     origin: true,
     credentials: true
@@ -55,7 +55,7 @@ const ADMIN_CREDENTIALS = {
 };
 
 if (!ADMIN_CREDENTIALS.email || !ADMIN_CREDENTIALS.password) {
-    console.error("CRITICAL ERROR: ADMIN_EMAIL or ADMIN_PASSWORD missing in .env file.");
+    console.error("CRITICAL ERROR: ADMIN_EMAIL or ADMIN_PASSWORD missing in environment variables.");
 }
 
 // Middleware to protect internal Admin API endpoints
@@ -81,6 +81,10 @@ app.post('/api/admin/login', (req, res) => {
 
     if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    if (!ADMIN_CREDENTIALS.email || !ADMIN_CREDENTIALS.password) {
+        return res.status(500).json({ error: 'Server admin credentials are not configured.' });
     }
 
     if (email.trim() !== ADMIN_CREDENTIALS.email || password !== ADMIN_CREDENTIALS.password) {
