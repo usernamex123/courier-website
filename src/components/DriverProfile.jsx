@@ -61,7 +61,7 @@ export default function DriverProfile() {
     async function loadDriverProfile() {
       setLoading(true);
       try {
-        const res = await fetch('http://localhost:5000/api/driver/profile', {
+        const res = await fetch(`${API_URL}/api/driver/profile`, {
           method: 'GET',
           credentials: 'include'
         });
@@ -124,7 +124,7 @@ export default function DriverProfile() {
         setDriver(prev => ({ ...prev, avatar: base64String }));
         
         try {
-          await fetch('http://localhost:5000/api/driver/avatar', {
+          await fetch(`${API_URL}/api/driver/avatar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -143,7 +143,7 @@ export default function DriverProfile() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/driver/profile', {
+      const res = await fetch(`${API_URL}/api/driver/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -170,7 +170,7 @@ export default function DriverProfile() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/driver/vehicle', {
+      const res = await fetch(`${API_URL}/api/driver/vehicle`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -216,7 +216,7 @@ export default function DriverProfile() {
 
     setPasswordLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/driver/change-password', {
+      const res = await fetch(`${API_URL}/api/driver/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -771,7 +771,7 @@ export default function DriverProfile() {
             <div className="pt-4 border-t border-slate-100">
               <button 
                 onClick={async () => {
-                  await fetch('http://localhost:5000/api/admin/logout', { method: 'POST', credentials: 'include' });
+                  await fetch(`${API_URL}/api/admin/logout`, { method: 'POST', credentials: 'include' });
                   localStorage.clear();
                   navigate('/');
                 }}
