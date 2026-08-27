@@ -49,8 +49,8 @@ serve(async (req) => {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/dashboard/payments`,
-      cancel_url: `${origin}/dashboard/payments?canceled=true`,
+      success_url: `${origin}/dashboard/invoices`,
+      cancel_url: `${origin}/dashboard/invoices`,
       adaptive_pricing: {
         enabled: false, // Disables Stripe automatic currency conversion (removes NPR/local options)
       },

@@ -66,7 +66,7 @@ serve(async (req) => {
           }
         }
 
-        // Update the database with status, payment method, AND transaction reference
+        // Update the database with status, payment method, AND transaction reference[cite: 6]
         const { error: updateError } = await supabaseAdmin
           .from('invoices')
           .update({ 
@@ -79,6 +79,28 @@ serve(async (req) => {
         if (updateError) {
           console.error('Failed to update invoice payment details:', updateError)
           return new Response(JSON.stringify({ error: updateError.message }), { status: 500 })
+        }
+
+        // --- ADDED: Insert transaction record into payments table ---
+        const amountPaid = session.amount_total ? session.amount_total / 100 : 0
+        const currencyCode = session.currency ? session.currency.toUpperCase() : 'USD'
+
+        const { error: paymentError } = await supabaseAdmin
+          .from('payments')
+          .insert([
+            {
+              invoice_id: invoiceId,
+              amount: amountPaid,
+              currency: currencyCode,
+              payment_method: paymentMethodName.toLowerCase(),
+              status: 'completed',
+              transaction_reference: paymentIntentId || session.id,
+            }
+          ])
+
+        if (paymentError) {
+          console.error('Failed to insert payment record:', paymentError)
+          return new Response(JSON.stringify({ error: paymentError.message }), { status: 500 })
         }
       }
     }

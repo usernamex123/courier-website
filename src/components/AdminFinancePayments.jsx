@@ -13,6 +13,22 @@ const PAYMENT_STATUS_STYLES = {
   refunded: "bg-slate-200 text-slate-600"
 };
 
+// Cookie helper functions
+const getCookie = (name) => {
+  if (typeof document === 'undefined') return '';
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+  return '';
+};
+
+const setCookie = (name, value, days = 7) => {
+  if (typeof document === 'undefined') return;
+  const d = new Date();
+  d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${d.toUTCString()};path=/`;
+};
+
 const fmtMoney = (amount, currency = "USD") => {
   const num = Number(amount);
   if (isNaN(num)) return "$0.00";
@@ -40,8 +56,11 @@ export default function AdminFinancePayments() {
   const [invoices, setInvoices] = useState({});
   const [shipments, setShipments] = useState({});
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  
+  // Persist search query and status filter using cookies
+  const [searchQuery, setSearchQuery] = useState(() => getCookie('fin_payments_search') || '');
+  const [statusFilter, setStatusFilter] = useState(() => getCookie('fin_payments_status') || 'ALL');
+
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
@@ -49,6 +68,15 @@ export default function AdminFinancePayments() {
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [isBulkStatusDropdownOpen, setIsBulkStatusDropdownOpen] = useState(false);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+
+  // Sync state changes to cookies
+  useEffect(() => {
+    setCookie('fin_payments_search', searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCookie('fin_payments_status', statusFilter);
+  }, [statusFilter]);
 
   const fetchPaymentsData = async () => {
     try {
