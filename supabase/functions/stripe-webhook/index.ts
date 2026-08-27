@@ -1,15 +1,16 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import Stripe from "https://esm.sh/stripe@12.0.0?target=deno"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.21.0'
+import Stripe from "https://esm.sh/stripe@13.11.0?target=deno"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
-  apiVersion: '2022-11-15',
+  apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
 })
 
-const cryptoProvider = Stripe.createSubtleCryptoProvider()
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } })
+  }
 
-serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
 
@@ -19,6 +20,7 @@ serve(async (req) => {
 
   try {
     const body = await req.text()
+    const cryptoProvider = Stripe.createSubtleCryptoProvider()
     const event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
@@ -66,13 +68,15 @@ serve(async (req) => {
           }
         }
 
-        // Update the database with status, payment method, AND transaction reference[cite: 6]
+        // Update the invoice directly. 
+        // Changing status to 'paid' will automatically trigger your sync_shipment_payment_status function.
         const { error: updateError } = await supabaseAdmin
           .from('invoices')
           .update({ 
             status: 'paid',
             payment_method: paymentMethodName,
-            transaction_ref: paymentIntentId 
+            transaction_ref: paymentIntentId,
+            paid_at: new Date().toISOString()
           })
           .eq('id', invoiceId)
 
@@ -81,32 +85,12 @@ serve(async (req) => {
           return new Response(JSON.stringify({ error: updateError.message }), { status: 500 })
         }
 
-        // --- ADDED: Insert transaction record into payments table ---
-        const amountPaid = session.amount_total ? session.amount_total / 100 : 0
-        const currencyCode = session.currency ? session.currency.toUpperCase() : 'USD'
-
-        const { error: paymentError } = await supabaseAdmin
-          .from('payments')
-          .insert([
-            {
-              invoice_id: invoiceId,
-              amount: amountPaid,
-              currency: currencyCode,
-              payment_method: paymentMethodName.toLowerCase(),
-              status: 'completed',
-              transaction_reference: paymentIntentId || session.id,
-            }
-          ])
-
-        if (paymentError) {
-          console.error('Failed to insert payment record:', paymentError)
-          return new Response(JSON.stringify({ error: paymentError.message }), { status: 500 })
-        }
+        console.log(`Successfully marked invoice ${invoiceId} as paid.`)
       }
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 })
-  } catch (err) {
+  } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`)
     return new Response(`Webhook Error: ${err.message}`, { status: 400 })
   }
