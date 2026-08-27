@@ -13,6 +13,17 @@ const supabase = createClient(
   supabaseAnonKey || 'placeholder'
 );
 
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname || 'localhost' : 'localhost';
+  return `${protocol}//${hostname}:5000`;
+};
+
+const API_URL = getApiUrl();
+
 const STATUS_STYLES = {
   not_replied: "bg-amber-100 text-amber-800 border-amber-300",
   replied: "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -39,8 +50,7 @@ export default function ClientQuotes() {
     setError(null);
 
     try {
-      // Fetch messages and customer mapping securely via Express backend session
-      const response = await fetch('/api/admin/messages', {
+      const response = await fetch(`${API_URL}/api/admin/messages`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -100,7 +110,7 @@ export default function ClientQuotes() {
     setDeletingId(id);
 
     try {
-      const res = await fetch(`/api/admin/messages/${id}`, {
+      const res = await fetch(`${API_URL}/api/admin/messages/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -131,7 +141,7 @@ export default function ClientQuotes() {
     const quoteId = replyingQuote.id;
 
     try {
-      const res = await fetch('/api/admin/reply', {
+      const res = await fetch(`${API_URL}/api/admin/reply`, {
         method: 'POST',
         credentials: 'include',
         headers: {
