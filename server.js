@@ -20,28 +20,33 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Express Session Middleware - Configured for Admin Auth
+// Express Session Middleware - Configured for Admin & Driver Auth
 app.use(session({
     secret: process.env.SESSION_SECRET || 'jb-logistics-admin-secret-key-2026',
     resave: false,
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // true on HTTPS production environments
+        secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 1000 * 60 * 60 * 2
     }
 }));
 
-// Supabase initialization
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+// ==================== SUPABASE INITIALIZATION ====================
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error("CRITICAL ERROR: SUPABASE_URL or Supabase Key is missing from environment variables.");
+if (!supabaseUrl || !supabaseServiceKey) {
+    console.error("CRITICAL ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing from environment variables.");
 }
 
-const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+// 1. Public client used for authentication sign-in
+const supabase = createClient(supabaseUrl || '', supabaseAnonKey || supabaseServiceKey || '');
+
+// 2. Admin client using the Service Role Key to completely bypass RLS for all backend queries
+const supabaseAdmin = createClient(supabaseUrl || '', supabaseServiceKey || supabaseAnonKey || '');
 
 // Admin Credentials read strictly from environment variables
 const ADMIN_CREDENTIALS = {
@@ -61,12 +66,16 @@ function requireAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Admin session required.' });
 }
 
+// Middleware to protect internal Driver API endpoints
+function requireDriverAuth(req, res, next) {
+    if (req.session && req.session.isDriver) {
+        return next();
+    }
+    return res.status(401).json({ error: 'Unauthorized access. Driver session required.' });
+}
+
 // ==================== ADMIN AUTH ENDPOINTS ====================
 
-/**
- * Direct Admin Login
- * Validates email/password and sets session directly
- */
 app.post('/api/admin/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -78,7 +87,6 @@ app.post('/api/admin/login', (req, res) => {
         return res.status(401).json({ error: 'Invalid admin credentials.' });
     }
 
-    // Set admin session flag
     req.session.isAdmin = true;
     req.session.adminEmail = ADMIN_CREDENTIALS.email;
 
@@ -95,9 +103,6 @@ app.post('/api/admin/login', (req, res) => {
     });
 });
 
-/**
- * Endpoint for checking active admin session status
- */
 app.get('/api/admin/session', (req, res) => {
     if (req.session && req.session.isAdmin) {
         return res.json({ authenticated: true, email: req.session.adminEmail });
@@ -105,9 +110,6 @@ app.get('/api/admin/session', (req, res) => {
     return res.json({ authenticated: false });
 });
 
-/**
- * Admin Logout Endpoint
- */
 app.post('/api/admin/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
@@ -118,21 +120,197 @@ app.post('/api/admin/logout', (req, res) => {
     });
 });
 
-// NOTE: /api/driver/login has been removed. 
-// Drivers now authenticate natively on the client using Supabase Auth SDK.
+// ==================== DRIVER AUTH & PROFILE ENDPOINTS ====================
+
+app.post('/api/driver/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required.' });
+        }
+
+        const cleanEmail = email.trim();
+
+        // Authenticate user via Supabase Auth
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password
+        });
+
+        if (error) throw error;
+
+        // Verify driver profile exists using supabaseAdmin (bypasses RLS successfully)
+        const { data: driverProfile, error: profileError } = await supabaseAdmin
+            .from('driver_profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+        if (profileError || !driverProfile) {
+            return res.status(403).json({ error: 'Access denied. No active driver profile found for this account.' });
+        }
+
+        // Establish Express Driver Session
+        req.session.isDriver = true;
+        req.session.driverId = driverProfile.id;
+        req.session.driverEmail = driverProfile.email;
+
+        req.session.save((err) => {
+            if (err) {
+                console.error('Driver session save error:', err);
+                return res.status(500).json({ error: 'Failed to initialize driver session.' });
+            }
+            return res.status(200).json({
+                success: true,
+                session: data.session,
+                user: data.user,
+                driver: driverProfile
+            });
+        });
+    } catch (err) {
+        console.error('Driver login error:', err.message);
+        return res.status(401).json({ error: err.message || 'Invalid login credentials.' });
+    }
+});
+
+app.get('/api/driver/session', (req, res) => {
+    if (req.session && req.session.isDriver) {
+        return res.json({ 
+            authenticated: true, 
+            driverId: req.session.driverId, 
+            email: req.session.driverEmail 
+        });
+    }
+    return res.json({ authenticated: false });
+});
+
+app.get('/api/driver/profile', requireDriverAuth, async (req, res) => {
+    try {
+        const { data: profileData, error: profileError } = await supabaseAdmin
+            .from('driver_profiles')
+            .select('*')
+            .eq('id', req.session.driverId)
+            .single();
+
+        if (profileError || !profileData) {
+            return res.status(404).json({ error: 'Driver profile not found.' });
+        }
+
+        let deliveryCount = 0;
+        if (profileData.driver_id) {
+            const { count } = await supabaseAdmin
+                .from('shipments')
+                .select('*', { count: 'exact', head: true })
+                .eq('driver_id', profileData.driver_id)
+                .eq('current_status', 'delivered');
+            if (count !== null) deliveryCount = count;
+        }
+
+        return res.json({
+            ...profileData,
+            totalDeliveries: deliveryCount.toString()
+        });
+    } catch (err) {
+        console.error('Error fetching driver profile:', err);
+        return res.status(500).json({ error: 'Failed to fetch driver profile.' });
+    }
+});
+
+app.put('/api/driver/profile', requireDriverAuth, async (req, res) => {
+    try {
+        const { name, phone, address } = req.body;
+        const { data, error } = await supabaseAdmin
+            .from('driver_profiles')
+            .update({ name, phone, address })
+            .eq('id', req.session.driverId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.json({ success: true, driver: data });
+    } catch (err) {
+        console.error('Error updating profile:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update profile.' });
+    }
+});
+
+app.put('/api/driver/vehicle', requireDriverAuth, async (req, res) => {
+    try {
+        const { license_number, vehicle_assigned, vehicle_model } = req.body;
+        const { data, error } = await supabaseAdmin
+            .from('driver_profiles')
+            .update({ license_number, vehicle_assigned, vehicle_model })
+            .eq('id', req.session.driverId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.json({ success: true, driver: data });
+    } catch (err) {
+        console.error('Error updating vehicle:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update vehicle.' });
+    }
+});
+
+app.post('/api/driver/avatar', requireDriverAuth, async (req, res) => {
+    try {
+        const { avatar } = req.body;
+        const { error } = await supabaseAdmin
+            .from('driver_profiles')
+            .update({ avatar })
+            .eq('id', req.session.driverId);
+
+        if (error) throw error;
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('Error updating avatar:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update avatar.' });
+    }
+});
+
+app.post('/api/driver/change-password', requireDriverAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        
+        const { data: profile, error: profileErr } = await supabaseAdmin
+            .from('driver_profiles')
+            .select('email')
+            .eq('id', req.session.driverId)
+            .single();
+
+        if (profileErr || !profile) {
+            return res.status(404).json({ error: 'Driver account not found.' });
+        }
+
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: profile.email,
+            password: currentPassword
+        });
+
+        if (signInError) {
+            return res.status(401).json({ error: "Current password doesn't match." });
+        }
+
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            req.session.driverId,
+            { password: newPassword }
+        );
+
+        if (updateError) throw updateError;
+
+        return res.json({ success: true, message: 'Password updated successfully.' });
+    } catch (err) {
+        console.error('Error changing password:', err);
+        return res.status(500).json({ error: err.message || 'Failed to change password.' });
+    }
+});
 
 // ==================== PROTECTED ADMIN API DATA ENDPOINTS ====================
 
 app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
     try {
-        console.log("DEBUG - Active Supabase URL:", process.env.SUPABASE_URL);
-        console.log("DEBUG - Using Service Role Key:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-        const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
-        
-        console.log("DEBUG - Supabase Raw Data Result:", data);
-        console.log("DEBUG - Supabase Raw Error Result:", error);
-
+        const { data, error } = await supabaseAdmin.from('messages').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
@@ -143,7 +321,7 @@ app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
 
 app.get('/api/admin/drivers', requireAdminAuth, async (req, res) => {
     try {
-        const { data, error } = await supabase.from('driver_profiles').select('*');
+        const { data, error } = await supabaseAdmin.from('driver_profiles').select('*');
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
@@ -152,15 +330,13 @@ app.get('/api/admin/drivers', requireAdminAuth, async (req, res) => {
     }
 });
 
-// ==================== ADDED DRIVER CRUD ENDPOINTS (FIXES 404) ====================
-
 app.post('/api/admin/drivers', requireAdminAuth, async (req, res) => {
     try {
         const { email, password, name, phone, license_number, license_type, vehicle_assigned, vehicle_model, status, current_trip } = req.body;
 
         let authUserId = null;
         if (email && password) {
-            const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
                 email,
                 password,
                 email_confirm: true,
@@ -186,7 +362,7 @@ app.post('/api/admin/drivers', requireAdminAuth, async (req, res) => {
             insertPayload.id = authUserId;
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('driver_profiles')
             .insert([insertPayload])
             .select()
@@ -206,7 +382,7 @@ app.put('/api/admin/drivers/:id', requireAdminAuth, async (req, res) => {
         const { id } = req.params;
         const { name, phone, license_number, license_type, vehicle_assigned, vehicle_model, status, current_trip } = req.body;
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('driver_profiles')
             .update({
                 name,
@@ -235,14 +411,14 @@ app.delete('/api/admin/drivers/:id', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('driver_profiles')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
-        await supabase.auth.admin.deleteUser(id).catch(() => {});
+        await supabaseAdmin.auth.admin.deleteUser(id).catch(() => {});
 
         return res.json({ success: true, message: 'Driver deleted successfully.' });
     } catch (err) {
@@ -251,18 +427,16 @@ app.delete('/api/admin/drivers/:id', requireAdminAuth, async (req, res) => {
     }
 });
 
-// ==============================================================================
-
 app.post('/api/admin/reply', requireAdminAuth, async (req, res) => {
     try {
         const { messageId, subject, message, recipient } = req.body;
         
-        const edgeFunctionUrl = `${process.env.VITE_SUPABASE_URL}/functions/v1/notify-admin`;
+        const edgeFunctionUrl = `${process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL}/functions/v1/notify-admin`;
         const edgeRes = await fetch(edgeFunctionUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`
+                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY}`
             },
             body: JSON.stringify({
                 type: 'admin_reply',
@@ -278,7 +452,7 @@ app.post('/api/admin/reply', requireAdminAuth, async (req, res) => {
             throw new Error(errData.error || 'Failed to send reply through notification service.');
         }
 
-        const { error: updateErr } = await supabase
+        const { error: updateErr } = await supabaseAdmin
             .from('messages')
             .update({ status: 'replied' })
             .eq('id', messageId);
@@ -294,12 +468,56 @@ app.post('/api/admin/reply', requireAdminAuth, async (req, res) => {
 
 app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
     try {
-        const { data, error } = await supabase.from('shipments').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabaseAdmin.from('shipments').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
         console.error('Error fetching shipments:', err);
         return res.status(500).json({ error: 'Failed to fetch shipments.' });
+    }
+});
+
+// ==================== ASSIGN DRIVER TO SHIPMENT ====================
+app.put('/api/admin/shipments/:id/assign-driver', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { driver_id, driver_name } = req.body;
+
+        const { data: updatedShipment, error: updateError } = await supabaseAdmin
+            .from('shipments')
+            .update({ 
+                driver_id: driver_id,
+                current_status: 'assigned',
+                status: 'assigned'
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (updateError) throw updateError;
+
+        const isValidUUID = (val) => {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            return typeof val === 'string' && uuidRegex.test(val);
+        };
+
+        const customerUserId = isValidUUID(updatedShipment.user_id) ? updatedShipment.user_id : null;
+
+        await supabaseAdmin
+            .from('tracking_events')
+            .insert({
+                shipment_id: id,
+                customer_user_id: customerUserId,
+                status: 'assigned',
+                location: updatedShipment.origin || 'Facility',
+                description: `Driver ${driver_name || 'assigned'} assigned to shipment.`,
+                event_time: new Date().toISOString()
+            });
+
+        return res.status(200).json(updatedShipment);
+    } catch (err) {
+        console.error('Error assigning driver:', err.message);
+        return res.status(500).json({ error: err.message || 'Failed to assign driver.' });
     }
 });
 

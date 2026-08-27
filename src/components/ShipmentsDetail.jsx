@@ -151,15 +151,30 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
   const fetchActiveDrivers = async () => {
     try {
       setLoadingDrivers(true);
-      const { data, error } = await supabase
-        .from('driver_profiles')
-        .select('*')
-        .or('status.eq.ACTIVE,status.eq.active,status.eq.Active');
+      
+      // Fetch through Express backend to include session cookies and leverage server-side service role key
+      const response = await fetch('http://localhost:5000/api/admin/drivers', {
+        credentials: 'include'
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Backend driver_profiles fetch result:", data);
+
+      // Flexible client-side filtering for active status
+      const activeFiltered = (data || []).filter(d => {
+        if (!d.status) return true;
+        const s = String(d.status).toLowerCase();
+        return s === 'active' || s === 'available';
+      });
+
+      const driversToDisplay = activeFiltered.length > 0 ? activeFiltered : (data || []);
 
       // Sort drivers so that the currently assigned driver appears at the top
-      const sortedDrivers = [...(data || [])].sort((a, b) => {
+      const sortedDrivers = [...driversToDisplay].sort((a, b) => {
         const aId = a.driver_id || a.id;
         const bId = b.driver_id || b.id;
         const isAAssigned = aId === currentShipment?.driver_id;
@@ -173,7 +188,7 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
       setActiveDrivers(sortedDrivers);
     } catch (err) {
       console.error("Error fetching active drivers:", err.message);
-      toast.error("Failed to load active drivers");
+      toast.error("Failed to load active drivers: " + err.message);
     } finally {
       setLoadingDrivers(false);
     }
@@ -230,22 +245,31 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
     try {
       setAssigningDriverId(driver.id);
       const driverName = driver.name || driver.full_name || driver.driver_name || driver.first_name || 'Driver';
-      
       const selectedDriverId = driver.driver_id || driver.id;
       
-      // Update shipment with driver_id and set both status fields to 'assigned'
-      const { data, error } = await supabase
-        .from('shipments')
-        .update({ 
+      const response = await fetch(`http://localhost:5000/api/admin/shipments/${currentShipment.id}/assign-driver`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
           driver_id: selectedDriverId,
-          current_status: 'assigned',
-          status: 'assigned'
+          driver_name: driverName
         })
-        .eq('id', currentShipment.id)
-        .select()
-        .single();
+      });
 
-      if (error) throw error;
+      const contentType = response.headers.get("content-type");
+      if (!response.ok) {
+        if (contentType && contentType.includes("application/json")) {
+          const errData = await response.json();
+          throw new Error(errData.error || `Server responded with status ${response.status}`);
+        } else {
+          throw new Error(`Server returned HTML error (${response.status}). Ensure the backend route is defined in server.js.`);
+        }
+      }
+
+      const data = await response.json();
 
       // Update local state immediately
       setCurrentShipment(data);
@@ -269,26 +293,9 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
         });
       });
 
-      const isValidUUID = (id) => {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        return typeof id === 'string' && uuidRegex.test(id);
-      };
-
-      const customerUserId = isValidUUID(currentShipment.user_id) ? currentShipment.user_id : null;
-
-      await supabase
-        .from('tracking_events')
-        .insert({
-          shipment_id: currentShipment.id,
-          customer_user_id: customerUserId,
-          status: 'assigned',
-          location: currentShipment.origin || 'Facility',
-          description: `Driver ${driverName} assigned to shipment.`,
-          event_time: new Date().toISOString()
-        });
-
       toast.success(`Driver ${driverName} assigned successfully! Status updated to Assigned.`);
       fetchTrackingEvents();
+      setIsAssignDriverModalOpen(false);
     } catch (err) {
       console.error("Error assigning driver:", err.message);
       toast.error("Failed to assign driver: " + err.message);
@@ -578,7 +585,7 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
             <div className="flex items-start justify-between border-b border-gray-100 pb-4">
               <div>
                 <h2 className="text-xl font-extrabold text-gray-900">Assign Active Driver</h2>
-                <p className="text-xs font-mono text-gray-500 mt-0.5">Select a driver for shipment {currentShipment.tracking_number}</p>
+                <p className="text-xs font-mono text-gray-500 mt-0.5">Select an active driver for shipment {currentShipment.tracking_number}</p>
               </div>
               <button 
                 onClick={() => setIsAssignDriverModalOpen(false)}
@@ -595,7 +602,7 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
                 </div>
               ) : activeDrivers.length === 0 ? (
                 <div className="text-center py-12 text-sm text-gray-500">
-                  No active drivers found with status <span className="font-semibold text-gray-800">Active</span>.
+                  No active drivers found in the system.
                 </div>
               ) : (
                 activeDrivers.map((driver) => {

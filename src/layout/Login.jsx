@@ -91,7 +91,7 @@ export default function Login() {
 
       const cleanEmail = email.trim();
 
-      // 1. Try Admin Login First (Handled securely by Express backend sessions)
+      // 1. Try Admin Login First
       try {
         const adminRes = await fetch(`${API_URL}/api/admin/login`, {
           method: 'POST',
@@ -100,49 +100,65 @@ export default function Login() {
           credentials: 'include'
         });
 
-        if (adminRes.ok) {
-          const adminData = await adminRes.json();
-          if (adminData.success) {
-            toast.success('Admin authenticated successfully!');
-            toggleModal(false);
-            navigate('/admin/dashboard');
-            return;
-          }
-        } else if (adminRes.status >= 500) {
-          throw new Error('Server error during admin authentication.');
+        const adminData = await adminRes.json().catch(() => ({}));
+
+        if (adminRes.ok && adminData.success) {
+          toast.success('Admin authenticated successfully!');
+          toggleModal(false);
+          navigate('/admin/dashboard');
+          return;
         }
-      } catch (adminNetErr) {
-        if (adminNetErr.message.includes('Server error')) throw adminNetErr;
-        // Otherwise, move on to Supabase authentication check
+
+        // Only throw if it's an explicit server crash (500+), ignore 401/403 so it falls through to drivers/users
+        if (adminRes.status >= 500) {
+          throw new Error(adminData.error || 'Server error during admin authentication.');
+        }
+      } catch (adminErr) {
+        if (adminErr.message && adminErr.message.includes('Server error')) {
+          throw adminErr;
+        }
+        // Silent fallback for non-admin accounts
       }
 
-      // 2. Authenticate via Supabase Auth (Handles both Clients and Drivers natively)
+      // 2. Try Driver Login via Express Backend Route
+      try {
+        const driverRes = await fetch(`${API_URL}/api/driver/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+          credentials: 'include'
+        });
+
+        const driverData = await driverRes.json().catch(() => ({}));
+
+        if (driverRes.ok && driverData.success) {
+          localStorage.setItem('driver_data', JSON.stringify(driverData.driver));
+          toast.success('Welcome back, driver!');
+          toggleModal(false);
+          navigate('/driver-portal');
+          return;
+        }
+
+        if (driverRes.status >= 500) {
+          throw new Error(driverData.error || 'Server error during driver authentication.');
+        }
+      } catch (driverErr) {
+        if (driverErr.message && driverErr.message.includes('Server error')) {
+          throw driverErr;
+        }
+        // Silent fallback for regular client accounts
+      }
+
+      // 3. Fallback to Standard Client Portal (Supabase Auth directly)
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password
       });
 
       if (authError) {
-        throw new Error('Invalid email or password.');
+        throw new Error(authError.message || 'Invalid email or password.');
       }
 
-      // 3. Check if this authenticated user is a registered driver
-      const { data: driverProfile, error: driverProfileError } = await supabase
-        .from('driver_profiles')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-
-      if (!driverProfileError && driverProfile) {
-        // Driver matched: Store driver context and direct to driver portal
-        localStorage.setItem('driver_data', JSON.stringify(driverProfile));
-        toast.success('Welcome back, driver!');
-        toggleModal(false);
-        navigate('/driver-portal');
-        return;
-      }
-
-      // 4. Fallback to Standard Client Portal
       toast.success('Welcome back!');
       toggleModal(false);
       navigate('/');

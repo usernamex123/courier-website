@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import DriverHeader from './DriverHeader';
 import DriverSidebar from './DriverSidebar';
@@ -21,10 +20,6 @@ import {
   LayoutDashboard,
   Scan
 } from 'lucide-react';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function DriverProfile() {
   const navigate = useNavigate();
@@ -64,24 +59,18 @@ export default function DriverProfile() {
     async function loadDriverProfile() {
       setLoading(true);
       try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const res = await fetch('http://localhost:5000/api/driver/profile', {
+          method: 'GET',
+          credentials: 'include'
+        });
 
-        if (authError || !user) {
+        if (!res.ok) {
           toast.error('Session expired. Please log in again.');
           navigate('/');
           return;
         }
 
-        const { data: profileData, error: profileError } = await supabase
-          .from('driver_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError || !profileData) {
-          toast.error('Driver profile not found.');
-          return;
-        }
+        const profileData = await res.json();
 
         let formattedMemberSince = '2026 August 23';
         if (profileData.created_at) {
@@ -91,24 +80,11 @@ export default function DriverProfile() {
           }
         }
 
-        let deliveryCount = '0';
-        if (profileData.driver_id) {
-          const { count, error: countError } = await supabase
-            .from('shipments')
-            .select('*', { count: 'exact', head: true })
-            .eq('driver_id', profileData.driver_id)
-            .eq('current_status', 'delivered');
-
-          if (!countError && count !== null) {
-            deliveryCount = count.toString();
-          }
-        }
-
         setDriver({
           id: profileData.id,
           driver_id: profileData.driver_id || 'DRV-1001',
           name: profileData.name || 'Unknown Driver',
-          email: user.email || profileData.email || '',
+          email: profileData.email || '',
           phone: profileData.phone || '',
           address: profileData.address || 'Kathmandu, Nepal',
           status: profileData.status || 'Active',
@@ -117,7 +93,7 @@ export default function DriverProfile() {
           vehicleType: profileData.vehicle_assigned || 'Delivery Van',
           model: profileData.vehicle_model || '',
           memberSince: formattedMemberSince,
-          totalDeliveries: deliveryCount,
+          totalDeliveries: profileData.totalDeliveries || '0',
           avatar: profileData.avatar || null
         });
 
@@ -145,14 +121,17 @@ export default function DriverProfile() {
         const base64String = reader.result;
         setDriver(prev => ({ ...prev, avatar: base64String }));
         
-        if (driver.id) {
-          await supabase
-            .from('driver_profiles')
-            .update({ avatar: base64String })
-            .eq('id', driver.id);
+        try {
+          await fetch('http://localhost:5000/api/driver/avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ avatar: base64String })
+          });
+          toast.success('Profile picture updated successfully!');
+        } catch (err) {
+          toast.error('Failed to save profile picture.');
         }
-        
-        toast.success('Profile picture updated successfully!');
       };
       reader.readAsDataURL(file);
     }
@@ -162,18 +141,18 @@ export default function DriverProfile() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (driver.id) {
-        const { error } = await supabase
-          .from('driver_profiles')
-          .update({
-            name: driver.name,
-            phone: driver.phone,
-            address: driver.address
-          })
-          .eq('id', driver.id);
+      const res = await fetch('http://localhost:5000/api/driver/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: driver.name,
+          phone: driver.phone,
+          address: driver.address
+        })
+      });
 
-        if (error) throw error;
-      }
+      if (!res.ok) throw new Error('Failed to update');
 
       setIsEditingPersonal(false);
       toast.success('Personal information updated successfully!');
@@ -189,18 +168,18 @@ export default function DriverProfile() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (driver.id) {
-        const { error } = await supabase
-          .from('driver_profiles')
-          .update({
-            license_number: driver.plateNumber,
-            vehicle_assigned: driver.vehicleType,
-            vehicle_model: driver.model
-          })
-          .eq('id', driver.id);
+      const res = await fetch('http://localhost:5000/api/driver/vehicle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          license_number: driver.plateNumber,
+          vehicle_assigned: driver.vehicleType,
+          vehicle_model: driver.model
+        })
+      });
 
-        if (error) throw error;
-      }
+      if (!res.ok) throw new Error('Failed to update');
 
       setIsEditingVehicle(false);
       toast.success('Vehicle information updated successfully!');
@@ -235,24 +214,15 @@ export default function DriverProfile() {
 
     setPasswordLoading(true);
     try {
-      // 1. Verify current password by attempting sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: driver.email,
-        password: currentPassword
+      const res = await fetch('http://localhost:5000/api/driver/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ currentPassword, newPassword })
       });
 
-      if (signInError) {
-        setPasswordError("Current password doesn't match.");
-        setPasswordLoading(false);
-        return;
-      }
-
-      // 2. Update to new password in Supabase Auth
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (updateError) throw updateError;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update password.');
 
       toast.success('Password updated successfully!');
       setIsPasswordModalOpen(false);
@@ -654,7 +624,6 @@ export default function DriverProfile() {
 
             <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-xs">
               
-              {/* Error Message Notice in Red Text */}
               {passwordError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 font-semibold text-xs animate-shake">
                   {passwordError}
@@ -799,7 +768,8 @@ export default function DriverProfile() {
 
             <div className="pt-4 border-t border-slate-100">
               <button 
-                onClick={() => {
+                onClick={async () => {
+                  await fetch('http://localhost:5000/api/admin/logout', { method: 'POST', credentials: 'include' });
                   localStorage.clear();
                   navigate('/');
                 }}
