@@ -3,6 +3,8 @@ import { Users, UserCheck, Truck, UserX, Search, ChevronLeft, ChevronRight, Load
 import { Button } from "./ui/Button";
 import { toast } from "sonner";
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://courier-backend-5f6r.onrender.com';
+
 export default function AdminDrivers() {
   const [loading, setLoading] = useState(true);
   const [driversList, setDriversList] = useState([]);
@@ -33,7 +35,9 @@ export default function AdminDrivers() {
   const fetchDrivers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/drivers');
+      const res = await fetch(`${API_URL}/api/admin/drivers`, {
+        credentials: 'include'
+      });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       setDriversList(Array.isArray(data) ? data : data.drivers || []);
@@ -90,12 +94,14 @@ export default function AdminDrivers() {
 
     setSubmitting(true);
     try {
-      const url = editingId ? `/api/admin/drivers/${editingId}` : '/api/admin/drivers';
+      const endpoint = editingId ? `/api/admin/drivers/${editingId}` : '/api/admin/drivers';
+      const url = `${API_URL}${endpoint}`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData)
       });
 
@@ -118,7 +124,10 @@ export default function AdminDrivers() {
     if (!driverToDelete) return;
     const id = driverToDelete.id;
     try {
-      const res = await fetch(`/api/admin/drivers/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/admin/drivers/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include'
+      });
       if (!res.ok) throw new Error("Failed to delete driver");
 
       setDriversList(driversList.filter(d => d.id !== id));
