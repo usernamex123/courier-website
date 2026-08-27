@@ -125,7 +125,14 @@ app.post('/api/admin/logout', (req, res) => {
 
 app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
     try {
+        console.log("DEBUG - Active Supabase URL:", process.env.SUPABASE_URL);
+        console.log("DEBUG - Using Service Role Key:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
         const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
+        
+        console.log("DEBUG - Supabase Raw Data Result:", data);
+        console.log("DEBUG - Supabase Raw Error Result:", error);
+
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
