@@ -48,7 +48,7 @@ export default function DriverScanShipments() {
   const [cameraError, setCameraError] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Initialize core Html5Qrcode engine instantly on mount for zero-click scanning
+  // Initialize core Html5Qrcode engine with explicit focus constraints to prevent blur
   useEffect(() => {
     let isMounted = true;
 
@@ -79,29 +79,50 @@ export default function DriverScanShipments() {
           };
 
           const config = { 
-            fps: 15, 
-            qrbox: { width: 220, height: 220 } 
+            fps: 20, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+          };
+
+          // Force environment camera with continuous autofocus to prevent blurry frames
+          const constraints = {
+            facingMode: "environment",
+            advanced: [{ focusMode: "continuous" }]
           };
 
           await html5QrCode.start(
-            { facingMode: "environment" }, 
+            constraints, 
             config, 
             qrCodeSuccessCallback,
-            () => {} // Suppress continuous frame errors
+            () => {} // Suppress continuous frame scan noise
           );
           setScannerReady(true);
         }
       } catch (err) {
-        console.error("Camera failed to start:", err);
-        setCameraError(true);
-        setScannerReady(true);
+        console.error("Camera failed to start with focus constraints, falling back:", err);
+        // Fallback to basic environment camera if advanced constraints fail on specific devices
+        try {
+          if (scannerInstanceRef.current) {
+            await scannerInstanceRef.current.start(
+              { facingMode: "environment" },
+              { fps: 15, qrbox: { width: 250, height: 250 } },
+              (text) => { stopAndRedirect(text); },
+              () => {}
+            );
+            setScannerReady(true);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error("Fallback camera initialization failed:", fallbackErr);
+          setCameraError(true);
+          setScannerReady(true);
+        }
       }
     };
 
-    // Small timeout ensures the DOM node is fully painted before attaching camera stream
     const timer = setTimeout(() => {
       initScanner();
-    }, 100);
+    }, 150);
 
     return () => {
       isMounted = false;
@@ -178,7 +199,7 @@ export default function DriverScanShipments() {
           
           <div className="relative w-full h-[420px] rounded-3xl overflow-hidden bg-neutral-900 border border-neutral-800 shadow-2xl flex items-center justify-center">
             
-            {/* Core Viewport Target Element with explicit minimum height to avoid collapse */}
+            {/* Core Viewport Target Element */}
             <div id="clean-qr-viewport" className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover"></div>
 
             {/* Loading / Initializing State */}
@@ -197,7 +218,7 @@ export default function DriverScanShipments() {
                 </div>
                 <div className="space-y-1">
                   <h3 className="font-bold text-sm text-white">Camera Access Blocked</h3>
-                  <p className="text-xs text-neutral-400">Please enable camera permissions in your browser or PWA settings.</p>
+                  <p className="text-xs text-neutral-400">Please enable camera permissions in your browser settings.</p>
                 </div>
                 <button 
                   onClick={() => window.location.reload()} 
