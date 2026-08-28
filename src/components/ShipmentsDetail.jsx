@@ -19,6 +19,8 @@ import PrintableLabel from "../label/PrintableLabel";
 import { supabase } from "../lib/supabaseClient";
 import { toast } from "sonner";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const STATUS_LABELS = {
   created: "Created",
   pending: "Pending",
