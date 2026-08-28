@@ -12,8 +12,7 @@ import {
   LayoutDashboard,
   Package,
   Scan,
-  User,
-  Flashlight
+  User
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -81,14 +80,14 @@ export default function DriverScanShipments() {
 
           const config = { 
             fps: 15, 
-            qrbox: { width: 240, height: 240 } 
+            qrbox: { width: 220, height: 220 } 
           };
 
           await html5QrCode.start(
             { facingMode: "environment" }, 
             config, 
             qrCodeSuccessCallback,
-            () => {} // Suppress frame errors
+            () => {} // Suppress continuous frame errors
           );
           setScannerReady(true);
         }
@@ -99,10 +98,14 @@ export default function DriverScanShipments() {
       }
     };
 
-    initScanner();
+    // Small timeout ensures the DOM node is fully painted before attaching camera stream
+    const timer = setTimeout(() => {
+      initScanner();
+    }, 100);
 
     return () => {
       isMounted = false;
+      clearTimeout(timer);
       if (scannerInstanceRef.current) {
         scannerInstanceRef.current.stop().catch(() => {});
       }
@@ -173,10 +176,10 @@ export default function DriverScanShipments() {
         {/* Content Body - Immersive Full Viewport */}
         <div className="p-4 sm:p-6 flex-1 flex flex-col items-center justify-center max-w-md w-full mx-auto">
           
-          <div className="relative w-full aspect-[3/4] rounded-3xl overflow-hidden bg-neutral-900 border border-neutral-800 shadow-2xl flex items-center justify-center">
+          <div className="relative w-full h-[420px] rounded-3xl overflow-hidden bg-neutral-900 border border-neutral-800 shadow-2xl flex items-center justify-center">
             
-            {/* Core Viewport Target Element */}
-            <div id="clean-qr-viewport" className="w-full h-full object-cover"></div>
+            {/* Core Viewport Target Element with explicit minimum height to avoid collapse */}
+            <div id="clean-qr-viewport" className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover"></div>
 
             {/* Loading / Initializing State */}
             {!scannerReady && (
@@ -207,7 +210,7 @@ export default function DriverScanShipments() {
 
             {/* Subtle Scanning Reticle Overlay Guide */}
             {scannerReady && !cameraError && (
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12 z-20">
                 <div className="w-full aspect-square border-2 border-dashed border-amber-400/60 rounded-2xl relative flex items-center justify-center">
                   <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-amber-400 rounded-tl-lg"></div>
                   <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-amber-400 rounded-tr-lg"></div>
