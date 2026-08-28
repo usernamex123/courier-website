@@ -202,17 +202,21 @@ export default function DriverMyShipments() {
       const currentAreaName = await getDriverAreaName();
       toast.dismiss('gps-toast');
 
-      // 2. Update shipment status in shipments table
-      const { error: updateError } = await supabase
+      // 2. Update shipment status in shipments table by unique row ID
+      const { data: updatedRows, error: updateError } = await supabase
         .from('shipments')
         .update({ 
           current_status: dbStatus,
           status: dbStatus 
         })
-        .eq('tracking_number', trackingNumber)
-        .eq('driver_id', activeDriverId);
+        .eq('id', shipment.id)
+        .select();
 
       if (updateError) throw updateError;
+
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('Database update failed: No matching shipment found or RLS policy blocked the update.');
+      }
 
       // 3. Insert event timestamp and resolved live GPS area into tracking_events table
       const clevelandTimestamp = getClevelandTimestamp();
@@ -236,9 +240,9 @@ export default function DriverMyShipments() {
       toast.success(`Updated status to ${newStatus} (${currentAreaName})`);
       setActiveModalShipment(null);
     } catch (err) {
-      console.error(err);
+      console.error('Status update error:', err);
       toast.dismiss('gps-toast');
-      toast.error('Failed to update shipment status');
+      toast.error(err.message || 'Failed to update shipment status');
     } finally {
       setUpdatingStatus(false);
     }
