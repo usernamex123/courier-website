@@ -1,3 +1,4 @@
+console.log("VITE_API_URL is:", import.meta.env.VITE_API_URL);
 import React, { useRef, useState, useEffect } from "react";
 import { 
   ArrowLeft, 
