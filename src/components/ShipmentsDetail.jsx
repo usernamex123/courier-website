@@ -153,7 +153,7 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
       setLoadingDrivers(true);
       
       // Fetch through Express backend to include session cookies and leverage server-side service role key
-      const response = await fetch('http://localhost:5000/api/admin/drivers', {
+      const res = await fetch(`${API_URL}/api/admin/drivers`, {
         credentials: 'include'
       });
 
