@@ -1,10 +1,6 @@
 import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from "../../supabase";
 
 export default function ScanRedirect() {
   const { trackingNumber } = useParams();
@@ -13,26 +9,38 @@ export default function ScanRedirect() {
   useEffect(() => {
     async function evaluateScanTarget() {
       try {
+        // 1. Check localStorage first for backend-authenticated drivers
+        const cachedDriver = localStorage.getItem('driver_data');
+        if (cachedDriver) {
+          try {
+            const driverObj = JSON.parse(cachedDriver);
+            if (driverObj && driverObj.id) {
+              navigate(`/driver-portal/shipments?openUpdate=${trackingNumber}`, { replace: true });
+              return;
+            }
+          } catch (e) {
+            localStorage.removeItem('driver_data');
+          }
+        }
+
+        // 2. Check Supabase session for standard client or driver accounts
         const { data: { session } } = await supabase.auth.getSession();
 
-        // If not logged in, route to home page with auto-track param
         if (!session) {
           navigate(`/?track=${trackingNumber}`, { replace: true });
           return;
         }
 
-        // Check user role from your profiles table
+        // 3. Check driver_profiles table for Supabase-authenticated drivers
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
+          .from('driver_profiles')
+          .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
 
-        if (profile?.role === 'driver') {
-          // Route to your MyShipments page and signal it to open the update popup
+        if (profile) {
           navigate(`/driver-portal/shipments?openUpdate=${trackingNumber}`, { replace: true });
         } else {
-          // Client or other roles route to home page tracking input
           navigate(`/?track=${trackingNumber}`, { replace: true });
         }
       } catch (err) {
