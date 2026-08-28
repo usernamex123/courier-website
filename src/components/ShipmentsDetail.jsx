@@ -249,7 +249,7 @@ export default function ShipmentsDetail({ shipment, onClose, onUpdate }) {
       const driverName = driver.name || driver.full_name || driver.driver_name || driver.first_name || 'Driver';
       const selectedDriverId = driver.driver_id || driver.id;
       
-      const response = await fetch(`http://localhost:5000/api/admin/shipments/${currentShipment.id}/assign-driver`, {
+      const response = await fetch(`${API_URL}/api/admin/shipments/${currentShipment.id}/assign-driver`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
