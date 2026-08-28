@@ -66,24 +66,6 @@ export default function Layout() {
   useEffect(() => {
     let isMounted = true;
 
-    // Check localStorage fallback first for backend-authenticated drivers
-    const cachedDriver = localStorage.getItem('driver_data');
-    if (cachedDriver) {
-      try {
-        const driverObj = JSON.parse(cachedDriver);
-        if (driverObj && driverObj.id) {
-          if (isMounted) {
-            setIsDriver(true);
-            setUser({ id: driverObj.id, email: driverObj.email || 'driver' });
-            setIsCheckingRole(false);
-          }
-          return;
-        }
-      } catch (e) {
-        localStorage.removeItem('driver_data');
-      }
-    }
-
     const checkDriverStatus = async (userId) => {
       try {
         // Wrap query in a 3-second timeout race to prevent infinite hanging on "Please wait..."
@@ -127,19 +109,41 @@ export default function Layout() {
       }
     };
 
+    // Always verify the Supabase session first before trusting local storage cache
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
-      if (isMounted) setUser(currentUser);
-      if (currentUser) {
-        checkDriverStatus(currentUser.id);
-      } else {
+      
+      if (!currentUser) {
         if (isMounted) {
+          setUser(null);
           setIsDriver(false);
           localStorage.removeItem('driver_data');
           localStorage.removeItem('driver_session');
           setIsCheckingRole(false);
         }
+        return;
       }
+
+      if (isMounted) setUser(currentUser);
+
+      // Check localStorage fallback only if a valid Supabase session user matches
+      const cachedDriver = localStorage.getItem('driver_data');
+      if (cachedDriver) {
+        try {
+          const driverObj = JSON.parse(cachedDriver);
+          if (driverObj && driverObj.id === currentUser.id) {
+            if (isMounted) {
+              setIsDriver(true);
+              setIsCheckingRole(false);
+            }
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem('driver_data');
+        }
+      }
+
+      checkDriverStatus(currentUser.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

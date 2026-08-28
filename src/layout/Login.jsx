@@ -95,10 +95,10 @@ export default function Login() {
 
       const cleanEmail = email.trim();
 
-      // 1. Try Admin Login First (with 2.5s timeout to prevent infinite hanging if backend is offline)
+      // 1. Try Admin Login First (with a safe 2-second timeout so admin logins never get cut off prematurely)
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
         const adminRes = await fetch(`${API_URL}/api/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -127,10 +127,10 @@ export default function Login() {
         // Silent fallback for non-admin accounts or timeouts
       }
 
-      // 2. Try Driver Login via Express Backend Route (with 2.5s timeout)
+      // 2. Try Driver Login via Express Backend Route (with a safe 2-second timeout)
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
         const driverRes = await fetch(`${API_URL}/api/driver/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
