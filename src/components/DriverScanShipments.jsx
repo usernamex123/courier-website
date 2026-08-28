@@ -43,8 +43,9 @@ export default function DriverScanShipments() {
       // Fallback
     }
     return {
-      id: 'DRV-1001',
-      name: 'Driver A',
+      id: '71d98695-b0be-411a-9cc4-82aaca27bb31',
+      driver_id: 'DRV-119147',
+      name: 'Sparsh Limbu',
       status: 'On Field',
     };
   });
@@ -57,8 +58,11 @@ export default function DriverScanShipments() {
   const [manualInput, setManualInput] = useState('');
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const scanningRef = useRef(false);
 
-  // Start camera on mount
+  const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
+
+  // Start camera on mount & initialize Barcode Detector if supported
   useEffect(() => {
     startCamera();
     return () => {
@@ -75,6 +79,7 @@ export default function DriverScanShipments() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setCameraActive(true);
+        startBarcodeScanning();
       }
     } catch (err) {
       console.warn('Camera access error or not supported:', err);
@@ -84,10 +89,55 @@ export default function DriverScanShipments() {
   };
 
   const stopCamera = () => {
+    scanningRef.current = false;
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject;
       const tracks = stream.getTracks();
       tracks.forEach(track => track.stop());
+    }
+  };
+
+  // Automatic Native Barcode/QR Scanning Loop
+  const startBarcodeScanning = async () => {
+    if (!('BarcodeDetector' in window)) {
+      console.log('BarcodeDetector API not supported on this browser/device. Use manual entry or search.');
+      return;
+    }
+
+    try {
+      const barcodeDetector = new window.BarcodeDetector({
+        formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a']
+      });
+
+      scanningRef.current = true;
+
+      const detectFrame = async () => {
+        if (!scanningRef.current || !videoRef.current) return;
+        
+        if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+          try {
+            const barcodes = await barcodeDetector.detect(videoRef.current);
+            if (barcodes.length > 0) {
+              const scannedValue = barcodes[0].rawValue;
+              if (scannedValue) {
+                scanningRef.current = false;
+                toast.success(`Scanned code: ${scannedValue}`);
+                handleLookupShipment(scannedValue);
+                return;
+              }
+            }
+          } catch (err) {
+            // Decoding frame error suppression
+          }
+        }
+        if (scanningRef.current) {
+          requestAnimationFrame(detectFrame);
+        }
+      };
+
+      requestAnimationFrame(detectFrame);
+    } catch (err) {
+      console.warn('Failed to initialize BarcodeDetector:', err);
     }
   };
 
@@ -105,16 +155,13 @@ export default function DriverScanShipments() {
         const newTorchState = !flashlightOn;
 
         try {
-          // Attempt direct constraint application for broad mobile compatibility
           await track.applyConstraints({
             advanced: [{ torch: newTorchState }]
           });
           setFlashlightOn(newTorchState);
           toast.success(newTorchState ? 'Flashlight enabled' : 'Flashlight disabled');
         } catch (constraintErr) {
-          console.warn('Direct torch constraint failed, checking capabilities:', constraintErr);
           const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-          
           if (capabilities.torch) {
             await track.applyConstraints({ advanced: [{ torch: newTorchState }] });
             setFlashlightOn(newTorchState);
@@ -132,7 +179,7 @@ export default function DriverScanShipments() {
     }
   };
 
-  // Handle lookup by scanned or typed tracking number and redirect with popup open
+  // Handle lookup by scanned or typed tracking number and redirect securely
   const handleLookupShipment = async (trackingNum) => {
     const query = trackingNum || manualInput;
     if (!query.trim()) {
@@ -142,37 +189,42 @@ export default function DriverScanShipments() {
 
     setLoadingSearch(true);
     try {
+      const cleanQuery = query.trim();
+
+      // Search exact match or case-insensitive match for the tracking number
       const { data, error } = await supabase
         .from('shipments')
         .select('*')
-        .ilike('tracking_number', `%${query.trim()}%`)
+        .or(`tracking_number.ilike.%${cleanQuery}%,id.eq.${cleanQuery}`)
         .limit(1);
 
-      let trackingToOpen = query.trim();
-      if (!error && data && data.length > 0) {
+      if (error) throw error;
+
+      let trackingToOpen = cleanQuery;
+      if (data && data.length > 0) {
         trackingToOpen = data[0].tracking_number;
+      } else {
+        toast.warning('Exact shipment match not found in database. Proceeding with lookup code.');
       }
 
       setShowManualModal(false);
       setManualInput('');
-      toast.success(`Opening shipment: ${trackingToOpen}`);
+      stopCamera();
       
-      // Redirect to My Shipments page with openUpdate query parameter to auto-open popup
+      // Redirect to My Shipments page with openUpdate query parameter
       navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
     } catch (err) {
-      console.error(err);
+      console.error('Lookup shipment error:', err);
       toast.error('Error searching shipment');
     } finally {
       setLoadingSearch(false);
     }
   };
 
-  const driverName = driver?.name || 'Driver';
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans flex">
       
-      {/* ================= DESKTOP SIDEBAR (Hidden on Mobile) ================= */}
+      {/* ================= DESKTOP SIDEBAR ================= */}
       <div className="hidden md:flex">
         <DriverSidebar activePage="scan" />
       </div>
@@ -180,7 +232,7 @@ export default function DriverScanShipments() {
       {/* ================= MAIN CONTENT AREA ================= */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
         
-        {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
+        {/* ================= DESKTOP HEADER ================= */}
         <div className="hidden md:block">
           <DriverHeader 
             title="Scan Shipments 📱" 
@@ -210,7 +262,6 @@ export default function DriverScanShipments() {
           {/* ================= CAMERA VIEWPORT CARD ================= */}
           <div className="relative rounded-3xl overflow-hidden bg-neutral-950 border border-slate-200 shadow-sm aspect-[4/5] sm:aspect-[21/9] lg:aspect-[16/7] flex items-center justify-center group">
             
-            {/* Live Camera Feed */}
             <video 
               ref={videoRef} 
               autoPlay 
@@ -219,37 +270,34 @@ export default function DriverScanShipments() {
               className={`w-full h-full object-cover ${cameraError ? 'hidden' : 'block'}`}
             />
 
-            {/* Fallback Image / Background if camera fails */}
             {cameraError && (
               <div className="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-center p-6 space-y-3">
                 <div className="w-16 h-16 rounded-2xl bg-slate-700 text-amber-400 flex items-center justify-center">
                   <Camera className="w-8 h-8" />
                 </div>
                 <h4 className="text-white font-bold text-sm">Camera permission required or unavailable</h4>
-                <p className="text-slate-400 text-xs max-w-sm">You can still use manual tracking number lookup below or click to retry.</p>
+                <p className="text-slate-400 text-xs max-w-sm">You can use manual tracking number lookup below or click to retry.</p>
                 <button onClick={startCamera} className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl text-xs font-bold transition-colors cursor-pointer">
                   Retry Camera
                 </button>
               </div>
             )}
 
-            {/* Scanning Overlay Box with Corner Guides */}
+            {/* Scanning Overlay Frame */}
             <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-8">
               <div className="relative w-72 sm:w-80 h-64 sm:h-52 border-2 border-white/15 rounded-3xl flex items-center justify-center">
-                {/* Corner Accents */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-2xl"></div>
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-2xl"></div>
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-2xl"></div>
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-2xl"></div>
 
-                {/* Instruction Text inside/middle of frame */}
                 <p className="text-white/80 text-xs font-medium text-center px-6 max-w-[220px]">
                   Position barcode or QR code within the frame
                 </p>
               </div>
             </div>
 
-            {/* Flashlight Toggle Button at Bottom Center of Camera Box */}
+            {/* Flashlight Toggle */}
             <div className="absolute bottom-6 z-10">
               <button 
                 onClick={toggleFlashlight}
@@ -271,7 +319,7 @@ export default function DriverScanShipments() {
             <div className="flex-grow border-t border-slate-200"></div>
           </div>
 
-          {/* ================= ENTER TRACKING NUMBER BUTTON ================= */}
+          {/* ================= MANUAL INPUT BUTTON ================= */}
           <button 
             onClick={() => setShowManualModal(true)}
             className="w-full bg-white hover:bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-xs flex items-center justify-between transition-all group cursor-pointer"
@@ -292,43 +340,28 @@ export default function DriverScanShipments() {
 
       {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR ================= */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
-        <button 
-          onClick={() => navigate('/driver-portal')}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-        >
+        <button onClick={() => navigate('/driver-portal')} className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors">
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-[10px] font-bold">Dashboard</span>
         </button>
 
-        <button 
-          onClick={() => navigate('/driver-portal/shipments')}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-        >
+        <button onClick={() => navigate('/driver-portal/shipments')} className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors">
           <Package className="w-5 h-5" />
           <span className="text-[10px] font-bold">Shipments</span>
         </button>
 
         <div className="relative -top-5">
-          <button 
-            onClick={() => navigate('/driver-portal/scan')}
-            className="w-14 h-14 rounded-full bg-amber-400 hover:bg-amber-500 text-slate-900 shadow-lg shadow-amber-400/40 flex items-center justify-center border-4 border-[#f8fafc] transition-transform active:scale-95 cursor-pointer"
-          >
+          <button onClick={() => navigate('/driver-portal/scan')} className="w-14 h-14 rounded-full bg-amber-400 hover:bg-amber-500 text-slate-900 shadow-lg shadow-amber-400/40 flex items-center justify-center border-4 border-[#f8fafc] transition-transform active:scale-95 cursor-pointer">
             <Scan className="w-6 h-6 stroke-[2.5]" />
           </button>
         </div>
 
-        <button 
-          onClick={() => toast.info('No new notifications')}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-        >
+        <button onClick={() => toast.info('No new notifications')} className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors">
           <Bell className="w-5 h-5" />
           <span className="text-[10px] font-bold">Notifications</span>
         </button>
 
-        <button 
-          onClick={() => navigate('/driver-portal/profile')}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-        >
+        <button onClick={() => navigate('/driver-portal/profile')} className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors">
           <User className="w-5 h-5" />
           <span className="text-[10px] font-bold">Profile</span>
         </button>
@@ -346,10 +379,7 @@ export default function DriverScanShipments() {
                   </div>
                   <span className="font-black text-base text-slate-900">JB Logistics</span>
                 </div>
-                <button 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer"
-                >
+                <button onClick={() => setMobileMenuOpen(false)} className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -374,10 +404,7 @@ export default function DriverScanShipments() {
 
             <div className="pt-4 border-t border-slate-100">
               <button 
-                onClick={() => {
-                  localStorage.clear();
-                  navigate('/');
-                }}
+                onClick={() => { localStorage.clear(); navigate('/'); }}
                 className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Log Out
