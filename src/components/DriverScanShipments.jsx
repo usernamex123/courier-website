@@ -97,26 +97,50 @@ export default function DriverScanShipments() {
     }
   };
 
-  // Automatic Native Barcode/QR Scanning Loop
+  // Automatic Barcode/QR Scanning Loop with mobile-compatible jsQR fallback
   const startBarcodeScanning = async () => {
-    if (!('BarcodeDetector' in window)) {
-      console.log('BarcodeDetector API not supported on this browser/device. Use manual entry or search.');
-      return;
+    let detector = null;
+    let useJsQR = false;
+
+    if ('BarcodeDetector' in window) {
+      try {
+        detector = new window.BarcodeDetector({
+          formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a']
+        });
+      } catch (e) {
+        console.warn('BarcodeDetector instantiation failed, falling back to jsQR');
+      }
     }
 
-    try {
-      const barcodeDetector = new window.BarcodeDetector({
-        formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a']
-      });
+    if (!detector) {
+      if (!window.jsQR) {
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        } catch (err) {
+          console.warn('Failed to load scanning fallback library:', err);
+          return;
+        }
+      }
+      useJsQR = true;
+    }
 
-      scanningRef.current = true;
+    scanningRef.current = true;
+    const canvasElement = document.createElement('canvas');
+    const canvasContext = canvasElement.getContext('2d', { willReadFrequently: true });
 
-      const detectFrame = async () => {
-        if (!scanningRef.current || !videoRef.current) return;
-        
-        if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-          try {
-            const barcodes = await barcodeDetector.detect(videoRef.current);
+    const detectFrame = async () => {
+      if (!scanningRef.current || !videoRef.current) return;
+      
+      if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+        try {
+          if (detector) {
+            const barcodes = await detector.detect(videoRef.current);
             if (barcodes.length > 0) {
               const scannedValue = barcodes[0].rawValue;
               if (scannedValue) {
@@ -126,19 +150,35 @@ export default function DriverScanShipments() {
                 return;
               }
             }
-          } catch (err) {
-            // Decoding frame error suppression
+          } else if (useJsQR && window.jsQR) {
+            const video = videoRef.current;
+            canvasElement.width = video.videoWidth;
+            canvasElement.height = video.videoHeight;
+            if (canvasElement.width > 0 && canvasElement.height > 0) {
+              canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+              const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
+              const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'attemptBoth',
+              });
+              if (code && code.data) {
+                const scannedValue = code.data;
+                scanningRef.current = false;
+                toast.success(`Scanned code: ${scannedValue}`);
+                handleLookupShipment(scannedValue);
+                return;
+              }
+            }
           }
+        } catch (err) {
+          // Decoding frame error suppression
         }
-        if (scanningRef.current) {
-          requestAnimationFrame(detectFrame);
-        }
-      };
+      }
+      if (scanningRef.current) {
+        requestAnimationFrame(detectFrame);
+      }
+    };
 
-      requestAnimationFrame(detectFrame);
-    } catch (err) {
-      console.warn('Failed to initialize BarcodeDetector:', err);
-    }
+    requestAnimationFrame(detectFrame);
   };
 
   const toggleFlashlight = async () => {
