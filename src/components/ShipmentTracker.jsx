@@ -120,12 +120,12 @@ export default function ShipmentTracker() {
   };
 
   return (
-    <div id="track" className="w-full bg-[#f3f6fb] py-16 px-6 relative z-30 font-sans">
-      <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl p-8 sm:p-10 shadow-xl">
+    <div id="track" className="w-full bg-[#f3f6fb] py-16 px-4 sm:px-6 relative z-30 font-sans">
+      <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl p-6 sm:p-10 shadow-xl">
         
         {/* Header & Centered Search Section */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <h2 className="text-3xl font-black text-[#0f172a] tracking-tight mb-2">
+          <h2 className="text-2xl sm:text-3xl font-black text-[#0f172a] tracking-tight mb-2">
             Track Your Shipment
           </h2>
           <p className="text-gray-500 text-sm mb-6">
@@ -173,15 +173,15 @@ export default function ShipmentTracker() {
               <div className="space-y-6">
                 
                 {/* Top Horizontal Details Summary Bar */}
-                <div className="bg-white border border-gray-200 rounded-xl p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-center text-xs sm:text-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-center text-xs sm:text-sm">
                   
                   <div className="col-span-2 sm:col-span-1 lg:col-span-2">
                     <span className="text-gray-400 font-medium block text-[11px] uppercase tracking-wider mb-0.5">Tracking Number</span>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-bold text-gray-900 text-base">{shipment.tracking_number}</span>
+                      <span className="font-mono font-bold text-gray-900 text-sm sm:text-base break-all">{shipment.tracking_number}</span>
                       <button 
                         onClick={() => handleCopy(shipment.tracking_number)} 
-                        className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1"
+                        className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1 shrink-0"
                         title="Copy tracking number"
                       >
                         {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
@@ -260,38 +260,52 @@ export default function ShipmentTracker() {
                       }
 
                       return (
-                        <div key={milestone.key} className="flex items-center px-6 py-5 hover:bg-gray-50/50 transition-colors relative">
+                        <div key={milestone.key} className="flex items-start sm:items-center px-4 sm:px-6 py-4 sm:py-5 hover:bg-gray-50/50 transition-colors relative">
                           
                           {/* Left Column: Timeline Icon + Title & Description */}
-                          <div className="flex items-center gap-4 flex-1 min-w-0 relative">
+                          <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0 relative">
                             {!isLast && (
-                              <div className={`absolute left-5 top-10 w-0.5 h-full -ml-px ${lineColor}`}></div>
+                              <div className={`absolute left-4 sm:left-5 top-10 w-0.5 h-full -ml-px ${lineColor}`}></div>
                             )}
 
-                            <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 z-10 ${nodeBg}`}>
-                              <IconComponent size={18} />
+                            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border flex items-center justify-center shrink-0 z-10 ${nodeBg}`}>
+                              <IconComponent size={16} className="sm:w-[18px] sm:h-[18px]" />
                             </div>
                             
-                            <div className="min-w-0">
-                              <h4 className={`text-sm ${titleColor}`}>{milestone.title}</h4>
-                              <p className={`text-xs mt-0.5 truncate ${descColor}`}>
+                            <div className="min-w-0 flex-1 pr-2 sm:pr-0">
+                              <h4 className={`text-xs sm:text-sm ${titleColor}`}>{milestone.title}</h4>
+                              <p className={`text-xs mt-0.5 whitespace-normal break-words ${descColor}`}>
                                 {matchedEvent?.description || milestone.defaultDesc}
                               </p>
+                              
+                              {/* Mobile-only Timestamp & Location Metadata to prevent information loss */}
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 sm:hidden text-[11px]">
+                                {displayTimestamp && (
+                                  <span className="font-medium text-gray-700">
+                                    {fmtDateTime(displayTimestamp)}
+                                  </span>
+                                )}
+                                {matchedEvent?.location && (
+                                  <span className="flex items-center gap-1 text-gray-600">
+                                    <MapPin size={11} className="text-gray-400 shrink-0" /> {matchedEvent.location}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Middle Column: Timestamp */}
+                          {/* Middle Column: Timestamp (Desktop) */}
                           <div className="w-48 text-right hidden sm:block shrink-0 px-4">
                             <span className="text-xs font-medium text-gray-700">
                               {displayTimestamp ? fmtDateTime(displayTimestamp) : '—'}
                             </span>
                           </div>
 
-                          {/* Right Column: Location */}
+                          {/* Right Column: Location (Desktop) */}
                           <div className="w-56 text-right hidden md:block shrink-0 pl-4">
                             {matchedEvent?.location ? (
                               <span className="text-xs font-medium text-gray-700 flex items-center justify-end gap-1">
-                                <MapPin size={12} className="text-gray-400" /> {matchedEvent.location}
+                                <MapPin size={12} className="text-gray-400 shrink-0" /> {matchedEvent.location}
                               </span>
                             ) : (
                               <span className="text-xs text-gray-400">—</span>
