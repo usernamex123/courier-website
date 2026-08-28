@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import DriverHeader from './DriverHeader';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Package, 
   Search,
@@ -103,6 +103,7 @@ const getDriverAreaName = async () => {
 
 export default function DriverMyShipments() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Driver Authentication State
   const [driver] = useState(() => {
@@ -132,17 +133,19 @@ export default function DriverMyShipments() {
   const [activeModalShipment, setActiveModalShipment] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Auto-open update modal via URL query param (e.g. ?openUpdate=TRACKING_ID)
+  // Auto-open update modal via URL query param using React Router useSearchParams
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shipmentTrackingToUpdate = params.get('openUpdate');
+    const shipmentTrackingToUpdate = searchParams.get('openUpdate');
     if (shipmentTrackingToUpdate && shipments.length > 0) {
       const target = shipments.find(s => s.tracking_number === shipmentTrackingToUpdate);
       if (target) {
         setActiveModalShipment(target);
+        // Clear param after opening so refreshing doesn't trigger it again
+        searchParams.delete('openUpdate');
+        setSearchParams(searchParams, { replace: true });
       }
     }
-  }, [shipments]);
+  }, [searchParams, shipments, setSearchParams]);
   
   // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection
   useEffect(() => {
