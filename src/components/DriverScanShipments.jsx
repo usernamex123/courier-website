@@ -66,6 +66,69 @@ export default function DriverScanShipments() {
     };
   }, []);
 
+  // Frame scanning loop to decode QR codes from the live video stream
+  useEffect(() => {
+    if (!cameraActive) return;
+
+    let intervalId;
+    let isScanning = false;
+
+    const scanFrame = async () => {
+      if (isScanning || !videoRef.current) return;
+      const video = videoRef.current;
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      isScanning = true;
+      try {
+        // Use native browser BarcodeDetector if supported
+        if ('BarcodeDetector' in window) {
+          const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+          const barcodes = await barcodeDetector.detect(video);
+          if (barcodes.length > 0) {
+            const scannedText = barcodes[0].rawValue;
+            if (scannedText) {
+              toast.success(`Scanned: ${scannedText}`);
+              handleLookupShipment(scannedText);
+              return;
+            }
+          }
+        } else {
+          // Fallback decoder using lightweight jsQR library loaded on demand
+          if (!window.jsQR) {
+            await new Promise((resolve) => {
+              const script = document.createElement('script');
+              script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+              script.onload = resolve;
+              script.onerror = resolve;
+              document.head.appendChild(script);
+            });
+          }
+          if (window.jsQR) {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+            if (code && code.data) {
+              toast.success(`Scanned: ${code.data}`);
+              handleLookupShipment(code.data);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        // Suppress frame processing errors
+      } finally {
+        isScanning = false;
+      }
+    };
+
+    intervalId = setInterval(scanFrame, 300);
+    return () => clearInterval(intervalId);
+  }, [cameraActive]);
+
   const startCamera = async () => {
     try {
       setCameraError(false);
@@ -105,14 +168,12 @@ export default function DriverScanShipments() {
         const newTorchState = !flashlightOn;
 
         try {
-          // Attempt direct constraint application for broad mobile compatibility
           await track.applyConstraints({
             advanced: [{ torch: newTorchState }]
           });
           setFlashlightOn(newTorchState);
           toast.success(newTorchState ? 'Flashlight enabled' : 'Flashlight disabled');
         } catch (constraintErr) {
-          console.warn('Direct torch constraint failed, checking capabilities:', constraintErr);
           const capabilities = track.getCapabilities ? track.getCapabilities() : {};
           
           if (capabilities.torch) {
@@ -157,7 +218,6 @@ export default function DriverScanShipments() {
       setManualInput('');
       toast.success(`Opening shipment: ${trackingToOpen}`);
       
-      // Redirect to My Shipments page with openUpdate query parameter to auto-open popup
       navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
     } catch (err) {
       console.error(err);
