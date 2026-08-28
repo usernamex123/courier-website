@@ -77,7 +77,6 @@ export default function AdminShipments() {
       if (error) throw error;
       setItems(data || []);
 
-      // Fetch invoice numbers to map shipment_id -> invoice_number cleanly
       const { data: invData, error: invError } = await supabase
         .from('invoices')
         .select('shipment_id, invoice_number');
@@ -148,13 +147,17 @@ export default function AdminShipments() {
   const handleDelete = async () => {
     try {
       const id = getId(deleting);
+      await supabase.from('tracking_events').delete().eq('shipment_id', id);
+      await supabase.from('invoices').delete().eq('shipment_id', id);
+
       const { error } = await supabase.from('shipments').delete().eq('id', id);
       if (error) throw error;
       toast.success("Shipment deleted successfully");
       setDeleting(null);
       load();
     } catch (err) {
-      toast.error("Failed to delete shipment");
+      console.error("Delete error:", err);
+      toast.error(err.message || "Failed to delete shipment");
     }
   };
 
@@ -176,16 +179,23 @@ export default function AdminShipments() {
 
   const bulkDelete = async () => {
     try {
+      const ids = [...selected];
+      
+      await supabase.from('tracking_events').delete().in('shipment_id', ids);
+      await supabase.from('invoices').delete().in('shipment_id', ids);
+
       const { error } = await supabase
         .from('shipments')
         .delete()
-        .in('id', [...selected]);
+        .in('id', ids);
       if (error) throw error;
-      toast.success(`${selected.size} shipments deleted successfully`);
+
+      toast.success(`${ids.length} shipments deleted successfully`);
       setSelected(new Set());
       load();
     } catch (err) {
-      toast.error("Bulk delete failed");
+      console.error("Bulk delete error:", err);
+      toast.error(err.message || "Bulk delete failed");
     }
   };
 
@@ -215,7 +225,6 @@ export default function AdminShipments() {
 
   return (
     <div className="w-full space-y-6 animate-fadeIn font-sans">
-      {/* Top Filter & Action Bar */}
       <div className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-col gap-4 shadow-sm">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3.5 py-2.5 flex-1 shadow-sm">
@@ -374,6 +383,13 @@ export default function AdminShipments() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
+                      onClick={() => setDeleting(s)}
+                      className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                      title="Delete shipment"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button 
                       onClick={() => setViewingDetail(s)}
                       className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-colors cursor-pointer"
                     >
@@ -410,13 +426,13 @@ export default function AdminShipments() {
               </th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[14%]">Tracking / Invoice</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[13%]">Customer</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[18%]">Route</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[17%]">Route</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Service</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[11%]">Status</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Payment</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs text-right w-[9%]">Price</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Created</th>
-              <th className="px-3.5 py-4 w-10"></th>
+              <th className="px-3.5 py-4 w-16 text-right"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -493,12 +509,22 @@ export default function AdminShipments() {
                     <td className="px-3.5 py-4.5 text-gray-500 text-xs truncate" title={formattedDate}>
                       {formattedDate}
                     </td>
-                    <td 
-                      className="px-3.5 py-4.5 text-right cursor-pointer"
-                      onClick={() => setViewingDetail(s)}
-                    >
-                      <div className="text-amber-600 group-hover:translate-x-0.5 transition-transform flex justify-end items-center w-full h-full">
-                        <ChevronRight className="w-4 h-4" />
+                    <td className="px-3.5 py-4.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setDeleting(s); }}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete shipment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setViewingDetail(s); }}
+                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                          title="View details"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
