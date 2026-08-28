@@ -32,10 +32,14 @@ export default function Login() {
     const terminateActiveSessions = async () => {
       try {
         localStorage.removeItem('driver_token');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
         await fetch(`${API_URL}/api/admin/logout`, {
           method: 'POST',
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal
         }).catch(() => {});
+        clearTimeout(timeoutId);
       } catch (err) {
         // Silent catch for network drops during cleanup
       }
@@ -91,14 +95,18 @@ export default function Login() {
 
       const cleanEmail = email.trim();
 
-      // 1. Try Admin Login First
+      // 1. Try Admin Login First (with 2.5s timeout to prevent infinite hanging if backend is offline)
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
         const adminRes = await fetch(`${API_URL}/api/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: cleanEmail, password }),
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         const adminData = await adminRes.json().catch(() => ({}));
 
@@ -109,7 +117,6 @@ export default function Login() {
           return;
         }
 
-        // Only throw if it's an explicit server crash (500+), ignore 401/403 so it falls through to drivers/users
         if (adminRes.status >= 500) {
           throw new Error(adminData.error || 'Server error during admin authentication.');
         }
@@ -117,17 +124,21 @@ export default function Login() {
         if (adminErr.message && adminErr.message.includes('Server error')) {
           throw adminErr;
         }
-        // Silent fallback for non-admin accounts
+        // Silent fallback for non-admin accounts or timeouts
       }
 
-      // 2. Try Driver Login via Express Backend Route
+      // 2. Try Driver Login via Express Backend Route (with 2.5s timeout)
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
         const driverRes = await fetch(`${API_URL}/api/driver/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: cleanEmail, password }),
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         const driverData = await driverRes.json().catch(() => ({}));
 
@@ -146,7 +157,7 @@ export default function Login() {
         if (driverErr.message && driverErr.message.includes('Server error')) {
           throw driverErr;
         }
-        // Silent fallback for regular client accounts
+        // Silent fallback for regular client accounts or timeouts
       }
 
       // 3. Fallback to Standard Client Portal (Supabase Auth directly)

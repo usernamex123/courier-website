@@ -62,28 +62,66 @@ export default function Layout() {
     checkAdminSession();
   }, [location.pathname]);
 
-  // Check Supabase client user session and query driver_profiles securely
+  // Check Supabase client user session and query driver_profiles securely with a safety timeout
   useEffect(() => {
     let isMounted = true;
 
+    // Check localStorage fallback first for backend-authenticated drivers
+    const cachedDriver = localStorage.getItem('driver_data');
+    if (cachedDriver) {
+      try {
+        const driverObj = JSON.parse(cachedDriver);
+        if (driverObj && driverObj.id) {
+          if (isMounted) {
+            setIsDriver(true);
+            setUser({ id: driverObj.id, email: driverObj.email || 'driver' });
+            setIsCheckingRole(false);
+          }
+          return;
+        }
+      } catch (e) {
+        localStorage.removeItem('driver_data');
+      }
+    }
+
     const checkDriverStatus = async (userId) => {
       try {
-        const { data, error } = await supabase
+        // Wrap query in a 3-second timeout race to prevent infinite hanging on "Please wait..."
+        const profileQuery = supabase
           .from('driver_profiles')
-          .select('id')
+          .select('*')
           .eq('id', userId)
           .maybeSingle();
+
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile check timeout')), 3000)
+        );
+
+        const { data, error } = await Promise.race([profileQuery, timeout]);
 
         if (isMounted) {
           if (!error && data) {
             setIsDriver(true);
+            localStorage.setItem('driver_data', JSON.stringify({
+              id: data.id,
+              driver_id: data.driver_id || data.id,
+              name: data.name || 'Driver',
+              status: data.status || 'On Field',
+              ...data
+            }));
           } else {
             setIsDriver(false);
+            localStorage.removeItem('driver_data');
+            localStorage.removeItem('driver_session');
           }
         }
       } catch (err) {
         console.error('Error checking driver profile:', err);
-        if (isMounted) setIsDriver(false);
+        if (isMounted) {
+          setIsDriver(false);
+          localStorage.removeItem('driver_data');
+          localStorage.removeItem('driver_session');
+        }
       } finally {
         if (isMounted) setIsCheckingRole(false);
       }
@@ -97,6 +135,8 @@ export default function Layout() {
       } else {
         if (isMounted) {
           setIsDriver(false);
+          localStorage.removeItem('driver_data');
+          localStorage.removeItem('driver_session');
           setIsCheckingRole(false);
         }
       }
@@ -111,6 +151,8 @@ export default function Layout() {
       } else {
         if (isMounted) {
           setIsDriver(false);
+          localStorage.removeItem('driver_data');
+          localStorage.removeItem('driver_session');
           setIsCheckingRole(false);
         }
       }
@@ -132,6 +174,8 @@ export default function Layout() {
       console.error('Server logout error:', err);
     }
     await supabase.auth.signOut();
+    localStorage.removeItem('driver_data');
+    localStorage.removeItem('driver_session');
     setUser(null);
     setIsDriver(false);
     setIsCheckingRole(false);
@@ -298,7 +342,6 @@ export default function Layout() {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
-            {/* Backdrop overlay to close menu when tapping outside */}
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -310,7 +353,6 @@ export default function Layout() {
               className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30" 
             />
 
-            {/* Mobile Menu Box */}
             <motion.div 
               initial={{ opacity: 0, height: 0 }} 
               animate={{ opacity: 1, height: 'auto' }} 
