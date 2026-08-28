@@ -5,7 +5,6 @@ import DriverHeader from './DriverHeader';
 import { toast } from 'sonner';
 import { 
   QrCode, 
-  Camera, 
   ChevronRight, 
   X, 
   Loader2, 
@@ -16,9 +15,7 @@ import {
   LayoutDashboard,
   Package,
   Scan,
-  User,
-  Flashlight,
-  Upload
+  User
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -51,193 +48,72 @@ export default function DriverScanShipments() {
     };
   });
 
-  const videoRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [cameraError, setCameraError] = useState(false);
-  const [flashlightOn, setFlashlightOn] = useState(false);
+  const scannerRef = useRef(null);
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const scanningRef = useRef(false);
 
-  // Start camera on mount for desktop or live preview browsers
+  // Initialize fully reliable built-in Html5QrcodeScanner on mount
   useEffect(() => {
-    startCamera();
+    let isMounted = true;
+    let scannerInstance = null;
+
+    const loadAndInitScanner = async () => {
+      if (!window.Html5QrcodeScanner) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      if (!isMounted) return;
+
+      try {
+        scannerInstance = new window.Html5QrcodeScanner(
+          "inline-scanner-container",
+          { 
+            fps: 15, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            rememberLastUsedCamera: true
+          },
+          false
+        );
+
+        scannerInstance.render(
+          (decodedText) => {
+            if (decodedText) {
+              toast.success(`Scanned: ${decodedText}`);
+              if (scannerRef.current) {
+                scannerRef.current.clear().catch(() => {});
+              }
+              handleLookupShipment(decodedText);
+            }
+          },
+          (error) => {
+            // Suppress continuous frame scan noise
+          }
+        );
+        scannerRef.current = scannerInstance;
+      } catch (err) {
+        console.error("Built-in scanner failed to initialize:", err);
+        toast.error("Could not start camera scanner. Use manual entry below.");
+      }
+    };
+
+    loadAndInitScanner();
+
     return () => {
-      stopCamera();
+      isMounted = false;
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+      }
     };
   }, []);
-
-  const startCamera = async () => {
-    try {
-      setCameraError(false);
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-        startBarcodeScanning();
-      }
-    } catch (err) {
-      console.warn('Camera stream restricted in PWA web manifest, falling back to native capture trigger:', err);
-      setCameraError(true);
-      setCameraActive(false);
-    }
-  };
-
-  const stopCamera = () => {
-    scanningRef.current = false;
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-    }
-  };
-
-  // Automatic Native Barcode/QR Scanning Loop (for desktop/supported browsers)
-  const startBarcodeScanning = async () => {
-    let detector = null;
-    if ('BarcodeDetector' in window) {
-      try {
-        detector = new window.BarcodeDetector({
-          formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a']
-        });
-      } catch (e) {
-        // Fallback
-      }
-    }
-
-    if (!detector && !window.jsQR) {
-      try {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      } catch (err) {
-        return;
-      }
-    }
-
-    scanningRef.current = true;
-    const canvasElement = document.createElement('canvas');
-    const canvasContext = canvasElement.getContext('2d', { willReadFrequently: true });
-
-    const detectFrame = async () => {
-      if (!scanningRef.current || !videoRef.current) return;
-      
-      if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-        try {
-          if (detector) {
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes.length > 0 && barcodes[0].rawValue) {
-              scanningRef.current = false;
-              toast.success(`Scanned code: ${barcodes[0].rawValue}`);
-              handleLookupShipment(barcodes[0].rawValue);
-              return;
-            }
-          } else if (window.jsQR) {
-            const video = videoRef.current;
-            canvasElement.width = video.videoWidth;
-            canvasElement.height = video.videoHeight;
-            if (canvasElement.width > 0 && canvasElement.height > 0) {
-              canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-              const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
-              const code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
-              if (code && code.data) {
-                scanningRef.current = false;
-                toast.success(`Scanned code: ${code.data}`);
-                handleLookupShipment(code.data);
-                return;
-              }
-            }
-          }
-        } catch (err) {
-          // Suppress frame read noise
-        }
-      }
-      if (scanningRef.current) {
-        requestAnimationFrame(detectFrame);
-      }
-    };
-
-    requestAnimationFrame(detectFrame);
-  };
-
-  // Handle Native Camera Snapshot Capture (Bypasses PWA Web Manifest constraints)
-  const handleNativeCapture = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setLoadingSearch(true);
-    toast.info('Processing captured code...');
-
-    try {
-      if (!window.jsQR) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      }
-
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-          
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = window.jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
-
-          if (code && code.data) {
-            toast.success(`Captured: ${code.data}`);
-            handleLookupShipment(code.data);
-          } else {
-            setLoadingSearch(false);
-            toast.error('No barcode/QR code detected in photo. Please try again.');
-          }
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      setLoadingSearch(false);
-      toast.error('Failed to process image');
-    }
-  };
-
-  const toggleFlashlight = async () => {
-    try {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject;
-        const track = stream.getVideoTracks()[0];
-        if (!track) {
-          toast.error('No camera track available');
-          return;
-        }
-        const newTorchState = !flashlightOn;
-        await track.applyConstraints({ advanced: [{ torch: newTorchState }] });
-        setFlashlightOn(newTorchState);
-        toast.success(newTorchState ? 'Flashlight enabled' : 'Flashlight disabled');
-      } else {
-        toast.error('Live camera stream not active. Use native camera button below.');
-      }
-    } catch (err) {
-      toast.info('Flashlight control is handled by your device native camera');
-    }
-  };
 
   // Handle lookup by scanned or typed tracking number and redirect securely
   const handleLookupShipment = async (trackingNum) => {
@@ -269,7 +145,6 @@ export default function DriverScanShipments() {
 
       setShowManualModal(false);
       setManualInput('');
-      stopCamera();
       
       navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
     } catch (err) {
@@ -316,57 +191,11 @@ export default function DriverScanShipments() {
         </header>
 
         {/* Content Body */}
-        <div className="p-6 space-y-6 max-w-5xl w-full mx-auto">
+        <div className="p-6 space-y-6 max-w-xl w-full mx-auto">
           
-          {/* Hidden Native File Input for Mobile App-Style Camera Snapping */}
-          <input 
-            ref={fileInputRef}
-            type="file" 
-            accept="image/*" 
-            capture="environment" 
-            className="hidden" 
-            onChange={handleNativeCapture}
-          />
-
-          {/* ================= CAMERA VIEWPORT CARD ================= */}
-          <div className="relative rounded-3xl overflow-hidden bg-neutral-950 border border-slate-200 shadow-sm aspect-[4/5] sm:aspect-[21/9] lg:aspect-[16/7] flex items-center justify-center group">
-            
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
-              className={`w-full h-full object-cover ${cameraError ? 'hidden' : 'block'}`}
-            />
-
-            {/* Native Camera Trigger Overlay (Perfect for PWA web manifests) */}
-            <div className="absolute inset-0 bg-neutral-950/40 backdrop-blur-3xs flex flex-col items-center justify-center text-center p-6 space-y-4">
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={loadingSearch}
-                className="px-6 py-4 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-2xl font-black text-sm shadow-xl flex items-center gap-3 transition-transform active:scale-95 cursor-pointer"
-              >
-                {loadingSearch ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-                <span>Open Native Camera Scanner</span>
-              </button>
-              <p className="text-white/70 text-xs max-w-xs font-medium">
-                Launches your phone camera app to instantly snap and read shipping labels.
-              </p>
-            </div>
-
-            {/* Flashlight Toggle */}
-            <div className="absolute bottom-6 z-10">
-              <button 
-                onClick={toggleFlashlight}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer ${
-                  flashlightOn ? 'bg-amber-400 text-slate-900' : 'bg-white/20 backdrop-blur-md text-white hover:bg-white/30'
-                }`}
-                title="Toggle Flashlight"
-              >
-                <Flashlight className="w-5 h-5" />
-              </button>
-            </div>
-
+          {/* ================= BUILT-IN INLINE CAMERA SCANNER ================= */}
+          <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm overflow-hidden">
+            <div id="inline-scanner-container" className="w-full overflow-hidden rounded-2xl"></div>
           </div>
 
           {/* ================= OR DIVIDER ================= */}
