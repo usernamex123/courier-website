@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseClient';
 import DriverHeader from './DriverHeader';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -20,14 +20,6 @@ import {
   X
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
-
-// Safe Supabase Initializer
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
-);
 
 export default function DriverDashboard() {
   const navigate = useNavigate();

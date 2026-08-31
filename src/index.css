@@ -10,6 +10,7 @@ body {
   margin: 0;
   min-width: 320px;
   background: #020617;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -27,13 +28,6 @@ header, nav {
   transform: translateZ(0);
 }
 
-/* Off-screen performance boost for heavy sections */
-section {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 500px;
-}
-
-/* Print settings to remove browser headers, footers, and page numbers */
 @media print {
   @page {
     margin: 0;

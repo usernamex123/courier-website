@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Search, Download, ChevronRight, Loader2, Trash2 } from "lucide-react";
+import { Plus, Search, Download, ChevronRight, Loader2, Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabaseClient";
 import EntityFormModal, { STATUSES, SERVICES, PAYMENTS } from "./AdminShipments1";
 import ShipmentsDetail from "./ShipmentsDetail";
+
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname || 'localhost' : 'localhost';
+  return `${protocol}//${hostname}:5000`;
+};
+
+const API_URL = getApiUrl();
 
 // --- Inline UI Components ---
 
@@ -11,7 +22,7 @@ const StatusBadge = ({ status }) => {
   const s = (status || "").toLowerCase();
   let colors = "bg-gray-100 text-gray-700 border-gray-200";
   if (s === "delivered") colors = "bg-green-50 text-green-700 border-green-200";
-  if (s === "in_transit" || s === "out_for_delivery") colors = "bg-blue-50 text-blue-700 border-blue-200";
+  if (s === "in_transit" || s === "out_for_delivery" || s === "assigned") colors = "bg-blue-50 text-blue-700 border-blue-200";
   if (s === "pending" || s === "picked_up" || s === "created") colors = "bg-gray-100 text-gray-800 border-gray-200";
   if (s === "failed" || s === "returned") colors = "bg-red-50 text-red-700 border-red-200";
 
@@ -44,7 +55,7 @@ const BulkActionBar = ({ count, onClear, children }) => {
         <span className="text-sm font-bold uppercase tracking-wider text-gray-900">Shipments Selected</span>
         <button onClick={onClear} className="text-sm text-gray-500 hover:text-gray-900 underline ml-2 cursor-pointer">Clear Selection</button>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         {children}
       </div>
     </div>
@@ -56,11 +67,14 @@ const BulkActionBar = ({ count, onClear, children }) => {
 export default function AdminShipments() {
   const [items, setItems] = useState([]);
   const [invoicesMap, setInvoicesMap] = useState({});
+  const [drivers, setDrivers] = useState([]);
+  const [driversMap, setDriversMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [driverFilter, setDriverFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -90,6 +104,21 @@ export default function AdminShipments() {
         });
         setInvoicesMap(map);
       }
+
+      const { data: driverData, error: driverError } = await supabase
+        .from('driver_profiles')
+        .select('id, driver_id, name');
+      
+      if (!driverError && driverData) {
+        const dMap = {};
+        const idMap = {};
+        driverData.forEach((d) => {
+          if (d.id) dMap[d.id] = d.name;
+          if (d.driver_id) idMap[d.driver_id] = d.name;
+        });
+        setDrivers(driverData);
+        setDriversMap({ ...dMap, ...idMap });
+      }
     } catch (err) {
       console.error("Error loading shipments:", err);
       toast.error("Failed to load shipments");
@@ -108,6 +137,9 @@ export default function AdminShipments() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
         load();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_profiles' }, () => {
+        load();
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -117,19 +149,24 @@ export default function AdminShipments() {
   const filtered = items.filter((s) => {
     const q = query.toLowerCase();
     const invNum = (invoicesMap[s.id] || "").toLowerCase();
+    const driverName = (s.driver_id ? (driversMap[s.driver_id] || "") : "").toLowerCase();
+
     const matchQ = !q || 
       (s.tracking_number || "").toLowerCase().includes(q) || 
       invNum.includes(q) ||
       (s.origin || "").toLowerCase().includes(q) || 
       (s.destination || "").toLowerCase().includes(q) || 
       (s.recipient_name || "").toLowerCase().includes(q) ||
-      (s.sender_name || "").toLowerCase().includes(q);
+      (s.sender_name || "").toLowerCase().includes(q) ||
+      driverName.includes(q);
     
     const matchStatus = statusFilter === "all" || (s.current_status || "").toLowerCase() === statusFilter.toLowerCase();
     const matchService = serviceFilter === "all" || (s.service_type || "").toLowerCase() === serviceFilter.toLowerCase();
     const matchPayment = paymentFilter === "all" || (s.payment_status || "").toLowerCase() === paymentFilter.toLowerCase();
+    const matchDriver = driverFilter === "all" || 
+      (driverFilter === "unassigned" ? !s.driver_id : s.driver_id === driverFilter);
 
-    return matchQ && matchStatus && matchService && matchPayment;
+    return matchQ && matchStatus && matchService && matchPayment && matchDriver;
   });
 
   const getId = (s) => s.id;
@@ -147,11 +184,17 @@ export default function AdminShipments() {
   const handleDelete = async () => {
     try {
       const id = getId(deleting);
-      await supabase.from('tracking_events').delete().eq('shipment_id', id);
-      await supabase.from('invoices').delete().eq('shipment_id', id);
+      
+      const res = await fetch(`${API_URL}/api/admin/shipments/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
 
-      const { error } = await supabase.from('shipments').delete().eq('id', id);
-      if (error) throw error;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete shipment");
+      }
+  
       toast.success("Shipment deleted successfully");
       setDeleting(null);
       load();
@@ -177,20 +220,68 @@ export default function AdminShipments() {
     }
   };
 
+  const bulkAssignDriver = async (driverId) => {
+    if (!selected.size || !driverId) return;
+    try {
+      const driverObj = drivers.find(d => d.id === driverId || d.driver_id === driverId);
+      const driverName = driverObj ? driverObj.name : "Assigned Driver";
+
+      const { error } = await supabase
+        .from('shipments')
+        .update({ 
+          driver_id: driverId,
+          current_status: 'assigned',
+          status: 'assigned'
+        })
+        .in('id', [...selected]);
+
+      if (error) throw error;
+
+      for (const id of selected) {
+        const shipment = items.find(s => s.id === id);
+        const isValidUUID = (val) => {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          return typeof val === 'string' && uuidRegex.test(val);
+        };
+        await supabase.from('tracking_events').insert({
+          shipment_id: id,
+          customer_user_id: isValidUUID(shipment?.user_id) ? shipment.user_id : null,
+          status: 'assigned',
+          location: shipment?.origin || 'Facility',
+          description: `Driver ${driverName} assigned to shipment.`,
+          event_time: new Date().toISOString()
+        }).catch(() => {});
+      }
+
+      toast.success(`${selected.size} shipments assigned to ${driverName}`);
+      setSelected(new Set());
+      load();
+    } catch (err) {
+      console.error("Bulk assign driver error:", err);
+      toast.error("Bulk driver assignment failed");
+    }
+  };
+
   const bulkDelete = async () => {
     try {
       const ids = [...selected];
       
-      await supabase.from('tracking_events').delete().in('shipment_id', ids);
-      await supabase.from('invoices').delete().in('shipment_id', ids);
+      let successCount = 0;
+      for (const id of ids) {
+        const res = await fetch(`${API_URL}/api/admin/shipments/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        if (res.ok) {
+          successCount++;
+        }
+      }
 
-      const { error } = await supabase
-        .from('shipments')
-        .delete()
-        .in('id', ids);
-      if (error) throw error;
+      if (successCount === 0 && ids.length > 0) {
+        throw new Error("Failed to delete selected shipments.");
+      }
 
-      toast.success(`${ids.length} shipments deleted successfully`);
+      toast.success(`${successCount} shipments deleted successfully`);
       setSelected(new Set());
       load();
     } catch (err) {
@@ -200,13 +291,14 @@ export default function AdminShipments() {
   };
 
   const exportCsv = () => {
-    const rows = [["Tracking", "Invoice #", "Customer", "Route", "Service", "Status", "Payment", "Price", "Created"]];
+    const rows = [["Tracking", "Invoice #", "Customer", "Route", "Service", "Driver", "Status", "Payment", "Price", "Created"]];
     filtered.forEach((s) => rows.push([
       s.tracking_number, 
       invoicesMap[s.id] || "",
       s.recipient_name,
       `${s.origin} -> ${s.destination}`, 
       s.service_type, 
+      s.driver_id ? (driversMap[s.driver_id] || s.driver_id) : "Unassigned",
       s.current_status, 
       s.payment_status,
       s.price, 
@@ -232,7 +324,7 @@ export default function AdminShipments() {
             <input 
               value={query} 
               onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Search tracking, invoice #, customer, route..." 
+              placeholder="Search tracking, invoice #, customer, route, driver..." 
               className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400" 
             />
           </div>
@@ -253,7 +345,7 @@ export default function AdminShipments() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-2 border-t border-gray-100">
           <select 
             value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value)} 
@@ -280,6 +372,16 @@ export default function AdminShipments() {
             <option value="all">All Payments</option>
             {PAYMENTS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
           </select>
+
+          <select 
+            value={driverFilter} 
+            onChange={(e) => setDriverFilter(e.target.value)} 
+            className="bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-500 shadow-sm cursor-pointer font-medium w-full"
+          >
+            <option value="all">All Drivers</option>
+            <option value="unassigned">Unassigned</option>
+            {drivers.map((d) => <option key={d.id || d.driver_id} value={d.id || d.driver_id}>{d.name}</option>)}
+          </select>
         </div>
       </div>
 
@@ -291,6 +393,14 @@ export default function AdminShipments() {
         >
           <option value="" disabled>Update Status…</option>
           {STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ").toUpperCase()}</option>)}
+        </select>
+        <select 
+          onChange={(e) => e.target.value && bulkAssignDriver(e.target.value)} 
+          defaultValue="" 
+          className="py-2.5 px-3.5 rounded-xl bg-white text-gray-900 text-sm font-bold uppercase tracking-wider border border-gray-300 outline-none cursor-pointer shadow-sm"
+        >
+          <option value="" disabled>Assign Driver…</option>
+          {drivers.map((d) => <option key={d.id || d.driver_id} value={d.id || d.driver_id}>{d.name}</option>)}
         </select>
         <button 
           onClick={bulkDelete} 
@@ -318,6 +428,7 @@ export default function AdminShipments() {
             const sId = getId(s);
             const isSel = selected.has(sId);
             const invoiceNum = invoicesMap[sId];
+            const driverName = s.driver_id ? (driversMap[s.driver_id] || "Assigned Driver") : null;
             const formattedDate = s.created_at 
               ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : "—";
@@ -361,6 +472,12 @@ export default function AdminShipments() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Route</span>
                     <span className="font-medium text-gray-800 truncate max-w-[200px]" title={routeText}>{routeText}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Driver</span>
+                    <span className={`font-semibold ${driverName ? 'text-blue-700' : 'text-gray-400'}`}>
+                      {driverName || 'Unassigned'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Service / Pay</span>
@@ -424,28 +541,29 @@ export default function AdminShipments() {
                   className="w-4 h-4 rounded accent-yellow-500 cursor-pointer" 
                 />
               </th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[14%]">Tracking / Invoice</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[13%]">Customer</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[17%]">Route</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[13%]">Tracking / Invoice</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[11%]">Customer</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[15%]">Route</th>
               <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Service</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[11%]">Status</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Payment</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs text-right w-[9%]">Price</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Created</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[11%]">Driver</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Status</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[9%]">Payment</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs text-right w-[8%]">Price</th>
+              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[9%]">Created</th>
               <th className="px-3.5 py-4 w-16 text-right"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={10} className="text-center py-20 text-gray-500">
+                <td colSpan={11} className="text-center py-20 text-gray-500">
                   <Loader2 className="w-6 h-6 text-yellow-600 animate-spin mx-auto mb-2" />
                   Loading system shipments...
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-20 text-gray-500">
+                <td colSpan={11} className="text-center py-20 text-gray-500">
                   No active shipments registered in the database.
                 </td>
               </tr>
@@ -454,6 +572,7 @@ export default function AdminShipments() {
                 const sId = getId(s);
                 const isSel = selected.has(sId);
                 const invoiceNum = invoicesMap[sId];
+                const driverName = s.driver_id ? (driversMap[s.driver_id] || "Assigned") : "Unassigned";
                 const formattedDate = s.created_at 
                   ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                   : "—";
@@ -494,6 +613,12 @@ export default function AdminShipments() {
                     </td>
                     <td className="px-3.5 py-4.5 text-gray-700 font-medium truncate" title={s.service_type || "Standard"}>
                       {s.service_type || "Standard"}
+                    </td>
+                    <td className="px-3.5 py-4.5 truncate" title={driverName}>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-lg inline-flex items-center gap-1 ${s.driver_id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-500'}`}>
+                        <UserCheck className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{driverName}</span>
+                      </span>
                     </td>
                     <td className="px-3.5 py-4.5 truncate">
                       <StatusBadge status={s.current_status} />

@@ -17,7 +17,12 @@ export default function AdminLayout() {
   const isFinancePath = location.pathname.startsWith('/admin/finance');
   const [financeOpen, setFinanceOpen] = useState(isFinancePath);
 
-  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (isFinancePath) {
+      setFinanceOpen(true);
+    }
+  }, [location.pathname, isFinancePath]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -54,18 +59,46 @@ export default function AdminLayout() {
     { label: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
+  const getPageTitle = () => {
+    const currentPath = location.pathname;
+    if (currentPath.includes('shipments')) return 'Shipments';
+    if (currentPath.includes('customers')) return 'Customers';
+    if (currentPath.includes('drivers')) return 'Drivers';
+    if (currentPath.includes('fleet')) return 'Fleet';
+    if (currentPath.includes('warehouses')) return 'Warehouses';
+    if (currentPath.includes('finance')) return 'Finance Management';
+    if (currentPath.includes('branches')) return 'Branches';
+    if (currentPath.includes('messages')) return 'Quotes & Messages';
+    if (currentPath.includes('tracking')) return 'Live Tracking';
+    if (currentPath.includes('settings')) return 'Admin Settings';
+    return 'Dashboard';
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900" style={{ scrollbarGutter: 'stable' }}>
-      {/* Sidebar for Desktop & Mobile - Locked w-64 with shrink-0 */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 shrink-0 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="h-16 flex items-center px-6 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center font-black text-gray-900 shadow-sm">JB</span>
-            <span className="font-black tracking-tight text-lg text-gray-900">Logistics</span>
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 relative">
+      {/* Mobile Backdrop Overlay */}
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)} 
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-xs transition-opacity"
+        />
+      )}
+
+      {/* Sidebar - Pinned completely fixed so charts can never affect its width */}
+      <aside 
+        style={{ width: '288px', minWidth: '288px', maxWidth: '288px' }}
+        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 flex flex-col h-screen transition-transform duration-200 ease-in-out ${
+          sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center font-black text-gray-900 shadow-sm shrink-0">JB</span>
+            <span className="font-black tracking-tight text-lg text-gray-900 truncate">Logistics</span>
           </div>
         </div>
 
-        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100dvh-4rem)]">
+        <nav className="p-4 space-y-1 overflow-y-auto flex-1">
           {topNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -76,14 +109,14 @@ export default function AdminLayout() {
                   navigate(item.path);
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer min-w-0 ${
                   isActive 
                     ? 'bg-amber-400 text-gray-900 shadow-sm font-black' 
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
-                {item.label}
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
@@ -92,20 +125,20 @@ export default function AdminLayout() {
           <div className="pt-1">
             <button
               onClick={() => setFinanceOpen(!financeOpen)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer min-w-0 ${
                 isFinancePath 
                   ? 'bg-amber-400 text-gray-900 shadow-sm font-black' 
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Wallet className={`w-4 h-4 ${isFinancePath ? 'text-gray-900' : 'text-gray-500'}`} />
-                <span>Finance</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <Wallet className={`w-4 h-4 shrink-0 ${isFinancePath ? 'text-gray-900' : 'text-gray-500'}`} />
+                <span className="truncate">Finance</span>
               </div>
               {financeOpen ? (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-4 h-4 shrink-0 ml-2" />
               ) : (
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 shrink-0 ml-2" />
               )}
             </button>
 
@@ -121,14 +154,14 @@ export default function AdminLayout() {
                         navigate(sub.path);
                         setSidebarOpen(false);
                       }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer min-w-0 ${
                         isSubActive
                           ? 'bg-amber-100 text-amber-900 font-black'
                           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }`}
                     >
-                      <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-amber-700' : 'text-gray-400'}`} />
-                      <span>{sub.label}</span>
+                      <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-amber-700' : 'text-gray-400'}`} />
+                      <span className="truncate">{sub.label}</span>
                     </button>
                   );
                 })}
@@ -146,14 +179,14 @@ export default function AdminLayout() {
                   navigate(item.path);
                   setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer min-w-0 ${
                   isActive 
                     ? 'bg-amber-400 text-gray-900 shadow-sm font-black' 
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
-                {item.label}
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
@@ -161,41 +194,40 @@ export default function AdminLayout() {
           <div className="pt-6 mt-6 border-t border-gray-100">
             <button
               onClick={() => navigate('/back-to-site')}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-600 hover:bg-gray-100 transition-all cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-600 hover:bg-gray-100 transition-all cursor-pointer min-w-0"
             >
-              &larr; Back to Site
+              <span className="shrink-0">&larr;</span>
+              <span className="truncate">Back to Site</span>
             </button>
           </div>
         </nav>
       </aside>
 
-      {/* Main Content Wrapper - Locked with lg:pl-64 */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
-        {/* Top Header Bar */}
-        <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 px-6 flex items-center justify-between overflow-visible">
-          <div className="flex items-center gap-4">
+      {/* Main Content Area - Offset by lg:pl-72 to sit cleanly beside the fixed sidebar */}
+      <div className="lg:pl-[288px] flex flex-col min-h-screen min-w-0">
+        <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-30 px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4 min-w-0">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-xl text-gray-600 hover:bg-gray-100 cursor-pointer"
+              className="lg:hidden p-2 rounded-xl text-gray-600 hover:bg-gray-100 cursor-pointer shrink-0"
             >
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <h1 className="text-sm font-black uppercase tracking-widest text-gray-900">Dashboard</h1>
+            <h1 className="text-sm font-black uppercase tracking-widest text-gray-900 truncate">{getPageTitle()}</h1>
           </div>
 
-          <div className="flex items-center gap-4 overflow-visible">
-            {/* Notification Bell with Properly Anchored Dropdown */}
+          <div className="flex items-center gap-4 overflow-visible shrink-0">
             <div className="relative overflow-visible" ref={dropdownRef}>
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors relative cursor-pointer shadow-sm"
+                className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors relative cursor-pointer shadow-sm shrink-0"
               >
                 <Bell className="w-4 h-4" />
                 <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white"></span>
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-fadeIn">
+                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden z-[100]">
                   <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                     <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">Incoming Inquiries & Follow-ups</h3>
                     <span className="text-[10px] font-bold text-gray-400">0 New</span>
@@ -221,7 +253,6 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* Page Content View */}
         <main className="p-6 lg:p-8 flex-1">
           <Outlet />
         </main>

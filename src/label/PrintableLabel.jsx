@@ -1,11 +1,6 @@
 import React, { forwardRef, useState, useEffect } from "react";
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from "../lib/supabaseClient";
 import { fmtDate } from "../lib/shipmentStatus";
-
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 100% Scannable QR Code generator function using a reliable API endpoint
 function generateQRCodeSVG(text, size = 120) {

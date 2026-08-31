@@ -7,4 +7,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error("Missing Supabase URL or Anon Key in environment variables.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Use a global singleton pattern to prevent multiple GoTrueClient instances
+// when Vite hot-reloads or components re-initialize in the same browser context.
+const globalForSupabase = globalThis;
+
+export const supabase = 
+  globalForSupabase.supabase || 
+  createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+
+if (import.meta.env.MODE !== 'production') {
+  globalForSupabase.supabase = supabase;
+}

@@ -5,15 +5,12 @@ import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, Legend } from "recharts";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
-import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client
+// Import central singleton Supabase instance
+import { supabase } from "../lib/supabaseClient";
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder'
-);
 
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {
@@ -34,7 +31,7 @@ const reportCards = [
 const getDefaultMonthsData = (yr) => {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   if (yr === 2026) {
-    // Exception: 5 remaining months of 2026 starting from August[cite: 5]
+    // Exception: 5 remaining months of 2026 starting from August
     return ["Aug", "Sep", "Oct", "Nov", "Dec"].map(m => ({
       month: m,
       shipments: 0,
@@ -42,7 +39,7 @@ const getDefaultMonthsData = (yr) => {
       deliveries: 0
     }));
   }
-  // Full 12 months for previous or other years[cite: 5]
+  // Full 12 months for previous or other years
   return monthNames.map(m => ({
     month: m,
     shipments: 0,
@@ -66,7 +63,7 @@ export default function AdminReports() {
       let shipmentsList = [];
       const token = localStorage.getItem('admin_token');
 
-      // 1. Try fetching from backend API[cite: 5]
+      // 1. Try fetching from backend API
       try {
         const res = await fetch(`${API_URL}/api/admin/shipments`, {
           headers: {
@@ -82,7 +79,7 @@ export default function AdminReports() {
         console.warn("API fetch shipments failed, trying Supabase...", e);
       }
 
-      // 2. Fallback to Supabase if API returned nothing[cite: 5]
+      // 2. Fallback to Supabase if API returned nothing
       if (shipmentsList.length === 0 && supabaseUrl && supabaseAnonKey) {
         const { data, error } = await supabase.from('shipments').select('*');
         if (!error && data) {
@@ -90,7 +87,7 @@ export default function AdminReports() {
         }
       }
 
-      // 3. Fallback to localStorage if still empty[cite: 5]
+      // 3. Fallback to localStorage if still empty
       if (shipmentsList.length === 0) {
         const local = localStorage.getItem('shipments') || localStorage.getItem('admin_shipments');
         if (local) {
@@ -100,7 +97,7 @@ export default function AdminReports() {
 
       setShipmentsCount(shipmentsList.length);
 
-      // Initialize month map with 0s for the selected year structure[cite: 5]
+      // Initialize month map with 0s for the selected year structure
       const monthMap = {};
       getDefaultMonthsData(selectedYear).forEach(m => {
         monthMap[m.month] = { ...m };
@@ -108,7 +105,7 @@ export default function AdminReports() {
 
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-      // Aggregate shipments filtered by selected year[cite: 5]
+      // Aggregate shipments filtered by selected year
       shipmentsList.forEach(s => {
         const dateStr = s.created_at || s.date || s.shipping_date || s.createdAt || new Date();
         const date = new Date(dateStr);
@@ -119,7 +116,7 @@ export default function AdminReports() {
         if (isNaN(monthIdx)) monthIdx = 7;
 
         if (year === selectedYear) {
-          // If viewing 2026 (Aug-Dec), clamp any earlier months into August so test shipments show up[cite: 5]
+          // If viewing 2026 (Aug-Dec), clamp any earlier months into August so test shipments show up
           if (selectedYear === 2026 && monthIdx < 7) {
             monthIdx = 7;
           }
@@ -129,7 +126,7 @@ export default function AdminReports() {
           if (monthMap[monthName]) {
             monthMap[monthName].shipments += 1;
 
-            // Prioritize current_status for accurate successful delivery matching[cite: 5]
+            // Prioritize current_status for accurate successful delivery matching
             const status = String(
               s.current_status || 
               s.status || 
@@ -188,7 +185,7 @@ export default function AdminReports() {
       const margin = 40;
       let y = 0;
 
-      // Branded header band[cite: 5]
+      // Branded header band
       doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 96, "F");
       doc.setFillColor(245, 158, 11); doc.rect(0, 96, pageW, 5, "F");
       doc.setTextColor(255, 255, 255);
@@ -200,7 +197,7 @@ export default function AdminReports() {
       doc.text("Confidential · Internal Use", pageW - margin, 60, { align: "right" });
 
       y = 130;
-      // Summary KPI strip[cite: 5]
+      // Summary KPI strip
       doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
       doc.text(`Executive Summary (${selectedYear})`, margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 18;
@@ -221,7 +218,7 @@ export default function AdminReports() {
       });
       y += 84;
 
-      // Monthly data table[cite: 5]
+      // Monthly data table
       doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(17, 24, 39);
       doc.text("Monthly Performance Breakdown", margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 14;
@@ -244,7 +241,7 @@ export default function AdminReports() {
       });
       y += 14;
 
-      // Charts capture[cite: 5]
+      // Charts capture
       const addChart = async (ref, title) => {
         if (!ref?.current) return;
         if (y > pageH - 220) { doc.addPage(); y = margin; }
@@ -262,7 +259,7 @@ export default function AdminReports() {
       await addChart(barRef, "Shipments vs Deliveries");
       await addChart(lineRef, "Revenue Trend");
 
-      // Footer on every page[cite: 5]
+      // Footer on every page
       const pages = doc.internal.getNumberOfPages();
       for (let p = 1; p <= pages; p++) {
         doc.setPage(p);

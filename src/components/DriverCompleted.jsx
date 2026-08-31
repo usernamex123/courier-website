@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import DriverHeader from './DriverHeader';
 import DriverSidebar from './DriverSidebar';
 import { toast } from 'sonner';
@@ -18,13 +17,8 @@ import {
   Clock
 } from 'lucide-react';
 
-// Safe Supabase Initializer
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
-);
+// Import central singleton Supabase instance
+import { supabase } from '../lib/supabaseClient';
 
 // Helper to format timestamps strictly in Ohio, Cleveland time (EST/EDT)
 const formatClevelandTime = (dateString) => {
@@ -63,7 +57,7 @@ export default function DriverCompleted() {
     verifyDriverAuth();
   }, [navigate]);
 
-  // Driver Authentication State[cite: 7]
+  // Driver Authentication State
   const [driver] = useState(() => {
     try {
       const savedDriverData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
@@ -86,10 +80,10 @@ export default function DriverCompleted() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Proof Modal State[cite: 7]
+  // Proof Modal State
   const [selectedProof, setSelectedProof] = useState(null);
 
-  // Determine correct driver identifier string[cite: 7]
+  // Determine correct driver identifier string
   const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
 
   useEffect(() => {
@@ -101,7 +95,7 @@ export default function DriverCompleted() {
   const fetchDeliveredShipments = async () => {
     setLoading(true);
     try {
-      // Fetch shipments joined with tracking_events for this driver[cite: 7]
+      // Fetch shipments joined with tracking_events for this driver
       const { data, error } = await supabase
         .from('shipments')
         .select(`
@@ -120,9 +114,8 @@ export default function DriverCompleted() {
 
       if (error) throw error;
 
-      // Map and extract exact delivery metadata from tracking_events[cite: 7]
+      // Map and extract exact delivery metadata from tracking_events
       const formattedShipments = (data || []).map(shipment => {
-        // Find the specific 'delivered' event in tracking_events[cite: 7]
         const deliveryEvent = shipment.tracking_events?.find(e => e.status === 'delivered') || {};
         
         return {
@@ -133,7 +126,7 @@ export default function DriverCompleted() {
         };
       });
 
-      // Sort by latest delivery time descending[cite: 7]
+      // Sort by latest delivery time descending
       formattedShipments.sort((a, b) => new Date(b.deliveryTime) - new Date(a.deliveryTime));
 
       setShipments(formattedShipments);
@@ -145,13 +138,13 @@ export default function DriverCompleted() {
     }
   };
 
-  // Pagination Logic[cite: 7]
+  // Pagination Logic
   const totalItems = shipments.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentShipments = shipments.slice(startIndex, startIndex + itemsPerPage);
 
-  // Real Statistics calculations[cite: 7]
+  // Real Statistics calculations
   const totalDeliveredCount = shipments.length;
   
   const now = new Date();
@@ -165,25 +158,25 @@ export default function DriverCompleted() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex">
       
-      {/* ================= SIDEBAR =================[cite: 7] */}
+      {/* ================= SIDEBAR ================= */}
       <DriverSidebar activePage="completed" />
 
-      {/* ================= MAIN CONTENT AREA =================[cite: 7] */}
+      {/* ================= MAIN CONTENT AREA ================= */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         
-        {/* ================= HEADER =================[cite: 7] */}
+        {/* ================= HEADER ================= */}
         <DriverHeader 
           title="Completed Deliveries" 
           subtitle="View delivery history and records" 
         />
 
-        {/* Content Body[cite: 7] */}
-        <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
+        {/* Content Body */}
+        <div className="p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* ================= TOP METRICS CARDS (2 Cards Only) =================[cite: 7] */}
+          {/* ================= TOP METRICS CARDS (2 Cards Only) ================= */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             
-            {/* Card 1: Total Delivered[cite: 7] */}
+            {/* Card 1: Total Delivered */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Delivered</p>
@@ -194,7 +187,7 @@ export default function DriverCompleted() {
               </div>
             </div>
 
-            {/* Card 2: This Month[cite: 7] */}
+            {/* Card 2: This Month */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">This Month</p>
@@ -207,9 +200,9 @@ export default function DriverCompleted() {
 
           </div>
 
-          {/* ================= DELIVERED SHIPMENTS TABLE =================[cite: 7] */}
+          {/* ================= DELIVERED SHIPMENTS TABLE / CARD CONTAINER ================= */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center">
               <h3 className="font-black text-lg text-slate-900 tracking-tight">Delivery History</h3>
               <button 
                 onClick={fetchDeliveredShipments} 
@@ -232,7 +225,43 @@ export default function DriverCompleted() {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
+                {/* 1. MOBILE CARD VIEW */}
+                <div className="lg:hidden p-4 space-y-3">
+                  {currentShipments.map((s) => {
+                    const clientName = s.recipient_name || s.client_name || 'Client Name';
+                    const formattedDate = formatClevelandTime(s.deliveryTime);
+
+                    return (
+                      <div key={s.id || s.tracking_number} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono text-xs">
+                            {s.tracking_number}
+                          </span>
+                          <button 
+                            onClick={() => setSelectedProof(s)}
+                            className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg font-bold transition-all inline-flex items-center gap-1 border border-slate-200 text-xs shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-500" /> View
+                          </button>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800">{clientName}</div>
+                        <div className="flex justify-between text-xs text-slate-600 border-t border-slate-200/60 pt-2">
+                          <span className="text-slate-400 font-medium">Route</span>
+                          <span className="font-bold text-slate-900 truncate max-w-[180px]">
+                            {s.origin || 'Kathmandu'} → {s.destination}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-600">
+                          <span className="text-slate-400 font-medium">Delivered On</span>
+                          <span className="font-mono font-bold text-slate-700">{formattedDate}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 2. DESKTOP TABLE VIEW */}
+                <div className="hidden lg:block overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-100 text-slate-500 text-xs uppercase font-black tracking-wider bg-slate-50/50">
@@ -249,26 +278,18 @@ export default function DriverCompleted() {
 
                         return (
                           <tr key={s.id || s.tracking_number} className="hover:bg-slate-50/60 transition-colors">
-                            
-                            {/* Shipment Column[cite: 7] */}
                             <td className="py-4 px-6 space-y-1">
                               <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono inline-block text-xs">
                                 {s.tracking_number}
                               </span>
                               <div className="font-bold text-slate-800 pl-0.5">{clientName}</div>
                             </td>
-
-                            {/* Route Column[cite: 7] */}
                             <td className="py-4 px-6 font-bold text-slate-900">
                               {s.origin || 'Kathmandu'} → {s.destination}
                             </td>
-
-                            {/* Delivered On Column (Cleveland Time)[cite: 7] */}
                             <td className="py-4 px-6 font-mono font-bold text-slate-700">
                               {formattedDate}
                             </td>
-
-                            {/* Proof Action Column[cite: 7] */}
                             <td className="py-4 px-6 text-right">
                               <button 
                                 onClick={() => setSelectedProof(s)}
@@ -277,7 +298,6 @@ export default function DriverCompleted() {
                                 <Eye className="w-3.5 h-3.5 text-slate-500" /> View
                               </button>
                             </td>
-
                           </tr>
                         );
                       })}
@@ -285,7 +305,7 @@ export default function DriverCompleted() {
                   </table>
                 </div>
 
-                {/* ================= PAGINATION FOOTER =================[cite: 7] */}
+                {/* ================= PAGINATION FOOTER ================= */}
                 <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/30">
                   <p className="text-xs font-semibold text-slate-500">
                     Showing <span className="font-bold text-slate-800">{startIndex + 1}–{Math.min(startIndex + itemsPerPage, totalItems)}</span> of <span className="font-bold text-slate-800">{totalItems}</span> delivered shipments
@@ -331,7 +351,7 @@ export default function DriverCompleted() {
         </div>
       </main>
 
-      {/* ================= PROOF DETAILS MODAL =================[cite: 7] */}
+      {/* ================= PROOF DETAILS MODAL ================= */}
       {selectedProof && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">

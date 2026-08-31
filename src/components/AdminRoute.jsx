@@ -6,8 +6,10 @@ import {
   RefreshCw, Search, Mail, Clock, Trash2, ExternalLink, ChevronUp, ChevronDown, ChevronRight,
   Wallet, CreditCard 
 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+
+// Import your central singleton Supabase instance from src/lib/supabaseClient.js using correct relative path
+import { supabase } from '../lib/supabaseClient';
 
 // Import your admin view components
 import AdminOverview from "./AdminDashboard";
@@ -39,14 +41,6 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
-
-// Initialize Supabase Client with fail-safe fallbacks
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder'
-);
 
 // Helper to fetch with Express session cookies attached automatically
 export const authenticatedFetch = async (url, options = {}) => {
@@ -154,15 +148,18 @@ function AdminSidebar({ open, onClose }) {
 
   return (
     <>
-      {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
-      <aside className={`fixed lg:sticky top-0 z-40 h-screen w-64 bg-white text-gray-600 border-r border-gray-200 flex flex-col justify-between transition-transform shadow-sm ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      {open && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
+      <aside 
+        style={{ width: '256px', minWidth: '256px', maxWidth: '256px' }}
+        className={`fixed inset-y-0 left-0 z-50 bg-slate-900 text-gray-300 border-r border-slate-800 flex flex-col justify-between transition-transform shadow-xl ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+      >
         <div>
-          <div className="h-16 flex items-center px-5 border-b border-gray-200 font-bold text-lg shrink-0">
-            <span className="text-yellow-600">JB</span>
-            <span className="text-gray-900 ml-1.5">Logistics</span>
+          <div className="h-16 flex items-center px-5 border-b border-slate-800 font-bold text-lg shrink-0">
+            <span className="text-yellow-400">JB</span>
+            <span className="text-white ml-1.5">Logistics</span>
           </div>
           
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 max-h-[calc(100dvh-120px)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 max-h-[calc(100dvh-120px)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
             {/* Top Navigation Items */}
             {topNavItems.map((item) => (
               <NavLink
@@ -171,7 +168,7 @@ function AdminSidebar({ open, onClose }) {
                 end={item.end}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "hover:bg-gray-100 hover:text-gray-900"}`
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "text-gray-300 hover:bg-slate-800 hover:text-white"}`
                 }
               >
                 <item.icon className="w-4 h-4 shrink-0" /> {item.label}
@@ -185,7 +182,7 @@ function AdminSidebar({ open, onClose }) {
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
                   isFinanceActive 
                     ? "bg-yellow-500 text-black font-black shadow-sm" 
-                    : "hover:bg-gray-100 hover:text-gray-900 text-gray-600"
+                    : "text-gray-300 hover:bg-slate-800 hover:text-white"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -205,8 +202,8 @@ function AdminSidebar({ open, onClose }) {
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${
                           isActive 
-                            ? "bg-yellow-100 text-yellow-900 font-black" 
-                            : "hover:bg-gray-100 hover:text-gray-900 text-gray-600"
+                            ? "bg-yellow-500 text-black font-black" 
+                            : "text-gray-400 hover:bg-slate-800 hover:text-white"
                         }`
                       }
                     >
@@ -225,7 +222,7 @@ function AdminSidebar({ open, onClose }) {
                 to={item.to}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "hover:bg-gray-100 hover:text-gray-900"}`
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${isActive ? "bg-yellow-500 text-black font-black shadow-sm" : "text-gray-300 hover:bg-slate-800 hover:text-white"}`
                 }
               >
                 <item.icon className="w-4 h-4 shrink-0" /> {item.label}
@@ -234,10 +231,10 @@ function AdminSidebar({ open, onClose }) {
           </nav>
         </div>
 
-        <div className="p-3 border-t border-gray-200 shrink-0 bg-gray-50">
+        <div className="p-3 border-t border-slate-800 shrink-0 bg-slate-900/50">
           <button 
             onClick={handleBackToSite}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:text-gray-900 font-medium cursor-pointer text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-300 hover:text-white font-medium cursor-pointer text-left"
           >
             <ChevronLeft className="w-4 h-4" /> Back to Site
           </button>
@@ -286,7 +283,7 @@ function NotificationQuotesBanner({ isOpen, onClose }) {
       setQuotes(messageList);
     } catch (err) {
       console.error('Failed to load quotes:', err);
-      if (supabaseUrl && supabaseAnonKey) {
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
         const { data, error: sbErr } = await supabase
           .from('messages')
           .select('*')
@@ -329,7 +326,7 @@ function NotificationQuotesBanner({ isOpen, onClose }) {
         credentials: 'include'
       }).catch(() => null);
 
-      if (supabaseUrl && supabaseAnonKey) {
+      if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
         await supabase.from('messages').delete().eq('id', id);
       }
 
@@ -567,13 +564,13 @@ export function AdminDashboardContainer() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col lg:flex-row relative">
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex relative">
       <AdminSidebar 
         open={sidebarOpen} 
         onClose={() => setSidebarOpen(false)} 
       />
 
-      <div className="flex-grow flex flex-col min-w-0">
+      <div className="flex-grow flex flex-col min-w-0 lg:pl-64">
         <AdminTopbar 
           onMenuClick={() => setSidebarOpen(true)} 
           title={getPageTitle()} 

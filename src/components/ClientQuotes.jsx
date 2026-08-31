@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { 
   Mail, Clock, Search, Trash2, Loader2, RefreshCw, 
   ExternalLink, Eye, CornerUpLeft, MapPin, Package, User, X, Send, Hash
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Import central singleton Supabase instance
+import { supabase } from "../lib/supabaseClient";
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder'
-);
 
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {
@@ -105,7 +103,6 @@ export default function ClientQuotes() {
   const handleDeleteMessage = async (e, id) => {
     e.stopPropagation();
     if (!id) return;
-    if (!window.confirm('Are you sure you want to delete this message?')) return;
 
     setDeletingId(id);
 
@@ -115,18 +112,22 @@ export default function ClientQuotes() {
         credentials: 'include'
       });
 
-      if (!res.ok) throw new Error('Failed to delete message');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete message');
+      }
 
       setQuotes(prev => prev.filter(q => q.id !== id));
       toast.success('Message deleted successfully');
     } catch (err) {
       console.error('Delete error:', err);
-      toast.error('Failed to delete message');
+      toast.error(err.message || 'Failed to delete message');
     } finally {
       setDeletingId(null);
     }
   };
-
+  
   const openReplyModal = (quote) => {
     setReplyingQuote(quote);
     setReplySubject(`Inquiry Follow-up: JB Logistics - ${quote.subject || quote.service || 'General Inquiry'}`);
@@ -239,213 +240,123 @@ export default function ClientQuotes() {
         </div>
       )}
 
-      {/* Main Table Container */}
-      <div className="w-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-md">
+      {/* Main Container */}
+      <div className="w-full space-y-4">
         {quotes.length === 0 ? (
-          <div className="text-center py-24 text-gray-500 font-semibold text-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl text-center py-24 text-gray-500 font-semibold text-sm shadow-sm">
             No client messages received yet.
           </div>
         ) : filteredQuotes.length === 0 ? (
-          <div className="text-center py-24 text-gray-500 font-semibold text-sm">
+          <div className="bg-white border border-gray-200 rounded-2xl text-center py-24 text-gray-500 font-semibold text-sm shadow-sm">
             No messages match your search criteria.
           </div>
         ) : (
-          <>
-            {/* MOBILE VIEW */}
-            <div className="lg:hidden space-y-4 p-5">
-              {filteredQuotes.map((quote, index) => {
-                const id = quote.id;
-                const clientName = quote.client_name || quote.name || 'Unnamed Client';
-                const clientEmail = quote.email || 'No email provided';
-                const initials = clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-                const subjectText = quote.subject || (quote.service ? `${quote.service} Quote` : 'General Inquiry');
-                const serviceText = quote.service || quote.mode || quote.source || 'Standard Message';
-                const customerId = quote.customer_id;
-                const status = quote.status || 'not_replied';
-                
-                const dateObj = quote.created_at ? new Date(quote.created_at) : new Date();
-                const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
-                const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
+          <div className="space-y-4">
+            {filteredQuotes.map((quote, index) => {
+              const id = quote.id;
+              const clientName = quote.client_name || quote.name || 'Unnamed Client';
+              const clientEmail = quote.email || 'No email provided';
+              const initials = clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+              const subjectText = quote.subject || (quote.service ? `${quote.service} Quote` : 'General Inquiry');
+              const sourceText = quote.source || quote.service || 'Get Started Form';
+              const routeOrState = (quote.from_state && quote.to_state) 
+                ? `${quote.from_state} → ${quote.to_state}` 
+                : (quote.from_state || quote.to_state || quote.state || quote.origin || 'N/A');
+              const customerId = quote.customer_id;
+              const status = quote.status || 'not_replied';
+              
+              const rawMsg = quote.message || quote.content || '';
+              const cleanMsg = rawMsg.includes('Message:') ? rawMsg.substring(rawMsg.indexOf('Message:') + 8).trim() : rawMsg;
+              const messagePreview = cleanMsg || 'No message content provided.';
 
-                return (
-                  <div key={id || index} className="bg-gray-50/80 border border-gray-200 rounded-2xl p-4 space-y-4 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 bg-yellow-100 text-yellow-900 font-extrabold text-xs flex items-center justify-center shrink-0 uppercase rounded-full shadow-inner">
-                          {initials || 'CL'}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-bold text-sm text-gray-900 flex flex-wrap items-center gap-2">
-                            <span className="truncate">{clientName}</span>
-                            {customerId && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 text-xs font-mono font-bold rounded-md shrink-0" title={`Customer ID: ${customerId}`}>
-                                <Hash className="w-3 h-3" /> #{customerId}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-600 font-medium truncate mt-0.5">{clientEmail}</div>
-                        </div>
+              const dateObj = quote.created_at ? new Date(quote.created_at) : new Date();
+              const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+              const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
+
+              return (
+                <div key={id || index} className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 shadow-sm hover:shadow-md transition-all">
+                  {/* Top Row: Client Info & Status Badge */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 bg-yellow-100 text-yellow-900 font-extrabold text-xs flex items-center justify-center shrink-0 uppercase rounded-full shadow-inner">
+                        {initials || 'CL'}
                       </div>
-                      <span className={`self-start sm:self-auto px-3 py-1 text-xs font-extrabold uppercase border rounded-xl shadow-2xs ${STATUS_STYLES[status] || STATUS_STYLES.not_replied}`}>
-                        {status === 'replied' ? 'Replied' : 'Not Replied'}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-sm pt-2 border-t border-gray-200/80">
-                      <div className="font-bold text-gray-900 truncate">{subjectText}</div>
-                      <div className="text-gray-600 text-xs font-medium truncate">{serviceText}</div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-200/80 text-xs">
-                      <div className="font-mono text-gray-600 font-semibold">
-                        <span className="font-bold text-gray-900">{dateStr}</span> ({timeStr})
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedQuote(quote)}
-                          className="p-2 bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 rounded-xl transition-colors cursor-pointer shadow-sm"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteMessage(e, id)}
-                          disabled={deletingId === id}
-                          className="p-2 bg-white hover:bg-red-50 border border-gray-300 text-gray-700 hover:text-red-600 rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
-                          title="Delete"
-                        >
-                          {deletingId === id ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-red-600" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                          <span className="truncate">{clientName}</span>
+                          {customerId && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 text-xs font-mono font-bold rounded-md shrink-0" title={`Customer ID: ${customerId}`}>
+                              <Hash className="w-3 h-3" /> #{customerId}
+                            </span>
                           )}
-                        </button>
+                        </div>
+                        <div className="text-xs text-gray-600 font-medium truncate mt-0.5">{clientEmail}</div>
                       </div>
+                    </div>
+                    <span className={`px-3.5 py-1.5 text-xs font-extrabold uppercase border rounded-xl shadow-2xs shrink-0 ${STATUS_STYLES[status] || STATUS_STYLES.not_replied}`}>
+                      {status === 'replied' ? 'Replied' : 'Not Replied'}
+                    </span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-100"></div>
+
+                  {/* Middle Section: Subject / Source, Route & Message Preview */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-gray-900 text-base">{subjectText}</div>
+                        <div className="text-gray-600 text-xs font-medium">{sourceText}</div>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-fit">
+                        <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                        <span className="truncate">Route: {routeOrState}</span>
+                      </div>
+                    </div>
+
+                    {/* Message Preview Snippet */}
+                    <div className="text-xs text-gray-600 bg-gray-50/80 border border-gray-100 p-3 rounded-xl line-clamp-2 font-medium">
+                      <span className="font-bold text-gray-700 mr-1">Message:</span> {messagePreview}
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* DESKTOP TABLE VIEW */}
-            <div className="hidden lg:block overflow-x-auto w-full">
-              <table className="w-full text-left border-collapse table-fixed">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-100/70 text-xs font-extrabold uppercase tracking-wider text-gray-600">
-                    <th className="px-4 py-4 w-[50px] text-center">#</th>
-                    <th className="px-4 py-4 w-[25%]">Client</th>
-                    <th className="px-4 py-4 w-[20%]">Subject / Source</th>
-                    <th className="px-4 py-4 w-[18%]">Details</th>
-                    <th className="px-4 py-4 w-[13%]">Status</th>
-                    <th className="px-4 py-4 w-[14%]">Date (Cleveland)</th>
-                    <th className="px-4 py-4 w-[10%] text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 text-sm font-medium text-gray-900">
-                  {filteredQuotes.map((quote, index) => {
-                    const id = quote.id;
-                    const clientName = quote.client_name || quote.name || 'Unnamed Client';
-                    const clientEmail = quote.email || 'No email provided';
-                    const initials = clientName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-                    const subjectText = quote.subject || (quote.service ? `${quote.service} Quote` : 'General Inquiry');
-                    const sourceText = quote.source || quote.service || 'Direct Submission';
-                    const routeOrState = (quote.from_state && quote.to_state) 
-                      ? `${quote.from_state} → ${quote.to_state}` 
-                      : (quote.from_state || quote.to_state || quote.state || quote.origin || 'N/A');
-                    const phoneNum = quote.phone || 'No phone';
-                    const customerId = quote.customer_id;
-                    const status = quote.status || 'not_replied';
-                    
-                    const dateObj = quote.created_at ? new Date(quote.created_at) : new Date();
-                    const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
-                    const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
+                  {/* Divider */}
+                  <div className="border-t border-gray-100"></div>
 
-                    return (
-                      <tr key={id || index} className="hover:bg-gray-50/85 transition-colors">
-                        <td className="px-4 py-4 text-gray-500 font-mono text-center font-bold text-sm align-middle">
-                          {index + 1}
-                        </td>
-
-                        <td className="px-4 py-4 align-middle">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-yellow-100 text-yellow-900 font-extrabold text-xs flex items-center justify-center shrink-0 uppercase rounded-full shadow-inner">
-                              {initials || 'CL'}
-                            </div>
-                            <div className="min-w-0 flex-1 pr-2">
-                              <div className="font-bold text-gray-900 text-sm flex flex-wrap items-center gap-1.5 mb-0.5">
-                                <span className="truncate max-w-[160px]" title={clientName}>{clientName}</span>
-                                {customerId && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 text-xs font-mono font-bold rounded-md shrink-0 shadow-2xs" title={`Customer ID: ${customerId}`}>
-                                    <Hash className="w-3 h-3" /> #{customerId}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-600 font-medium truncate" title={clientEmail}>{clientEmail}</div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-4 align-middle">
-                          <div className="font-bold text-gray-900 text-sm truncate" title={subjectText}>{subjectText}</div>
-                          <div className="text-xs text-gray-600 font-medium truncate mt-0.5" title={sourceText}>{sourceText}</div>
-                        </td>
-
-                        <td className="px-4 py-4 text-gray-700 space-y-1 align-middle">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold truncate">
-                            <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
-                            <span className="truncate" title={`Route: ${routeOrState}`}>Route: {routeOrState}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium truncate">
-                            <Package className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="truncate" title={`Phone: ${phoneNum}`}>Phone: {phoneNum}</span>
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-4 align-middle">
-                          <span className={`inline-flex items-center justify-center px-3 py-1.5 text-xs font-extrabold uppercase border rounded-xl shadow-2xs whitespace-nowrap ${STATUS_STYLES[status] || STATUS_STYLES.not_replied}`}>
-                            {status === 'replied' ? 'Replied' : 'Not Replied'}
-                          </span>
-                        </td>
-
-                        <td className="px-4 py-4 font-mono text-gray-700 whitespace-nowrap align-middle">
-                          <div className="text-xs font-bold text-gray-900">{dateStr}</div>
-                          <div className="text-xs text-gray-500 font-medium">{timeStr}</div>
-                        </td>
-
-                        <td className="px-4 py-4 text-right align-middle">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setSelectedQuote(quote)}
-                              className="p-2 bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 transition-colors rounded-xl cursor-pointer shadow-sm"
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              onClick={(e) => handleDeleteMessage(e, id)}
-                              disabled={deletingId === id}
-                              className="p-2 bg-white hover:bg-red-50 border border-gray-300 text-gray-700 hover:text-red-600 transition-colors rounded-xl cursor-pointer disabled:opacity-50 shadow-sm"
-                              title="Delete Message"
-                            >
-                              {deletingId === id ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-red-600" />
-                              ) : (
-                                <Trash2 className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
+                  {/* Bottom Row: Date & Action Buttons */}
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="font-mono text-gray-600 font-semibold">
+                      <span className="font-bold text-gray-900">{dateStr}</span> ({timeStr})
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedQuote(quote)}
+                        className="p-2 bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 rounded-xl transition-colors cursor-pointer shadow-sm"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteMessage(e, id)}
+                        disabled={deletingId === id}
+                        className="p-2 bg-white hover:bg-red-50 border border-gray-300 text-gray-700 hover:text-red-600 rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
+                        title="Delete"
+                      >
+                        {deletingId === id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-red-600" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
 
-        <div className="p-5 border-t border-gray-200 flex items-center justify-between bg-gray-50 text-sm text-gray-600 font-bold w-full">
+        <div className="bg-white border border-gray-200 p-5 rounded-2xl flex items-center justify-between text-sm text-gray-600 font-bold w-full shadow-sm">
           <span>Showing {filteredQuotes.length} of {quotes.length} total messages</span>
         </div>
       </div>

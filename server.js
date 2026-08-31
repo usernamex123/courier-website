@@ -8,10 +8,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 
-// Trust proxy is required when deployed behind reverse proxies (Render, Heroku, Vercel, etc.)
+// Trust proxy is required when deployed behind reverse proxies (Render, Heroku, Vercel, etc.)[cite: 6]
 app.set('trust proxy', 1);
 
-// Configure CORS to allow credentials (cookies) and cross-site requests
+// Configure CORS to allow credentials (cookies) and cross-site requests[cite: 6]
 app.use(cors({
     origin: true,
     credentials: true
@@ -20,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Express Session Middleware - Configured for Admin & Driver Auth
+// Express Session Middleware - Configured for Admin & Driver Auth[cite: 6]
 app.use(session({
     secret: process.env.SESSION_SECRET || 'jb-logistics-admin-secret-key-2026',
     resave: false,
@@ -33,7 +33,7 @@ app.use(session({
     }
 }));
 
-// ==================== SUPABASE INITIALIZATION ====================
+// ==================== SUPABASE INITIALIZATION ====================[cite: 6]
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -42,13 +42,13 @@ if (!supabaseUrl || !supabaseServiceKey) {
     console.error("CRITICAL ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing from environment variables.");
 }
 
-// 1. Public client used for authentication sign-in
+// 1. Public client used for authentication sign-in[cite: 6]
 const supabase = createClient(supabaseUrl || '', supabaseAnonKey || supabaseServiceKey || '');
 
-// 2. Admin client using the Service Role Key to completely bypass RLS for all backend queries
+// 2. Admin client using the Service Role Key to completely bypass RLS for all backend queries[cite: 6]
 const supabaseAdmin = createClient(supabaseUrl || '', supabaseServiceKey || supabaseAnonKey || '');
 
-// Admin Credentials read strictly from environment variables
+// Admin Credentials read strictly from environment variables[cite: 6]
 const ADMIN_CREDENTIALS = {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD
@@ -58,7 +58,7 @@ if (!ADMIN_CREDENTIALS.email || !ADMIN_CREDENTIALS.password) {
     console.error("CRITICAL ERROR: ADMIN_EMAIL or ADMIN_PASSWORD missing in environment variables.");
 }
 
-// Middleware to protect internal Admin API endpoints
+// Middleware to protect internal Admin API endpoints[cite: 6]
 function requireAdminAuth(req, res, next) {
     if (req.session && req.session.isAdmin) {
         return next();
@@ -66,7 +66,7 @@ function requireAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Admin session required.' });
 }
 
-// Middleware to protect internal Driver API endpoints
+// Middleware to protect internal Driver API endpoints[cite: 6]
 function requireDriverAuth(req, res, next) {
     if (req.session && req.session.isDriver) {
         return next();
@@ -74,7 +74,7 @@ function requireDriverAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Driver session required.' });
 }
 
-// ==================== ADMIN AUTH ENDPOINTS ====================
+// ==================== ADMIN AUTH ENDPOINTS ====================[cite: 6]
 
 app.post('/api/admin/login', (req, res) => {
     const { email, password } = req.body;
@@ -124,7 +124,7 @@ app.post('/api/admin/logout', (req, res) => {
     });
 });
 
-// ==================== DRIVER AUTH & PROFILE ENDPOINTS ====================
+// ==================== DRIVER AUTH & PROFILE ENDPOINTS ====================[cite: 6]
 
 app.post('/api/driver/login', async (req, res) => {
     try {
@@ -136,7 +136,7 @@ app.post('/api/driver/login', async (req, res) => {
 
         const cleanEmail = email.trim();
 
-        // Authenticate user via Supabase Auth
+        // Authenticate user via Supabase Auth[cite: 6]
         const { data, error } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password
@@ -144,7 +144,7 @@ app.post('/api/driver/login', async (req, res) => {
 
         if (error) throw error;
 
-        // Verify driver profile exists using supabaseAdmin (bypasses RLS successfully)
+        // Verify driver profile exists using supabaseAdmin (bypasses RLS successfully)[cite: 6]
         const { data: driverProfile, error: profileError } = await supabaseAdmin
             .from('driver_profiles')
             .select('*')
@@ -155,7 +155,7 @@ app.post('/api/driver/login', async (req, res) => {
             return res.status(403).json({ error: 'Access denied. No active driver profile found for this account.' });
         }
 
-        // Establish Express Driver Session
+        // Establish Express Driver Session[cite: 6]
         req.session.isDriver = true;
         req.session.driverId = driverProfile.id;
         req.session.driverEmail = driverProfile.email;
@@ -310,16 +310,40 @@ app.post('/api/driver/change-password', requireDriverAuth, async (req, res) => {
     }
 });
 
-// ==================== PROTECTED ADMIN API DATA ENDPOINTS ====================
+// ==================== PROTECTED ADMIN API DATA ENDPOINTS ====================[cite: 6]
 
 app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
     try {
-        const { data, error } = await supabaseAdmin.from('messages').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabaseAdmin
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false });
+
         if (error) throw error;
         return res.json(data || []);
     } catch (err) {
         console.error('Error fetching messages:', err);
         return res.status(500).json({ error: 'Failed to fetch messages.' });
+    }
+});
+
+app.delete('/api/admin/messages/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabaseAdmin
+            .from('messages')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            throw error;
+        }
+
+        return res.status(200).json({ success: true, message: 'Message deleted successfully from database.' });
+    } catch (err) {
+        console.error('Database delete error:', err);
+        return res.status(500).json({ error: err.message || 'Failed to delete message from database.' });
     }
 });
 
@@ -481,7 +505,35 @@ app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
     }
 });
 
-// ==================== ASSIGN DRIVER TO SHIPMENT ====================
+// Added Backend Admin Delete Endpoint for Shipments (bypasses RLS using supabaseAdmin)[cite: 6]
+app.delete('/api/admin/shipments/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. Delete dependent records first to prevent foreign key violations[cite: 6]
+        await supabaseAdmin.from('tracking_events').delete().eq('shipment_id', id);
+        await supabaseAdmin.from('invoices').delete().eq('shipment_id', id);
+
+        // 2. Delete the shipment record using supabaseAdmin[cite: 6]
+        const { data, error } = await supabaseAdmin
+            .from('shipments')
+            .delete()
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            return res.status(404).json({ error: "Shipment not found or already deleted." });
+        }
+
+        return res.json({ success: true, message: "Shipment deleted successfully" });
+    } catch (err) {
+        console.error('Error deleting shipment:', err);
+        return res.status(500).json({ error: err.message || 'Failed to delete shipment.' });
+    }
+});
+
+// ==================== ASSIGN DRIVER TO SHIPMENT ====================[cite: 6]
 app.put('/api/admin/shipments/:id/assign-driver', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;

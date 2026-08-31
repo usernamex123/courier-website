@@ -4,7 +4,6 @@ import { Toaster } from 'sonner';
 import Layout from "./layout/layout";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
-import GroundFreight from "./components/GroundFreight";
 import GetStarted from "./components/GetStarted";
 import DriverDashboard from "./components/DriverDashboard"; 
 import LegalNotice from "./components/LegalNotice";
@@ -113,7 +112,6 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="auth" element={<Auth />} />
-          <Route path="ground-freight" element={<GroundFreight />} />
           <Route path="get-started" element={<GetStarted />} />
           <Route path="privacy-policy" element={<LegalNotice />} />
         </Route>

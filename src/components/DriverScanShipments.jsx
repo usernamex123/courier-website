@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import DriverHeader from './DriverHeader';
 import { toast } from 'sonner';
@@ -21,13 +20,8 @@ import {
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
-// Safe Supabase Initializer
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
-);
+// Import central singleton Supabase instance
+import { supabase } from '../lib/supabaseClient';
 
 export default function DriverScanShipments() {
   const navigate = useNavigate();

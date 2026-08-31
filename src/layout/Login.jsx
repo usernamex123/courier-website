@@ -172,7 +172,7 @@ export default function Login() {
 
       toast.success('Welcome back!');
       toggleModal(false);
-      navigate('/');
+      navigate('/Dashboard');
 
     } catch (err) {
       console.error('Auth error:', err);
