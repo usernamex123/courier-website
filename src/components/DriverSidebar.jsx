@@ -75,14 +75,6 @@ export default function DriverSidebar({ activePage }) {
             </Link>
 
             <Link 
-              to="/driver-portal/notifications" 
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activePage === 'notifications' ? 'bg-amber-400 text-slate-900 shadow-xs' : 'text-slate-600 hover:bg-slate-50'}`}
-            >
-              <Bell className="w-4 h-4" /> Notifications
-              <span className="ml-auto bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-mono">3</span>
-            </Link>
-
-            <Link 
               to="/driver-portal/profile" 
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activePage === 'profile' ? 'bg-amber-400 text-slate-900 shadow-xs' : 'text-slate-600 hover:bg-slate-50'}`}
             >

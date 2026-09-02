@@ -28,7 +28,20 @@ export default function Layout() {
 
   // --- CLIENT USER & DRIVER ROLE STATE ---
   const [user, setUser] = useState(null);
-  const [isDriver, setIsDriver] = useState(false);
+  const [isCustomer, setIsCustomer] = useState(() => {
+    try {
+      return !!localStorage.getItem('customer_session');
+    } catch {
+      return false;
+    }
+  });
+  const [isDriver, setIsDriver] = useState(() => {
+    try {
+      return !!localStorage.getItem('driver_data');
+    } catch {
+      return false;
+    }
+  });
   const [isCheckingRole, setIsCheckingRole] = useState(true);
 
   const lastScrollY = useRef(0);
@@ -62,13 +75,28 @@ export default function Layout() {
     checkAdminSession();
   }, [location.pathname]);
 
-  // Check Supabase client user session and query driver_profiles securely with a safety timeout
+  // Check Supabase client user session and driver local storage session
   useEffect(() => {
     let isMounted = true;
 
+    // Check localStorage for driver data immediately on mount
+    const cachedDriver = localStorage.getItem('driver_data');
+    if (cachedDriver) {
+      try {
+        const driverObj = JSON.parse(cachedDriver);
+        if (driverObj) {
+          if (isMounted) {
+            setIsDriver(true);
+            setIsCheckingRole(false);
+          }
+        }
+      } catch (e) {
+        localStorage.removeItem('driver_data');
+      }
+    }
+
     const checkDriverStatus = async (userId) => {
       try {
-        // Wrap query in a 3-second timeout race to prevent infinite hanging on "Please wait..."
         const profileQuery = supabase
           .from('driver_profiles')
           .select('*')
@@ -91,47 +119,46 @@ export default function Layout() {
               status: data.status || 'On Field',
               ...data
             }));
-          } else {
+          } else if (!localStorage.getItem('driver_data')) {
             setIsDriver(false);
-            localStorage.removeItem('driver_data');
-            localStorage.removeItem('driver_session');
           }
         }
       } catch (err) {
         console.error('Error checking driver profile:', err);
-        if (isMounted) {
-          setIsDriver(false);
-          localStorage.removeItem('driver_data');
-          localStorage.removeItem('driver_session');
-        }
       } finally {
         if (isMounted) setIsCheckingRole(false);
       }
     };
 
-    // Always verify the Supabase session first before trusting local storage cache
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       
       if (!currentUser) {
         if (isMounted) {
           setUser(null);
-          setIsDriver(false);
-          localStorage.removeItem('driver_data');
-          localStorage.removeItem('driver_session');
-          setIsCheckingRole(false);
+          setIsCustomer(false);
+          localStorage.removeItem('customer_session');
+          if (!localStorage.getItem('driver_data')) {
+            setIsDriver(false);
+            setIsCheckingRole(false);
+          } else {
+            setIsCheckingRole(false);
+          }
         }
         return;
       }
 
-      if (isMounted) setUser(currentUser);
+      if (isMounted) {
+        setUser(currentUser);
+        setIsCustomer(true);
+        localStorage.setItem('customer_session', 'true');
+      }
 
-      // Check localStorage fallback only if a valid Supabase session user matches
       const cachedDriver = localStorage.getItem('driver_data');
       if (cachedDriver) {
         try {
           const driverObj = JSON.parse(cachedDriver);
-          if (driverObj && driverObj.id === currentUser.id) {
+          if (driverObj) {
             if (isMounted) {
               setIsDriver(true);
               setIsCheckingRole(false);
@@ -148,15 +175,22 @@ export default function Layout() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
-      if (isMounted) setUser(currentUser);
+      if (isMounted) {
+        setUser(currentUser);
+        if (currentUser) {
+          setIsCustomer(true);
+          localStorage.setItem('customer_session', 'true');
+        } else {
+          setIsCustomer(false);
+          localStorage.removeItem('customer_session');
+        }
+      }
       if (currentUser) {
         setIsCheckingRole(true);
         checkDriverStatus(currentUser.id);
       } else {
-        if (isMounted) {
+        if (isMounted && !localStorage.getItem('driver_data')) {
           setIsDriver(false);
-          localStorage.removeItem('driver_data');
-          localStorage.removeItem('driver_session');
           setIsCheckingRole(false);
         }
       }
@@ -174,13 +208,19 @@ export default function Layout() {
         method: 'POST',
         credentials: 'include'
       });
+      await fetch(`${API_URL}/api/driver/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      }).catch(() => {});
     } catch (err) {
       console.error('Server logout error:', err);
     }
     await supabase.auth.signOut();
     localStorage.removeItem('driver_data');
     localStorage.removeItem('driver_session');
+    localStorage.removeItem('customer_session');
     setUser(null);
+    setIsCustomer(false);
     setIsDriver(false);
     setIsCheckingRole(false);
     setIsAdminAuth(false);
@@ -303,8 +343,8 @@ export default function Layout() {
         <a href="#about" onClick={(e) => handleHomeScroll(e, 'about-us')} className="text-sm md:text-base font-black uppercase tracking-wider text-white hover:text-yellow-500 cursor-pointer">About Us</a>
         <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm md:text-base font-black uppercase tracking-wider text-white hover:text-yellow-500 cursor-pointer">Contact Us</a>
 
-        {user ? (
-          isCheckingRole ? (
+        {user || isCustomer || isDriver ? (
+          isCheckingRole && !isDriver && !isCustomer ? (
             <div className="w-36 h-12 rounded-full bg-white/10 animate-pulse ml-2" />
           ) : (
             <div className="flex items-center gap-3 ml-2">
@@ -322,7 +362,7 @@ export default function Layout() {
       </div>
 
       <div className="flex md:hidden items-center gap-2.5">
-        {user && !isCheckingRole && (
+        {(user || isCustomer || isDriver) && (!isCheckingRole || isDriver || isCustomer) && (
           <Link 
             to={isDriver ? "/driver-portal" : "/Dashboard"} 
             className="px-3 py-1.5 rounded-full bg-yellow-500 text-white font-bold text-[11px] flex items-center gap-1 shadow"
@@ -388,7 +428,7 @@ export default function Layout() {
               <a href="#about" onClick={(e) => handleHomeScroll(e, 'about-us')} className="text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">About Us</a>
               <a href="#contact-us" onClick={(e) => handleHomeScroll(e, 'contact-us')} className="text-sm font-black uppercase tracking-wider text-white py-3 border-b border-white/10">Contact Us</a>
 
-              {!user && (
+              {!user && !isCustomer && !isDriver && (
                 <div className="pt-2">
                   <Login />
                 </div>

@@ -12,6 +12,8 @@ import UserDashboard from "./layout/UserDashboard";
 import DriverMyShipments from "./components/DriverMyShipments";
 import DriverProfile from './components/DriverProfile';
 import ScanRedirect from "./pages/ScanRedirect";
+import DriverCookiee from './components/DriverCookiee';
+
 // Import dashboard feature components
 import MyShipments from "./layout/MyShipments";
 import CustomerNotifications from "./layout/CustomerNotifications";
@@ -20,6 +22,7 @@ import CustomerInvoice from "./layout/CustomerInvoice";
 import CustomerPayments from "./layout/CustomerPayments";
 import DriverScanShipments from './components/DriverScanShipments';
 import DriverCompleted from './components/DriverCompleted';
+
 // Import AdminSecure guard and dashboard container components
 import AdminSecure from "./components/AdminSecure";
 import { GuestOnlyRoute, AdminDashboardContainer } from "./components/AdminRoute";
@@ -60,20 +63,24 @@ export default function App() {
         {/* PROTECTED ADMIN ROUTE: Secured by AdminSecure to block direct URL access */}
         <Route element={<AdminSecure />}>
           <Route path="/admin/dashboard/*" element={<AdminDashboardContainer />} />
-          <Route path="/admin/dashboard/*" element={<AdminDashboardContainer />} />
         </Route>
         
-        {/* DRIVER PORTAL */}
+        {/* GLOBAL REDIRECTS & UTILS */}
         <Route path="/scan/:trackingNumber" element={<ScanRedirect />} />
-        <Route path="/driver-portal" element={<DriverDashboard />} />
-        <Route path="/driver-portal/shipments" element={<DriverMyShipments />} />
-        <Route path="/driver-portal/scan" element={<DriverScanShipments />} />
-        <Route path="/driver-portal/profile" element={<DriverProfile />} />
-        <Route path="/driver-portal/Completed" element={<DriverCompleted />} />
+
+        {/* DRIVER PORTAL: Protected centrally by DriverCookiee layout wrapper */}
+        <Route path="/driver-portal" element={<DriverCookiee />}>
+          <Route index element={<DriverDashboard />} />
+          <Route path="shipments" element={<DriverMyShipments />} />
+          <Route path="scan" element={<DriverScanShipments />} />
+          <Route path="profile" element={<DriverProfile />} />
+          <Route path="completed" element={<DriverCompleted />} />
+        </Route>
+
         {/* LEGACY PORTAL REDIRECTS */}
         <Route path="/portal" element={<Navigate to="/dashboard" replace />} />
         <Route path="/portal/*" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/scan/:trackingNumber" element={<ScanRedirect />} />
+
         {/* USER DASHBOARD ROUTES: Protected by DashboardLayout */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<UserDashboard />} />

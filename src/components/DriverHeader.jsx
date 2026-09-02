@@ -4,9 +4,9 @@ import { ChevronRight, User } from 'lucide-react';
 
 export default function DriverHeader({ title = 'Dashboard', subtitle = 'Here is what is happening with your deliveries today.' }) {
   const [driver, setDriver] = useState({
-    name: 'Sparsh Limbu',
-    driver_id: 'DRV-119147',
-    status: 'Active',
+    name: '',
+    driver_id: '',
+    status: '',
     avatar: null,
   });
 

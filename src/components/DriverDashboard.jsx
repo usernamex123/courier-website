@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import DriverHeader from './DriverHeader';
 import { toast } from 'sonner';
@@ -21,16 +21,67 @@ import {
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname || 'localhost' : 'localhost';
+  return `${protocol}//${hostname}:5000`;
+};
+
+const API_URL = getApiUrl();
+
 export default function DriverDashboard() {
   const navigate = useNavigate();
+  const watchIdRef = useRef(null);
 
-  // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection
+  // Driver Authentication State loaded strictly from session storage with backend cookie fallback
+  const [driver, setDriver] = useState(() => {
+    try {
+      const savedDriverData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
+      if (savedDriverData) {
+        return JSON.parse(savedDriverData);
+      }
+    } catch (e) {
+      // Silent catch
+    }
+    return null;
+  });
+
+  const [shipments, setShipments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [, setCoords] = useState(null);
+  const [, setTrackingActive] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Security Verification & Backend Session Sync
   useEffect(() => {
     const verifyDriverAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const hasLocalData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
+        let hasLocalData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
         
+        if (!session && !hasLocalData) {
+          // Validate Express session cookie via backend profile endpoint
+          try {
+            const res = await fetch(`${API_URL}/api/driver/profile`, {
+              credentials: 'include'
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data && (data.driver || data.user)) {
+                const driverObj = data.driver || data.user;
+                localStorage.setItem('driver_data', JSON.stringify(driverObj));
+                setDriver(driverObj);
+                hasLocalData = true;
+              }
+            }
+          } catch (backendErr) {
+            // Backend session check failed
+          }
+        }
+
         if (!session && !hasLocalData) {
           toast.error('Unauthorized access. Please log in as a driver.');
           navigate('/');
@@ -42,34 +93,9 @@ export default function DriverDashboard() {
     verifyDriverAuth();
   }, [navigate]);
 
-  // Driver Authentication State with realistic fallback matching driver profile
-  const [driver] = useState(() => {
-    try {
-      const savedDriverData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
-      if (savedDriverData) {
-        return JSON.parse(savedDriverData);
-      }
-    } catch (e) {
-      // Fallback
-    }
-    return {
-      id: '71d98695-b0be-411a-9cc4-82aaca27bb31',
-      driver_id: 'DRV-119147',
-      name: 'Sparsh Limbu',
-      status: 'On Field',
-    };
-  });
-
-  const [shipments, setShipments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [, setCoords] = useState(null);
-  const [, setTrackingActive] = useState(false);
-  const [watchId, setWatchId] = useState(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
 
-  // Fetch shipments on load
+  // Fetch shipments and handle GPS tracking cleanup via useRef
   useEffect(() => {
     if (activeDriverId) {
       fetchDriverShipments();
@@ -77,7 +103,9 @@ export default function DriverDashboard() {
     startGpsTracking();
 
     return () => {
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
     };
   }, [activeDriverId]);
 
@@ -113,17 +141,16 @@ export default function DriverDashboard() {
               .update({ lat: latitude, lng: longitude, last_updated: new Date().toISOString() })
               .eq('id', activeDriverId);
           } catch (err) {
-            // Silently handle GPS update errors if offline or table doesn't exist yet
+            // Silently handle GPS update errors if offline
           }
         }
       },
       (err) => console.warn(err),
       { enableHighAccuracy: true }
     );
-    setWatchId(id);
+    watchIdRef.current = id;
   };
 
-  // Compute status counts: Assigned counts all active shipments not yet delivered
   const counts = {
     assigned: shipments.filter(s => (s.current_status || s.status || '').toLowerCase() !== 'delivered').length,
     inTransit: shipments.filter(s => {
@@ -155,15 +182,12 @@ export default function DriverDashboard() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex">
       
-      {/* ================= DESKTOP SIDEBAR (Hidden on Mobile PWA) ================= */}
       <div className="hidden md:flex">
         <DriverSidebar activePage="dashboard" />
       </div>
 
-      {/* ================= MAIN CONTENT AREA ================= */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
 
-        {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
         <div className="hidden md:block">
           <DriverHeader 
             title={`Good morning, ${driverName}`} 
@@ -171,7 +195,6 @@ export default function DriverDashboard() {
           />
         </div>
 
-        {/* ================= MOBILE APP BAR HEADER ================= */}
         <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
@@ -187,7 +210,6 @@ export default function DriverDashboard() {
           <div className="w-10"></div>
         </header>
 
-        {/* Mobile Greeting Banner */}
         <div className="md:hidden px-6 py-2">
           <h2 className="text-xl font-black text-slate-900 tracking-tight">
             Good morning, {driverName} 👋
@@ -195,13 +217,10 @@ export default function DriverDashboard() {
           <p className="text-xs font-medium text-slate-500">Here's what's happening with your deliveries today.</p>
         </div>
 
-        {/* Dashboard Body Container */}
         <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* ================= UNIFIED YELLOW STAT SUMMARY BANNER (Horizontal 3-Column Layout) ================= */}
           <div className="bg-amber-400 rounded-3xl p-4 md:p-6 shadow-sm grid grid-cols-3 gap-2 md:gap-6 relative overflow-hidden">
             
-            {/* Assigned Shipments */}
             <div className="flex flex-col justify-between space-y-3 md:space-y-4 border-r border-amber-500/40 pr-2 md:pr-6">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
                 <Package className="w-5 h-5 md:w-6 md:h-6" />
@@ -212,7 +231,6 @@ export default function DriverDashboard() {
               </div>
             </div>
 
-            {/* In Transit */}
             <div className="flex flex-col justify-between space-y-3 md:space-y-4 border-r border-amber-500/40 px-2 md:px-6">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
                 <Truck className="w-5 h-5 md:w-6 md:h-6" />
@@ -223,7 +241,6 @@ export default function DriverDashboard() {
               </div>
             </div>
 
-            {/* Delivered Today */}
             <div className="flex flex-col justify-between space-y-3 md:space-y-4 pl-2 md:pl-6">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white shadow-xs text-slate-900 flex items-center justify-center">
                 <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
@@ -236,7 +253,6 @@ export default function DriverDashboard() {
 
           </div>
 
-          {/* ================= MOBILE CURRENT TASK CARD (Visible on Mobile) ================= */}
           {currentTask && (
             <div className="md:hidden bg-white rounded-3xl border border-slate-200 shadow-xs p-5 space-y-4">
               <div className="flex justify-between items-center">
@@ -286,10 +302,8 @@ export default function DriverDashboard() {
             </div>
           )}
 
-          {/* ================= MIDDLE GRID ================= */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Left 2 Cols: Today's Shipments */}
             <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-4">
               <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
                 <div>
@@ -345,7 +359,6 @@ export default function DriverDashboard() {
               )}
             </div>
 
-            {/* Right 1 Col: Quick Actions */}
             <div className="space-y-6">
               
               <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-4">
@@ -401,7 +414,6 @@ export default function DriverDashboard() {
         </div>
       </main>
 
-      {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR (Exact PWA Nav) ================= */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
         
         <button 
@@ -412,7 +424,6 @@ export default function DriverDashboard() {
           <span className="text-[10px] font-black">Dashboard</span>
         </button>
 
-        {/* Tab 2: Shipments */}
         <button 
           onClick={() => navigate('/driver-portal/shipments')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
@@ -421,7 +432,6 @@ export default function DriverDashboard() {
           <span className="text-[10px] font-bold">Shipments</span>
         </button>
 
-        {/* Tab 3: Scan (Floating Raised Center Button) */}
         <div className="relative -top-5">
           <button 
             onClick={() => navigate('/driver-portal/scan')}
@@ -431,7 +441,6 @@ export default function DriverDashboard() {
           </button>
         </div>
 
-        {/* Tab 4: Notifications */}
         <button 
           onClick={() => toast.info('No new notifications')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
@@ -440,7 +449,6 @@ export default function DriverDashboard() {
           <span className="text-[10px] font-bold">Notifications</span>
         </button>
 
-        {/* Tab 5: Profile */}
         <button 
           onClick={() => navigate('/driver-portal/profile')}
           className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
@@ -451,7 +459,6 @@ export default function DriverDashboard() {
 
       </nav>
 
-      {/* ================= MOBILE HAMBURGER MENU DRAWER ================= */}
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex animate-in fade-in duration-200">
           <div className="bg-white w-72 h-full shadow-2xl p-6 flex flex-col justify-between">
@@ -495,7 +502,8 @@ export default function DriverDashboard() {
             <div className="pt-4 border-t border-slate-100">
               <button 
                 onClick={() => {
-                  localStorage.clear();
+                  localStorage.removeItem('driver_data');
+                  localStorage.removeItem('driver_session');
                   navigate('/');
                 }}
                 className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl text-xs font-bold transition-colors cursor-pointer"

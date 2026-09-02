@@ -160,6 +160,9 @@ app.post('/api/driver/login', async (req, res) => {
         req.session.driverId = driverProfile.id;
         req.session.driverEmail = driverProfile.email;
 
+        // Extend cookie lifespan to 30 days specifically for driver sessions
+        req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 30;
+
         req.session.save((err) => {
             if (err) {
                 console.error('Driver session save error:', err);

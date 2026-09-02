@@ -27,25 +27,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Clear stale temporary tokens on load without destroying active Supabase client sessions
+  // Clear stale local tokens on load without firing global destructive backend requests
   useEffect(() => {
-    const terminateActiveSessions = async () => {
-      try {
-        localStorage.removeItem('driver_token');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        await fetch(`${API_URL}/api/admin/logout`, {
-          method: 'POST',
-          credentials: 'include',
-          signal: controller.signal
-        }).catch(() => {});
-        clearTimeout(timeoutId);
-      } catch (err) {
-        // Silent catch for network drops during cleanup
-      }
-    };
-
-    terminateActiveSessions();
+    try {
+      localStorage.removeItem('driver_token');
+    } catch (err) {
+      // Silent catch for storage errors
+    }
   }, []);
 
   const toggleModal = (open) => {
@@ -95,18 +83,14 @@ export default function Login() {
 
       const cleanEmail = email.trim();
 
-      // 1. Try Admin Login First (with a safe 2-second timeout so admin logins never get cut off prematurely)
+      // 1. Try Admin Login First
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
         const adminRes = await fetch(`${API_URL}/api/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: cleanEmail, password }),
-          credentials: 'include',
-          signal: controller.signal
+          credentials: 'include'
         });
-        clearTimeout(timeoutId);
 
         const adminData = await adminRes.json().catch(() => ({}));
 
@@ -124,21 +108,17 @@ export default function Login() {
         if (adminErr.message && adminErr.message.includes('Server error')) {
           throw adminErr;
         }
-        // Silent fallback for non-admin accounts or timeouts
+        // Silent fallback for non-admin accounts
       }
 
-      // 2. Try Driver Login via Express Backend Route (with a safe 2-second timeout)
+      // 2. Try Driver Login via Express Backend Route (Removed 2-second timeout restriction to prevent premature aborts)
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
         const driverRes = await fetch(`${API_URL}/api/driver/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: cleanEmail, password }),
-          credentials: 'include',
-          signal: controller.signal
+          credentials: 'include'
         });
-        clearTimeout(timeoutId);
 
         const driverData = await driverRes.json().catch(() => ({}));
 
@@ -157,7 +137,7 @@ export default function Login() {
         if (driverErr.message && driverErr.message.includes('Server error')) {
           throw driverErr;
         }
-        // Silent fallback for regular client accounts or timeouts
+        // Silent fallback for regular client accounts
       }
 
       // 3. Fallback to Standard Client Portal (Supabase Auth directly)
