@@ -308,7 +308,7 @@ export default function DriverDashboard() {
               <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
                 <div>
                   <h3 className="font-black text-lg text-slate-900 tracking-tight">Today's Shipments</h3>
-                  <p className="text-xs font-bold text-slate-400">Active waybill routing table</p>
+                  <p className="text-xs font-bold text-slate-400"></p>
                 </div>
                 <button 
                   onClick={() => navigate('/driver-portal/shipments')}
@@ -384,26 +384,6 @@ export default function DriverDashboard() {
                       <p className="text-[10px] font-bold text-slate-400">Update status</p>
                     </div>
                   </a>
-
-                  <button onClick={() => toast.success('GPS checkpoint registered')} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-amber-50/50 hover:border-amber-300 transition-all text-left space-y-2 group cursor-pointer w-full">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <MapPin className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900">Add Location</h4>
-                      <p className="text-[10px] font-bold text-slate-400">Add checkpoint</p>
-                    </div>
-                  </button>
-
-                  <button onClick={() => toast.message('Calling support dispatch...')} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-amber-50/50 hover:border-amber-300 transition-all text-left space-y-2 group cursor-pointer w-full">
-                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Phone className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900">Contact Support</h4>
-                      <p className="text-[10px] font-bold text-slate-400">Get help</p>
-                    </div>
-                  </button>
                 </div>
               </div>
 

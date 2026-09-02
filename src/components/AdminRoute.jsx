@@ -536,7 +536,7 @@ function AdminTopbar({ onMenuClick, title, onToggleNotifications, notificationOp
           title="Client Quotes & Messages"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+          <span className="" />
         </button>
 
         <NotificationQuotesBanner 

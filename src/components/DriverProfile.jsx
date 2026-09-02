@@ -255,7 +255,7 @@ export default function DriverProfile() {
         <div className="hidden md:block">
           <DriverHeader 
             title="Driver Profile" 
-            subtitle="Manage your personal and vehicle details." 
+            subtitle="" 
           />
         </div>
 

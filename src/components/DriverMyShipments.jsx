@@ -433,7 +433,7 @@ export default function DriverMyShipments() {
               <div className="py-20 text-center space-y-3">
                 <Package className="w-12 h-12 text-slate-300 mx-auto" />
                 <h4 className="font-bold text-slate-800 text-sm">No shipments assigned</h4>
-                <p className="text-xs font-semibold text-slate-500">There are currently no shipments assigned to your driver ID ({activeDriverId}).</p>
+                <p className="text-xs font-semibold text-slate-500"> {}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">

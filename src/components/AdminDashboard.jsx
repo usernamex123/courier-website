@@ -209,7 +209,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-bold text-gray-900 text-sm sm:text-base">Revenue Overview</h3>
-              <p className="text-[11px] text-gray-500">Monthly revenue from paid invoices ($K)</p>
+              <p className="text-[11px] text-gray-500">Monthly revenue from paid invoices</p>
             </div>
             <TrendingUp className="w-4 h-4 text-green-500 shrink-0" />
           </div>

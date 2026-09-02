@@ -197,7 +197,7 @@ export default function AdminFinanceOverview() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Financial Overview</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Real-time tracking of revenue, cash flow, and financial health.</p>
+          <p className="text-xs text-gray-500 mt-0.5"></p>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -324,7 +324,7 @@ export default function AdminFinanceOverview() {
           <div className="p-4 sm:p-5 border-b border-gray-200 flex items-center justify-between bg-white">
             <div>
               <h3 className="text-sm font-extrabold text-gray-900">Recent Financial Activity</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Live database log tracking recent customer invoices</p>
+              <p className="text-xs text-gray-500 mt-0.5"></p>
             </div>
             <span className="text-[10px] sm:text-xs font-bold text-yellow-600 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-200">
               Live Feed
@@ -408,7 +408,7 @@ export default function AdminFinanceOverview() {
         <div className="bg-white rounded-2xl border border-gray-200/85 shadow-sm p-5 flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-extrabold text-gray-900">Invoice Collection Health</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Live status ratio of database invoices</p>
+            <p className="text-xs text-gray-500 mt-0.5"></p>
 
             <div className="mt-6 space-y-4">
               <div>

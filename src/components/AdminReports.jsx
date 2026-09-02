@@ -372,7 +372,7 @@ export default function AdminReports() {
       <div ref={lineRef} className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100 overflow-hidden">
         <div className="mb-4">
           <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm">Revenue Trend ({selectedYear})</h3>
-          <p className="text-xs text-gray-500">Calculated revenue metrics ($K) based on active shipment valuations</p>
+          <p className="text-xs text-gray-500">Calculated revenue metrics based on active shipment valuations</p>
         </div>
         <div className="w-full overflow-x-auto">
           <div className="min-w-[500px]">

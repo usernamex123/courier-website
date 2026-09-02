@@ -177,7 +177,7 @@ export default function CustomerInvoice() {
           <EmptyState 
             icon={FileText} 
             title="No invoices available" 
-            description="Invoices are generated automatically when you create a shipment." 
+            description="" 
           />
         </div>
       ) : (

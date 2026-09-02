@@ -112,7 +112,7 @@ export default function UserDashboard() {
         </div>
 
         {recent.length === 0 ? (
-          <EmptyState icon={Package} title="No shipments yet" description="You don't have any shipments assigned to your ID yet." />
+          <EmptyState icon={Package} title="No shipments yet" description="" />
         ) : (
           <div className="divide-y divide-slate-100">
             {recent.map((s) => (

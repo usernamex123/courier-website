@@ -255,7 +255,6 @@ export default function AdminFinanceInvoices() {
         <div>
           <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Invoices & Payments</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Monitor invoices, transaction gateways, and settlement statuses in real time.
           </p>
         </div>
       </div>

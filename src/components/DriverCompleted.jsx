@@ -221,7 +221,7 @@ export default function DriverCompleted() {
               <div className="py-20 text-center space-y-3">
                 <Package className="w-12 h-12 text-slate-300 mx-auto" />
                 <h4 className="font-bold text-slate-800 text-sm">No completed shipments</h4>
-                <p className="text-xs font-semibold text-slate-500">Deliveries marked as delivered will appear here.</p>
+                <p className="text-xs font-semibold text-slate-500"></p>
               </div>
             ) : (
               <>

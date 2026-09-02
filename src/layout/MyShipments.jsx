@@ -127,7 +127,7 @@ export default function MyShipments() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm gap-3">
         <div>
           <h1 className="text-lg font-bold text-slate-900">My Shipments</h1>
-          <p className="text-xs text-slate-500">Track and manage dispatches issued to your account.</p>
+          <p className="text-xs text-slate-500"></p>
         </div>
         {userCode && (
           <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
@@ -170,7 +170,7 @@ export default function MyShipments() {
           <EmptyState 
             icon={Package} 
             title="No shipments found" 
-            description={q || status ? "No shipments match your search." : "You don't have any shipments assigned to your ID yet."} 
+            description={q || status ? "No shipments match your search." : ""} 
           />
         </div>
       ) : (

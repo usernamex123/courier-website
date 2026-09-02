@@ -237,8 +237,8 @@ export default function DriverScanShipments() {
         {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
         <div className="hidden md:block">
           <DriverHeader 
-            title="Scan Shipments 📱" 
-            subtitle="Scan QR codes or look up tracking numbers to update statuses." 
+            title="Scan Shipments" 
+            subtitle="" 
           />
         </div>
 
