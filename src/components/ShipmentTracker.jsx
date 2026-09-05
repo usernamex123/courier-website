@@ -142,7 +142,7 @@ export default function ShipmentTracker() {
                 type="text"
                 value={trackingNumber}
                 onChange={(e) => setTrackingNumber(e.target.value)}
-                placeholder="Enter tracking number (e.g. JB000000000)"
+                placeholder="Enter tracking number"
                 className="bg-transparent text-gray-900 placeholder-gray-400 px-3 sm:px-4 py-3 sm:py-2.5 outline-none w-full sm:flex-1 text-sm font-medium min-w-0"
               />
             </div>

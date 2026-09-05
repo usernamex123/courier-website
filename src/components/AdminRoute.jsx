@@ -27,10 +27,9 @@ import AdminReports from "./AdminReports";
 import AdminFinanceOverview from "./AdminFinanceOverview";
 import AdminFinanceInvoices from "./AdminFinanceInvoices";
 import AdminFinancePayments from "./AdminFinancePayments";
-
+import AdminSettings from "./AdminSettings";
 // Placeholder components for other items if not created yet
 const AdminBranches = () => <div className="p-6 text-gray-900"><h2 className="text-xl font-bold">Branches Management</h2></div>;
-const AdminSettings = () => <div className="p-6 text-gray-900"><h2 className="text-xl font-bold">Admin Settings</h2></div>;
 
 const getApiUrl = () => {
   if (import.meta.env.VITE_API_URL) {

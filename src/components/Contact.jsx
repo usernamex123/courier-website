@@ -44,9 +44,9 @@ export default function Contact() {
           <div className="w-20 h-1 bg-yellow-500 rounded-none"></div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-10 md:gap-12 items-start justify-center max-w-4xl mx-auto mb-12 w-full">
+        <div className="max-w-4xl mx-auto mb-12 w-full">
           
-          <div className="space-y-6 text-center md:text-left">
+          <div className="space-y-6 text-left">
             <div className="space-y-1">
               <p className="text-xs text-yellow-600 font-extrabold uppercase tracking-widest">Email</p>
               <a 
@@ -63,7 +63,7 @@ export default function Contact() {
               <p className="text-xs text-yellow-600 font-extrabold uppercase tracking-widest">Address</p>
               <div 
                 onClick={handleAddressClick}
-                className="text-base font-semibold text-center md:text-left block text-gray-800 w-full hover:text-yellow-600 transition-colors duration-300 cursor-pointer group"
+                className="text-base font-semibold block text-gray-800 w-full hover:text-yellow-600 transition-colors duration-300 cursor-pointer group"
               >
                 850 EUCLID AVE STE 819<br />
                 CLEVELAND, OH 44114
@@ -72,7 +72,7 @@ export default function Contact() {
 
             <div className="space-y-1">
               <p className="text-xs text-yellow-600 font-extrabold uppercase tracking-widest">Phone</p>
-              <div className="flex justify-center md:justify-start">
+              <div className="flex justify-start">
                 <button 
                   onClick={handleCopyPhone}
                   className="group/phone inline-flex items-center gap-2 text-base font-semibold text-left transition-colors duration-300 hover:text-yellow-600 cursor-pointer"
@@ -92,23 +92,6 @@ export default function Contact() {
                   )}
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center md:items-start space-y-6">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-yellow-600">Follow Us</span>
-            <div className="flex gap-6 text-gray-900 items-center">
-              <a href="#" className="hover:text-yellow-600 transition-colors duration-300">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-              </a>
-              <a href="#" className="hover:text-yellow-600 transition-colors duration-300">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-              </a>
-              <a href="#" className="hover:text-yellow-600 transition-colors duration-300">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
-              </a>
             </div>
           </div>
 

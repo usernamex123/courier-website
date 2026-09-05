@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import DriverHeader from './DriverHeader';
+import PrintableLabel from '../label/PrintableLabel';
 import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
@@ -16,7 +17,10 @@ import {
   Truck,
   LayoutDashboard,
   Scan,
-  User
+  User,
+  Printer,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -120,9 +124,24 @@ export default function DriverMyShipments() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Bulk selection state (Initialized safely as an array)
+  const [selectedShipments, setSelectedShipments] = useState([]);
+  const [bulkUpdateModalOpen, setBulkUpdateModalOpen] = useState(false);
   
-  // State for the status update popup modal
+  // Track printed shipments persistently via localStorage
+  const [printedShipments, setPrintedShipments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('printed_shipments');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  
+  // State for the status update popup modal & print label modal
   const [activeModalShipment, setActiveModalShipment] = useState(null);
+  const [activePrintShipment, setActivePrintShipment] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Auto-open update modal via URL query param using React Router useSearchParams
@@ -132,7 +151,6 @@ export default function DriverMyShipments() {
       const target = shipments.find(s => s.tracking_number === shipmentTrackingToUpdate);
       if (target) {
         setActiveModalShipment(target);
-        // Clear param after opening so refreshing doesn't trigger it again
         searchParams.delete('openUpdate');
         setSearchParams(searchParams, { replace: true });
       }
@@ -159,7 +177,6 @@ export default function DriverMyShipments() {
 
   // Determine the correct driver identifier string (preferring 'DRV-' format)
   const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
-  const driverName = driver?.name || 'Driver';
 
   useEffect(() => {
     if (activeDriverId) {
@@ -178,6 +195,7 @@ export default function DriverMyShipments() {
 
       if (error) throw error;
       setShipments(data || []);
+      setSelectedShipments([]); // Fixed: properly reset selections to an empty array
     } catch (err) {
       console.error('Error fetching shipments:', err);
       toast.error('Failed to load shipments');
@@ -192,12 +210,10 @@ export default function DriverMyShipments() {
       const dbStatus = newStatus.toLowerCase().replace(/ /g, '_');
       const trackingNumber = shipment.tracking_number;
 
-      // 1. Fetch live GPS area name of the driver's device
       toast.loading('Fetching live GPS location...', { id: 'gps-toast' });
       const currentAreaName = await getDriverAreaName();
       toast.dismiss('gps-toast');
 
-      // 2. Update shipment status in shipments table by unique row ID
       const { data: updatedRows, error: updateError } = await supabase
         .from('shipments')
         .update({ 
@@ -213,7 +229,6 @@ export default function DriverMyShipments() {
         throw new Error('Database update failed: No matching shipment found or RLS policy blocked the update.');
       }
 
-      // 3. Insert event timestamp and resolved live GPS area into tracking_events table
       const clevelandTimestamp = getClevelandTimestamp();
       const { error: eventError } = await supabase
         .from('tracking_events')
@@ -241,6 +256,119 @@ export default function DriverMyShipments() {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  // Bulk Handlers for "Verify" and "Update"
+  const handleBulkVerify = () => {
+    if (!selectedShipments || selectedShipments.length === 0) return;
+    toast.success(`Successfully verified ${selectedShipments.length} selected shipment(s).`);
+    setSelectedShipments([]);
+  };
+
+  const handleBulkUpdate = () => {
+    if (!selectedShipments || selectedShipments.length === 0) return;
+    setBulkUpdateModalOpen(true);
+  };
+
+  const executeBulkStatusUpdate = async (newStatus) => {
+    setUpdatingStatus(true);
+    try {
+      const dbStatus = newStatus.toLowerCase().replace(/ /g, '_');
+      
+      toast.loading('Fetching live GPS location for bulk update...', { id: 'gps-toast' });
+      const currentAreaName = await getDriverAreaName();
+      toast.dismiss('gps-toast');
+
+      const clevelandTimestamp = getClevelandTimestamp();
+
+      for (const shipmentId of selectedShipments) {
+        const shipment = shipments.find(s => s.id === shipmentId);
+        if (!shipment) continue;
+
+        const { error: updateError } = await supabase
+          .from('shipments')
+          .update({ 
+            current_status: dbStatus,
+            status: dbStatus 
+          })
+          .eq('id', shipment.id);
+
+        if (updateError) {
+          console.error(`Failed to update shipment ${shipment.tracking_number}:`, updateError);
+          continue;
+        }
+
+        await supabase
+          .from('tracking_events')
+          .insert({
+            shipment_id: shipment.id,
+            customer_user_id: shipment.customer_user_id || null,
+            status: dbStatus,
+            location: currentAreaName,
+            description: `Status updated to ${newStatus} by driver from ${currentAreaName}`,
+            event_time: clevelandTimestamp,
+            created_by: driver?.name || activeDriverId
+          });
+      }
+
+      setShipments(prev => prev.map(s => {
+        if (selectedShipments.includes(s.id)) {
+          return { ...s, current_status: dbStatus, status: dbStatus };
+        }
+        return s;
+      }));
+
+      toast.success(`Successfully updated ${selectedShipments.length} shipment(s) to ${newStatus} (${currentAreaName})`);
+      setSelectedShipments([]);
+      setBulkUpdateModalOpen(false);
+    } catch (err) {
+      console.error('Bulk status update error:', err);
+      toast.dismiss('gps-toast');
+      toast.error(err.message || 'Failed to perform bulk shipment status update');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Toggle selection for a single shipment
+  const toggleSelectShipment = (id) => {
+    setSelectedShipments(prev => 
+      (prev || []).includes(id) ? (prev || []).filter(item => item !== id) : [...(prev || []), id]
+    );
+  };
+
+  // Toggle select all filtered shipments
+  const toggleSelectAll = () => {
+    if ((selectedShipments || []).length === filteredShipments.length) {
+      setSelectedShipments([]);
+    } else {
+      setSelectedShipments(filteredShipments.map(s => s.id));
+    }
+  };
+
+  // Handle final execution of print and lock it out
+  const handleExecutePrint = () => {
+    if (!activePrintShipment) return;
+    const trackingNum = activePrintShipment.tracking_number;
+
+    if (printedShipments.includes(trackingNum)) {
+      toast.error('This label has already been printed.');
+      setActivePrintShipment(null);
+      return;
+    }
+
+    window.print();
+
+    const updated = [...printedShipments, trackingNum];
+    setPrintedShipments(updated);
+    try {
+      localStorage.setItem('printed_shipments', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to persist printed state:', e);
+    }
+
+    toast.success('Label printed successfully and locked against re-printing.');
+    setActivePrintShipment(null);
   };
 
   // Filter shipments based on search query and status filter
@@ -303,7 +431,7 @@ export default function DriverMyShipments() {
           />
         </div>
 
-        {/* ================= MOBILE APP BAR HEADER (Filter Icon Removed) ================= */}
+        {/* ================= MOBILE APP BAR HEADER ================= */}
         <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
@@ -356,73 +484,47 @@ export default function DriverMyShipments() {
 
           </div>
 
-          {/* ================= MOBILE SHIPMENT CARD LIST ================= */}
-          <div className="md:hidden space-y-3">
-            {loading ? (
-              <div className="py-20 flex justify-center items-center">
-                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-              </div>
-            ) : filteredShipments.length === 0 ? (
-              <div className="py-16 text-center space-y-3 bg-white rounded-2xl border border-slate-200 p-6">
-                <Package className="w-10 h-10 text-slate-300 mx-auto" />
-                <h4 className="font-bold text-slate-800 text-sm">No shipments assigned</h4>
-                <p className="text-xs font-semibold text-slate-500">No shipments found for driver ID ({activeDriverId}).</p>
-              </div>
-            ) : (
-              filteredShipments.map((s) => {
-                const currentStatus = s.current_status || s.status || 'Assigned';
-                const formattedDate = s.created_at ? new Date(s.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Today';
-                const formattedTime = s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:30 AM';
-                const originText = s.origin || 'CLE';
-                const destText = s.destination || 'COL';
-
-                return (
-                  <div 
-                    key={s.id || s.tracking_number}
-                    onClick={() => setActiveModalShipment(s)}
-                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 active:scale-[0.99] transition-transform cursor-pointer"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-800 shrink-0">
-                          <Package className="w-5 h-5 text-slate-700" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-slate-900 text-xs font-mono">{s.tracking_number}</h4>
-                          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mt-0.5">
-                            {originText.slice(0, 3).toUpperCase()} → {destText.slice(0, 3).toUpperCase()}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        {getStatusBadge(currentStatus)}
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-end pt-2 border-t border-slate-100 text-[11px]">
-                      <span className="font-medium text-slate-500 truncate max-w-[210px]">
-                        {s.client_address || s.destination}
-                      </span>
-                      <div className="text-right shrink-0 font-mono text-slate-400">
-                        <div className="font-bold text-slate-600">{formattedDate}</div>
-                        <div className="text-[10px]">{formattedTime}</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
           {/* ================= DESKTOP SHIPMENT TABLE ================= */}
           <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h3 className="font-black text-lg text-slate-900 tracking-tight">Shipment Directory</h3>
-              </div>
-              <button onClick={fetchShipments} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition-colors cursor-pointer">
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-500' : ''}`} />
-              </button>
+            
+            {/* Dynamic Card Header / Bulk Action Bar */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white transition-all">
+              {(selectedShipments || []).length > 0 ? (
+                <div className="flex items-center gap-4 w-full justify-between animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-lg bg-amber-400 text-slate-900 text-xs font-black flex items-center justify-center">
+                      {selectedShipments.length}
+                    </span>
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Shipment(s) Selected
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBulkVerify}
+                      className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs inline-flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Verify</span>
+                    </button>
+                    <button
+                      onClick={handleBulkUpdate}
+                      className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs inline-flex items-center gap-1.5"
+                    >
+                      <span>Update</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="font-black text-lg text-slate-900 tracking-tight">Shipment Directory</h3>
+                  </div>
+                  <button onClick={fetchShipments} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition-colors cursor-pointer">
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-500' : ''}`} />
+                  </button>
+                </>
+              )}
             </div>
 
             {loading ? (
@@ -433,13 +535,25 @@ export default function DriverMyShipments() {
               <div className="py-20 text-center space-y-3">
                 <Package className="w-12 h-12 text-slate-300 mx-auto" />
                 <h4 className="font-bold text-slate-800 text-sm">No shipments assigned</h4>
-                <p className="text-xs font-semibold text-slate-500"> {}</p>
+                <p className="text-xs font-semibold text-slate-500"></p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-500 text-xs uppercase font-black tracking-wider bg-slate-50/50">
+                      <th className="py-3.5 pl-6 pr-2 w-10">
+                        <button 
+                          onClick={toggleSelectAll}
+                          className="text-slate-400 hover:text-slate-700 cursor-pointer flex items-center"
+                        >
+                          {filteredShipments.length > 0 && (selectedShipments || []).length === filteredShipments.length ? (
+                            <CheckSquare className="w-4 h-4 text-amber-600 fill-amber-100" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                      </th>
                       <th className="py-3.5 px-6">Shipment</th>
                       <th className="py-3.5 px-6">Route</th>
                       <th className="py-3.5 px-6">Status</th>
@@ -457,9 +571,26 @@ export default function DriverMyShipments() {
                       const formattedTime = s.created_at 
                         ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                         : '—';
+                      const isAlreadyPrinted = printedShipments.includes(s.tracking_number);
+                      const isSelected = (selectedShipments || []).includes(s.id);
 
                       return (
-                        <tr key={s.id || s.tracking_number} className="hover:bg-slate-50/60 transition-colors">
+                        <tr 
+                          key={s.id || s.tracking_number} 
+                          className={`hover:bg-slate-50/60 transition-colors ${isSelected ? 'bg-amber-50/40' : ''}`}
+                        >
+                          <td className="py-4 pl-6 pr-2">
+                            <button 
+                              onClick={() => toggleSelectShipment(s.id)}
+                              className="text-slate-400 hover:text-slate-700 cursor-pointer flex items-center"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="w-4 h-4 text-amber-600 fill-amber-100" />
+                              ) : (
+                                <Square className="w-4 h-4" />
+                              )}
+                            </button>
+                          </td>
                           <td className="py-4 px-6 space-y-1">
                             <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono inline-block text-xs">
                               {s.tracking_number}
@@ -477,13 +608,30 @@ export default function DriverMyShipments() {
                             <div className="text-[10px] font-semibold text-slate-400">{formattedTime}</div>
                           </td>
                           <td className="py-4 px-6 text-right">
-                            <button 
-                              onClick={() => setActiveModalShipment(s)}
-                              className="w-9 h-9 bg-slate-100 hover:bg-amber-400 hover:text-slate-900 text-slate-700 rounded-xl font-bold transition-all inline-flex items-center justify-center shadow-xs cursor-pointer ml-auto border border-slate-200"
-                              title="Update Status"
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              {isAlreadyPrinted ? (
+                                <span className="px-3 h-9 bg-slate-100 text-slate-400 rounded-xl font-bold text-xs inline-flex items-center gap-1 border border-slate-200 cursor-not-allowed select-none">
+                                  <CheckCircle2 className="w-4 h-4 text-slate-400" />
+                                  <span>Printed</span>
+                                </span>
+                              ) : (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setActivePrintShipment(s); }}
+                                  className="w-9 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all inline-flex items-center justify-center shadow-xs cursor-pointer border border-slate-200"
+                                  title="Print Label"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </button>
+                              )}
+                              
+                              <button 
+                                onClick={() => setActiveModalShipment(s)}
+                                className="w-9 h-9 bg-slate-100 hover:bg-amber-400 hover:text-slate-900 text-slate-700 rounded-xl font-bold transition-all inline-flex items-center justify-center shadow-xs cursor-pointer border border-slate-200"
+                                title="Update Status"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -595,7 +743,7 @@ export default function DriverMyShipments() {
         </div>
       )}
 
-      {/* ================= STATUS UPDATE POPUP MODAL ================= */}
+      {/* ================= STATUS UPDATE POPUP MODAL (SINGLE) ================= */}
       {activeModalShipment && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">
@@ -614,7 +762,7 @@ export default function DriverMyShipments() {
               </button>
             </div>
 
-            {/* Modal Body / Status Options with Strict Progression Enforcement */}
+            {/* Modal Body / Status Options */}
             <div className="space-y-3">
               <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
               
@@ -677,6 +825,171 @@ export default function DriverMyShipments() {
           </div>
         </div>
       )}
+
+      {/* ================= BULK STATUS UPDATE POPUP MODAL ================= */}
+      {bulkUpdateModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-black text-lg text-slate-900 tracking-tight">Bulk Update Status</h3>
+                <p className="text-xs font-bold text-amber-600 mt-0.5">Applying to {(selectedShipments || []).length} selected shipment(s)</p>
+              </div>
+              <button 
+                onClick={() => setBulkUpdateModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body / Status Options matching single update layout & stamps */}
+            <div className="space-y-3">
+              <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
+              
+              {[
+                { label: 'Assigned', dbKey: 'assigned' },
+                { label: 'In Transit', dbKey: 'in_transit' },
+                { label: 'Out for Delivery', dbKey: 'out_for_delivery' },
+                { label: 'Delivered', dbKey: 'delivered' },
+              ].map((item) => {
+                const selectedObjs = shipments.filter(s => (selectedShipments || []).includes(s.id));
+                const indices = selectedObjs.map(s => STATUS_FLOW.indexOf((s.current_status || s.status || 'assigned').toLowerCase())).filter(i => i !== -1);
+                const benchmarkIndex = indices.length > 0 ? Math.min(...indices) : 0;
+                const itemIndex = STATUS_FLOW.indexOf(item.dbKey);
+
+                const isPast = itemIndex < benchmarkIndex;
+                const isCurrent = itemIndex === benchmarkIndex;
+
+                return (
+                  <button
+                    key={item.label}
+                    disabled={updatingStatus}
+                    onClick={() => executeBulkStatusUpdate(item.label)}
+                    className={`w-full p-3.5 rounded-2xl border text-left font-bold text-xs flex items-center justify-between transition-all cursor-pointer ${
+                      isCurrent 
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-md' 
+                        : isPast
+                        ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isPast ? 'bg-slate-400' : isCurrent ? 'bg-amber-400' : 'bg-slate-400'}`}></span>
+                      {item.label}
+                    </span>
+
+                    {isPast && (
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-xl text-[10px] font-black uppercase tracking-wider border border-emerald-200 inline-flex items-center gap-1 shadow-2xs">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Completed
+                      </span>
+                    )}
+                    {isCurrent && (
+                      <span className="px-2.5 py-1 bg-amber-400 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                        Current
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setBulkUpdateModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ================= PRINT LABEL MODAL ================= */}
+      {activePrintShipment && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] flex flex-col print:m-0 print:p-0 print:max-h-none print:max-w-none print:shadow-none print:border-none print:h-auto">
+            
+            {/* Modal Header hidden on print */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4 shrink-0 print:hidden">
+              <div>
+                <h3 className="font-black text-lg text-slate-900 tracking-tight">Shipping Label</h3>
+                <p className="text-xs font-bold font-mono text-amber-600 mt-0.5">{activePrintShipment.tracking_number}</p>
+              </div>
+              <button 
+                onClick={() => setActivePrintShipment(null)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="overflow-y-auto flex-1 py-2 flex justify-center bg-slate-50 p-4 rounded-2xl border border-slate-200 print:bg-white print:p-0 print:border-none print:overflow-visible">
+              <PrintableLabel shipment={activePrintShipment} />
+            </div>
+
+            {/* Modal Footer hidden on print */}
+            <div className="pt-2 flex justify-end gap-3 shrink-0 print:hidden">
+              <button
+                onClick={() => setActivePrintShipment(null)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecutePrint}
+                className="px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl text-xs font-extrabold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Label</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global CSS injected to strictly constrain layout to 1 page during window.print() */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: auto;
+            margin: 0mm;
+          }
+          body, html {
+            height: 100% !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          div.fixed.inset-0, div.fixed.inset-0 * {
+            visibility: visible;
+          }
+          div.fixed.inset-0 {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            background: white !important;
+            backdrop-filter: none !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+        }
+      `}} />
 
     </div>
   );
