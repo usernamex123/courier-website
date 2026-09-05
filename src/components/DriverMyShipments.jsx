@@ -24,10 +24,8 @@ import {
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
-// Define strict status progression order
 const STATUS_FLOW = ['assigned', 'in_transit', 'out_for_delivery', 'delivered'];
 
-// Helper to generate ISO timestamp with Ohio Cleveland timezone (America/New_York) offset
 const getClevelandTimestamp = () => {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -60,7 +58,6 @@ const getClevelandTimestamp = () => {
   return `${year}-${month}-${day}T${hour}:${minute}:${second}${offsetSign}${offsetHours}:${offsetMins}`;
 };
 
-// Helper to get live driver area name via GPS and reverse geocoding
 const getDriverAreaName = async () => {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
@@ -101,7 +98,6 @@ export default function DriverMyShipments() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Driver Authentication State
   const [driver] = useState(() => {
     try {
       const savedDriverData = localStorage.getItem('driver_data') || localStorage.getItem('driver_session');
@@ -109,7 +105,6 @@ export default function DriverMyShipments() {
         return JSON.parse(savedDriverData);
       }
     } catch (e) {
-      // Fallback
     }
     return {
       id: '71d98695-b0be-411a-9cc4-82aaca27bb31',
@@ -125,11 +120,9 @@ export default function DriverMyShipments() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Bulk selection state (Initialized safely as an array)
   const [selectedShipments, setSelectedShipments] = useState([]);
   const [bulkUpdateModalOpen, setBulkUpdateModalOpen] = useState(false);
   
-  // Track printed shipments persistently via localStorage
   const [printedShipments, setPrintedShipments] = useState(() => {
     try {
       const saved = localStorage.getItem('printed_shipments');
@@ -139,12 +132,10 @@ export default function DriverMyShipments() {
     }
   });
   
-  // State for the status update popup modal & print label modal
   const [activeModalShipment, setActiveModalShipment] = useState(null);
   const [activePrintShipment, setActivePrintShipment] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Auto-open update modal via URL query param using React Router useSearchParams
   useEffect(() => {
     const shipmentTrackingToUpdate = searchParams.get('openUpdate');
     if (shipmentTrackingToUpdate && shipments.length > 0) {
@@ -157,7 +148,6 @@ export default function DriverMyShipments() {
     }
   }, [searchParams, shipments, setSearchParams]);
   
-  // Security Verification: Ensure unauthorized users cannot bypass via direct URL injection
   useEffect(() => {
     const verifyDriverAuth = async () => {
       try {
@@ -175,7 +165,6 @@ export default function DriverMyShipments() {
     verifyDriverAuth();
   }, [navigate]);
 
-  // Determine the correct driver identifier string (preferring 'DRV-' format)
   const activeDriverId = driver?.driver_id || (driver?.id?.startsWith('DRV-') ? driver.id : null) || driver?.id;
 
   useEffect(() => {
@@ -195,7 +184,7 @@ export default function DriverMyShipments() {
 
       if (error) throw error;
       setShipments(data || []);
-      setSelectedShipments([]); // Fixed: properly reset selections to an empty array
+      setSelectedShipments([]);
     } catch (err) {
       console.error('Error fetching shipments:', err);
       toast.error('Failed to load shipments');
@@ -258,11 +247,13 @@ export default function DriverMyShipments() {
     }
   };
 
-  // Bulk Handlers for "Verify" and "Update"
   const handleBulkVerify = () => {
-    if (!selectedShipments || selectedShipments.length === 0) return;
-    toast.success(`Successfully verified ${selectedShipments.length} selected shipment(s).`);
-    setSelectedShipments([]);
+    if (!selectedShipments || selectedShipments.length === 0) {
+      toast.error('Please select at least one shipment to verify.');
+      return;
+    }
+    localStorage.setItem('verify_queue', JSON.stringify(selectedShipments));
+    navigate('/driver-portal/scan?mode=verify');
   };
 
   const handleBulkUpdate = () => {
@@ -330,14 +321,12 @@ export default function DriverMyShipments() {
     }
   };
 
-  // Toggle selection for a single shipment
   const toggleSelectShipment = (id) => {
     setSelectedShipments(prev => 
       (prev || []).includes(id) ? (prev || []).filter(item => item !== id) : [...(prev || []), id]
     );
   };
 
-  // Toggle select all filtered shipments
   const toggleSelectAll = () => {
     if ((selectedShipments || []).length === filteredShipments.length) {
       setSelectedShipments([]);
@@ -346,7 +335,6 @@ export default function DriverMyShipments() {
     }
   };
 
-  // Handle final execution of print and lock it out
   const handleExecutePrint = () => {
     if (!activePrintShipment) return;
     const trackingNum = activePrintShipment.tracking_number;
@@ -371,7 +359,6 @@ export default function DriverMyShipments() {
     setActivePrintShipment(null);
   };
 
-  // Filter shipments based on search query and status filter
   const filteredShipments = shipments.filter(s => {
     const currentStatus = (s.current_status || s.status || "").toLowerCase();
     const matchesSearch = 
@@ -415,15 +402,12 @@ export default function DriverMyShipments() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex">
       
-      {/* ================= DESKTOP SIDEBAR (Hidden on Mobile) ================= */}
       <div className="hidden md:flex">
         <DriverSidebar activePage="shipments" />
       </div>
 
-      {/* ================= MAIN CONTENT AREA ================= */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
         
-        {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
         <div className="hidden md:block">
           <DriverHeader 
             title="My Shipments" 
@@ -431,7 +415,6 @@ export default function DriverMyShipments() {
           />
         </div>
 
-        {/* ================= MOBILE APP BAR HEADER ================= */}
         <header className="md:hidden flex items-center justify-between px-6 pt-6 pb-3 bg-[#f8fafc]">
           <button 
             onClick={() => setMobileMenuOpen(true)}
@@ -447,13 +430,10 @@ export default function DriverMyShipments() {
           <div className="w-10"></div>
         </header>
 
-        {/* Content Body */}
         <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* Controls Bar (Search & Filters) */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4">
             
-            {/* Search Input */}
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input 
@@ -465,7 +445,6 @@ export default function DriverMyShipments() {
               />
             </div>
 
-            {/* Status Filters */}
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
               {['All', 'Pending', 'In Transit', 'Delivered'].map((status) => (
                 <button
@@ -484,10 +463,8 @@ export default function DriverMyShipments() {
 
           </div>
 
-          {/* ================= DESKTOP SHIPMENT TABLE ================= */}
           <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             
-            {/* Dynamic Card Header / Bulk Action Bar */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white transition-all">
               {(selectedShipments || []).length > 0 ? (
                 <div className="flex items-center gap-4 w-full justify-between animate-fadeIn">
@@ -645,7 +622,6 @@ export default function DriverMyShipments() {
         </div>
       </main>
 
-      {/* ================= FIXED MOBILE BOTTOM NAVIGATION BAR ================= */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
         <button 
           onClick={() => navigate('/driver-portal')}
@@ -689,7 +665,6 @@ export default function DriverMyShipments() {
         </button>
       </nav>
 
-      {/* ================= MOBILE HAMBURGER MENU DRAWER ================= */}
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex animate-in fade-in duration-200">
           <div className="bg-white w-72 h-full shadow-2xl p-6 flex flex-col justify-between">
@@ -743,12 +718,10 @@ export default function DriverMyShipments() {
         </div>
       )}
 
-      {/* ================= STATUS UPDATE POPUP MODAL (SINGLE) ================= */}
       {activeModalShipment && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">
             
-            {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-black text-lg text-slate-900 tracking-tight">Update Shipment Status</h3>
@@ -762,7 +735,6 @@ export default function DriverMyShipments() {
               </button>
             </div>
 
-            {/* Modal Body / Status Options */}
             <div className="space-y-3">
               <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
               
@@ -812,7 +784,6 @@ export default function DriverMyShipments() {
               })}
             </div>
 
-            {/* Modal Footer */}
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setActiveModalShipment(null)}
@@ -826,12 +797,10 @@ export default function DriverMyShipments() {
         </div>
       )}
 
-      {/* ================= BULK STATUS UPDATE POPUP MODAL ================= */}
       {bulkUpdateModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6">
             
-            {/* Modal Header */}
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-black text-lg text-slate-900 tracking-tight">Bulk Update Status</h3>
@@ -845,7 +814,6 @@ export default function DriverMyShipments() {
               </button>
             </div>
 
-            {/* Modal Body / Status Options matching single update layout & stamps */}
             <div className="space-y-3">
               <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
               
@@ -896,7 +864,6 @@ export default function DriverMyShipments() {
               })}
             </div>
 
-            {/* Modal Footer */}
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setBulkUpdateModalOpen(false)}
@@ -910,12 +877,10 @@ export default function DriverMyShipments() {
         </div>
       )}
 
-      {/* ================= PRINT LABEL MODAL ================= */}
       {activePrintShipment && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] flex flex-col print:m-0 print:p-0 print:max-h-none print:max-w-none print:shadow-none print:border-none print:h-auto">
             
-            {/* Modal Header hidden on print */}
             <div className="flex justify-between items-center border-b border-slate-100 pb-4 shrink-0 print:hidden">
               <div>
                 <h3 className="font-black text-lg text-slate-900 tracking-tight">Shipping Label</h3>
@@ -929,12 +894,10 @@ export default function DriverMyShipments() {
               </button>
             </div>
 
-            {/* Content Body */}
             <div className="overflow-y-auto flex-1 py-2 flex justify-center bg-slate-50 p-4 rounded-2xl border border-slate-200 print:bg-white print:p-0 print:border-none print:overflow-visible">
               <PrintableLabel shipment={activePrintShipment} />
             </div>
 
-            {/* Modal Footer hidden on print */}
             <div className="pt-2 flex justify-end gap-3 shrink-0 print:hidden">
               <button
                 onClick={() => setActivePrintShipment(null)}
@@ -954,7 +917,6 @@ export default function DriverMyShipments() {
         </div>
       )}
 
-      {/* Global CSS injected to strictly constrain layout to 1 page during window.print() */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
