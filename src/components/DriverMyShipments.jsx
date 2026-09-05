@@ -184,7 +184,7 @@ export default function DriverMyShipments() {
 
       if (error) throw error;
       setShipments(data || []);
-      setSelectedShipments([]);
+      setSelectedShipments();
     } catch (err) {
       console.error('Error fetching shipments:', err);
       toast.error('Failed to load shipments');
@@ -463,6 +463,72 @@ export default function DriverMyShipments() {
 
           </div>
 
+          {/* ================= MOBILE SHIPMENT CARD VIEW (Visible on Mobile) ================= */}
+          <div className="md:hidden space-y-3">
+            {loading ? (
+              <div className="py-20 flex justify-center items-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+              </div>
+            ) : filteredShipments.length === 0 ? (
+              <div className="py-20 text-center space-y-3 bg-white rounded-2xl border border-slate-200">
+                <Package className="w-12 h-12 text-slate-300 mx-auto" />
+                <h4 className="font-bold text-slate-800 text-sm">No shipments assigned</h4>
+              </div>
+            ) : (
+              filteredShipments.map((s) => {
+                const currentStatus = s.current_status || s.status || 'Assigned';
+                const clientName = s.recipient_name || s.client_name || 'Client Name';
+                const formattedDate = s.created_at 
+                  ? new Date(s.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) 
+                  : '—';
+                const isAlreadyPrinted = printedShipments.includes(s.tracking_number);
+
+                return (
+                  <div key={s.id || s.tracking_number} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono inline-block text-xs">
+                          {s.tracking_number}
+                        </span>
+                        <div className="font-bold text-slate-800 text-xs pt-1">{clientName}</div>
+                      </div>
+                      <div>{getStatusBadge(currentStatus)}</div>
+                    </div>
+
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400 font-semibold">Route:</span> {s.origin || 'Kathmandu'} → {s.destination}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-xs">
+                      <span className="text-slate-400 font-mono font-semibold">{formattedDate}</span>
+                      <div className="flex items-center gap-2">
+                        {isAlreadyPrinted ? (
+                          <span className="px-2.5 py-1.5 bg-slate-100 text-slate-400 rounded-xl font-bold text-[10px] inline-flex items-center gap-1 border border-slate-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" /> Printed
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => setActivePrintShipment(s)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all inline-flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Print
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => setActiveModalShipment(s)}
+                          className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl font-extrabold transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                        >
+                          Update <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* ================= DESKTOP SHIPMENT TABLE ================= */}
           <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white transition-all">
