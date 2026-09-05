@@ -11,6 +11,7 @@ import DashboardLayout from "./layout/DashboardLayout";
 import UserDashboard from "./layout/UserDashboard";
 import DriverMyShipments from "./components/DriverMyShipments";
 import DriverProfile from './components/DriverProfile';
+import DriverVerifyScan from './components/DriverVerifyScan';
 import ScanRedirect from "./pages/ScanRedirect";
 import DriverCookiee from './components/DriverCookiee';
 
@@ -73,6 +74,7 @@ export default function App() {
           <Route index element={<DriverDashboard />} />
           <Route path="shipments" element={<DriverMyShipments />} />
           <Route path="scan" element={<DriverScanShipments />} />
+          <Route path="verify" element={<DriverVerifyScan />} />
           <Route path="profile" element={<DriverProfile />} />
           <Route path="completed" element={<DriverCompleted />} />
         </Route>
