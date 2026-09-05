@@ -184,7 +184,7 @@ export default function DriverMyShipments() {
 
       if (error) throw error;
       setShipments(data || []);
-      setSelectedShipments();
+      setSelectedShipments([]);
     } catch (err) {
       console.error('Error fetching shipments:', err);
       toast.error('Failed to load shipments');
@@ -406,7 +406,7 @@ export default function DriverMyShipments() {
         <DriverSidebar activePage="shipments" />
       </div>
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-28 md:pb-6">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto pb-32 md:pb-6">
         
         <div className="hidden md:block">
           <DriverHeader 
@@ -465,6 +465,25 @@ export default function DriverMyShipments() {
 
           {/* ================= MOBILE SHIPMENT CARD VIEW (Visible on Mobile) ================= */}
           <div className="md:hidden space-y-3">
+            {!loading && filteredShipments.length > 0 && (
+              <div className="flex items-center justify-between px-2 pt-1 pb-1 text-xs font-bold text-slate-500">
+                <button 
+                  onClick={toggleSelectAll}
+                  className="flex items-center gap-2 cursor-pointer hover:text-slate-800"
+                >
+                  {filteredShipments.length > 0 && (selectedShipments || []).length === filteredShipments.length ? (
+                    <CheckSquare className="w-4 h-4 text-amber-600 fill-amber-100" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                  <span>Select All ({filteredShipments.length})</span>
+                </button>
+                {selectedShipments.length > 0 && (
+                  <span className="text-amber-600 font-black">{selectedShipments.length} selected</span>
+                )}
+              </div>
+            )}
+
             {loading ? (
               <div className="py-20 flex justify-center items-center">
                 <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
@@ -482,15 +501,31 @@ export default function DriverMyShipments() {
                   ? new Date(s.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) 
                   : '—';
                 const isAlreadyPrinted = printedShipments.includes(s.tracking_number);
+                const isSelected = (selectedShipments || []).includes(s.id);
 
                 return (
-                  <div key={s.id || s.tracking_number} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                  <div 
+                    key={s.id || s.tracking_number} 
+                    className={`bg-white p-4 rounded-2xl border shadow-xs space-y-3 transition-colors ${isSelected ? 'border-amber-400 bg-amber-50/40' : 'border-slate-200'}`}
+                  >
                     <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono inline-block text-xs">
-                          {s.tracking_number}
-                        </span>
-                        <div className="font-bold text-slate-800 text-xs pt-1">{clientName}</div>
+                      <div className="flex items-start gap-3">
+                        <button 
+                          onClick={() => toggleSelectShipment(s.id)}
+                          className="text-slate-400 hover:text-slate-700 cursor-pointer flex items-center pt-1"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-amber-600 fill-amber-100" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                        <div className="space-y-1">
+                          <span className="font-black text-slate-900 bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/80 font-mono inline-block text-xs">
+                            {s.tracking_number}
+                          </span>
+                          <div className="font-bold text-slate-800 text-xs pt-1">{clientName}</div>
+                        </div>
                       </div>
                       <div>{getStatusBadge(currentStatus)}</div>
                     </div>
@@ -687,6 +722,32 @@ export default function DriverMyShipments() {
 
         </div>
       </main>
+
+      {/* ================= MOBILE BULK ACTION FLOATING BAR ================= */}
+      {selectedShipments.length > 0 && (
+        <div className="md:hidden fixed bottom-20 inset-x-4 bg-slate-900 text-white p-3.5 rounded-2xl shadow-2xl z-50 flex items-center justify-between border border-slate-700 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-amber-400 text-slate-900 text-xs font-black flex items-center justify-center">
+              {selectedShipments.length}
+            </span>
+            <span className="text-xs font-bold">Selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkVerify}
+              className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs inline-flex items-center gap-1"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> Verify
+            </button>
+            <button
+              onClick={handleBulkUpdate}
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs"
+            >
+              Update
+            </button>
+          </div>
+        </div>
+      )}
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-6 flex justify-between items-center z-50 shadow-lg">
         <button 
