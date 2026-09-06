@@ -16,7 +16,11 @@ import {
   Package,
   Scan,
   User,
-  Flashlight
+  Flashlight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Check
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
@@ -52,6 +56,50 @@ export default function DriverScanShipments() {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Batch Verification Mode States
+  const [isVerifyMode, setIsVerifyMode] = useState(false);
+  const [verifyQueue, setVerifyQueue] = useState([]);
+  const [verifiedIds, setVerifiedIds] = useState(new Set());
+  const [showQueueDropdown, setShowQueueDropdown] = useState(true);
+
+  // Load verification queue from localStorage on mount
+  useEffect(() => {
+    const loadVerifyQueue = async () => {
+      try {
+        const storedQueue = localStorage.getItem('verify_queue');
+        if (storedQueue) {
+          const parsed = JSON.parse(storedQueue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setIsVerifyMode(true);
+            
+            // Try fetching by ID first
+            let { data, error } = await supabase
+              .from('shipments')
+              .select('*')
+              .in('id', parsed);
+
+            if (!data || data.length === 0) {
+              // Fallback to fetching by tracking_number if IDs didn't match
+              const { data: dataByTracking } = await supabase
+                .from('shipments')
+                .select('*')
+                .in('tracking_number', parsed);
+              if (dataByTracking) {
+                setVerifyQueue(dataByTracking);
+              }
+            } else {
+              setVerifyQueue(data);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error loading verification queue:', e);
+      }
+    };
+
+    loadVerifyQueue();
+  }, []);
+
   // Start camera on mount
   useEffect(() => {
     startCamera();
@@ -59,6 +107,109 @@ export default function DriverScanShipments() {
       stopCamera();
     };
   }, []);
+
+  // Clean scanned text (extract tracking number if full URL is scanned)
+  const cleanTrackingNumber = (text) => {
+    if (!text) return '';
+    let cleaned = text.trim();
+    if (cleaned.includes('http://') || cleaned.includes('https://')) {
+      try {
+        const url = new URL(cleaned);
+        const segments = url.pathname.split('/').filter(Boolean);
+        if (segments.length > 0) {
+          cleaned = segments[segments.length - 1];
+        }
+      } catch (e) {
+        const parts = cleaned.split('/');
+        cleaned = parts[parts.length - 1];
+      }
+    }
+    return cleaned;
+  };
+
+  // Handle scanned or entered tracking number
+  const handleScanResult = async (rawText) => {
+    const query = cleanTrackingNumber(rawText || manualInput);
+    if (!query.trim()) {
+      toast.error('Please enter or scan a valid tracking number');
+      return;
+    }
+
+    if (isVerifyMode) {
+      // Find matching shipment in the verification queue
+      const matchedShipment = verifyQueue.find(
+        s => 
+          s.tracking_number?.toLowerCase() === query.toLowerCase() || 
+          String(s.id) === String(query)
+      );
+
+      if (!matchedShipment) {
+        toast.error(`Shipment (${query}) is not in your active verification batch!`);
+        return;
+      }
+
+      const identifier = matchedShipment.id || matchedShipment.tracking_number;
+      if (verifiedIds.has(identifier)) {
+        toast.info(`Shipment ${matchedShipment.tracking_number} is already verified.`);
+        return;
+      }
+
+      // Mark verified locally
+      const newVerified = new Set(verifiedIds);
+      newVerified.add(identifier);
+      setVerifiedIds(newVerified);
+
+      setShowManualModal(false);
+      setManualInput('');
+
+      // Update shipment status in Supabase
+      try {
+        await supabase
+          .from('shipments')
+          .update({ status: 'In Transit' })
+          .eq('id', matchedShipment.id);
+      } catch (err) {
+        console.error('Failed to update status in Supabase:', err);
+      }
+
+      toast.success(`Verified: ${matchedShipment.tracking_number} (${newVerified.size}/${verifyQueue.length})`);
+
+      // Check if all items in queue are verified
+      if (newVerified.size === verifyQueue.length) {
+        toast.success('All shipments in batch successfully verified!');
+        localStorage.removeItem('verify_queue');
+        setTimeout(() => {
+          navigate('/driver-portal/shipments');
+        }, 1500);
+      }
+    } else {
+      // Regular scan mode behavior (lookup and open update view)
+      setLoadingSearch(true);
+      try {
+        const { data, error } = await supabase
+          .from('shipments')
+          .select('*')
+          .ilike('tracking_number', `%${query}%`)
+          .limit(1);
+
+        let trackingToOpen = query;
+        if (!error && data && data.length > 0) {
+          trackingToOpen = data[0].tracking_number;
+        }
+
+        setShowManualModal(false);
+        setManualInput('');
+        toast.success(`Opening shipment: ${trackingToOpen}`);
+        
+        navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
+      } catch (err) {
+        console.error(err);
+        toast.error('Error searching shipment');
+      } finally {
+        setLoadingSearch(false);
+      }
+    }
+  };
 
   // Frame scanning loop to decode QR codes from the live video stream
   useEffect(() => {
@@ -81,8 +232,7 @@ export default function DriverScanShipments() {
           if (barcodes.length > 0) {
             const scannedText = barcodes[0].rawValue;
             if (scannedText) {
-              toast.success(`Scanned: ${scannedText}`);
-              handleLookupShipment(scannedText);
+              handleScanResult(scannedText);
               return;
             }
           }
@@ -106,8 +256,7 @@ export default function DriverScanShipments() {
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = window.jsQR(imageData.data, imageData.width, imageData.height);
             if (code && code.data) {
-              toast.success(`Scanned: ${code.data}`);
-              handleLookupShipment(code.data);
+              handleScanResult(code.data);
               return;
             }
           }
@@ -121,7 +270,7 @@ export default function DriverScanShipments() {
 
     intervalId = setInterval(scanFrame, 300);
     return () => clearInterval(intervalId);
-  }, [cameraActive]);
+  }, [cameraActive, isVerifyMode, verifyQueue, verifiedIds]);
 
   const startCamera = async () => {
     try {
@@ -187,42 +336,6 @@ export default function DriverScanShipments() {
     }
   };
 
-  // Handle lookup by scanned or typed tracking number and redirect with popup open
-  const handleLookupShipment = async (trackingNum) => {
-    const query = trackingNum || manualInput;
-    if (!query.trim()) {
-      toast.error('Please enter a tracking number');
-      return;
-    }
-
-    setLoadingSearch(true);
-    try {
-      const { data, error } = await supabase
-        .from('shipments')
-        .select('*')
-        .ilike('tracking_number', `%${query.trim()}%`)
-        .limit(1);
-
-      let trackingToOpen = query.trim();
-      if (!error && data && data.length > 0) {
-        trackingToOpen = data[0].tracking_number;
-      }
-
-      setShowManualModal(false);
-      setManualInput('');
-      toast.success(`Opening shipment: ${trackingToOpen}`);
-      
-      navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Error searching shipment');
-    } finally {
-      setLoadingSearch(false);
-    }
-  };
-
-  const driverName = driver?.name || 'Driver';
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans flex">
       
@@ -237,7 +350,7 @@ export default function DriverScanShipments() {
         {/* ================= DESKTOP HEADER (Hidden on Mobile) ================= */}
         <div className="hidden md:block">
           <DriverHeader 
-            title="Scan Shipments" 
+            title={isVerifyMode ? "Batch Verification Mode" : "Scan Shipments"} 
             subtitle="" 
           />
         </div>
@@ -252,7 +365,7 @@ export default function DriverScanShipments() {
           </button>
 
           <h1 className="text-base font-black text-slate-900 tracking-tight">
-            Scan Shipment
+            {isVerifyMode ? "Verify Batch" : "Scan Shipment"}
           </h1>
 
           <div className="w-10"></div>
@@ -261,6 +374,81 @@ export default function DriverScanShipments() {
         {/* Content Body */}
         <div className="p-6 space-y-6 max-w-5xl w-full mx-auto">
           
+          {/* ================= VERIFICATION QUEUE DROPDOWN PANEL (Only shown in Verify Mode) ================= */}
+          {isVerifyMode && (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all">
+              <div 
+                onClick={() => setShowQueueDropdown(!showQueueDropdown)}
+                className="p-4 sm:p-5 bg-amber-50/60 border-b border-amber-100/60 flex items-center justify-between cursor-pointer select-none"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-400 text-slate-900 flex items-center justify-center font-black text-xs shadow-xs">
+                    {verifiedIds.size}/{verifyQueue.length}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 text-sm">Batch Verification Progress</h3>
+                    <p className="text-xs text-slate-500">Scan labels to verify selected shipments</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      localStorage.removeItem('verify_queue');
+                      setIsVerifyMode(false);
+                      toast.info('Exited verification mode');
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Exit
+                  </button>
+                  <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                    {showQueueDropdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </div>
+              </div>
+
+              {showQueueDropdown && (
+                <div className="p-4 space-y-2.5 max-h-64 overflow-y-auto">
+                  {verifyQueue.map((item) => {
+                    const identifier = item.id || item.tracking_number;
+                    const isVerified = verifiedIds.has(identifier);
+
+                    return (
+                      <div 
+                        key={identifier}
+                        className={`p-3.5 rounded-2xl border flex items-center justify-between transition-colors ${
+                          isVerified 
+                            ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900' 
+                            : 'bg-slate-50 border-slate-200 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                            isVerified ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {isVerified ? <Check className="w-4 h-4 stroke-[3]" /> : <Package className="w-4 h-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-mono font-bold text-xs truncate">{item.tracking_number}</h4>
+                            <p className="text-[11px] text-slate-500 truncate">{item.sender_name || 'Shipment'} → {item.receiver_name || 'Destination'}</p>
+                          </div>
+                        </div>
+
+                        <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                          isVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {isVerified ? 'Verified' : 'Pending'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ================= CAMERA VIEWPORT CARD ================= */}
           <div className="relative rounded-3xl overflow-hidden bg-neutral-950 border border-slate-200 shadow-sm aspect-[4/5] sm:aspect-[21/9] lg:aspect-[16/7] flex items-center justify-center group">
             
@@ -448,8 +636,12 @@ export default function DriverScanShipments() {
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <div>
-                <h3 className="font-black text-lg text-slate-900">Enter Tracking Number</h3>
-                <p className="text-xs text-slate-400">Type waybill ID to lookup and update</p>
+                <h3 className="font-black text-lg text-slate-900">
+                  {isVerifyMode ? "Verify Tracking Number" : "Enter Tracking Number"}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {isVerifyMode ? "Type waybill ID to verify against batch queue" : "Type waybill ID to lookup and update"}
+                </p>
               </div>
               <button onClick={() => setShowManualModal(false)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors cursor-pointer">
                 <X className="w-4 h-4" />
@@ -461,10 +653,10 @@ export default function DriverScanShipments() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="e.g. SHP-004, SHP-001" 
+                  placeholder="e.g. JB245262633" 
                   value={manualInput}
                   onChange={(e) => setManualInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLookupShipment()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleScanResult()}
                   autoFocus
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs text-slate-900 font-mono focus:outline-none focus:border-amber-400 transition-colors"
                 />
@@ -478,11 +670,11 @@ export default function DriverScanShipments() {
                   Cancel
                 </button>
                 <button 
-                  onClick={() => handleLookupShipment()}
+                  onClick={() => handleScanResult()}
                   disabled={loadingSearch}
                   className="flex-1 py-3 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  {loadingSearch ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Find Shipment'}
+                  {loadingSearch ? <Loader2 className="w-4 h-4 animate-spin" /> : (isVerifyMode ? 'Verify Item' : 'Find Shipment')}
                 </button>
               </div>
             </div>
