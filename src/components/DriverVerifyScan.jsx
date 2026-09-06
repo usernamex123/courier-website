@@ -11,6 +11,8 @@ import {
   XCircle, 
   Loader2, 
   ShieldCheck,
+  ChevronDown,
+  ChevronUp,
   LayoutDashboard,
   Bell,
   User,
@@ -22,11 +24,11 @@ export default function DriverVerifyScan() {
 
   const [inputCode, setInputCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(true);
 
   // Batch verification states
-  const [verifyQueue, setVerifyQueue] = useState([]); // Fixed array of IDs
-  const [verifiedSet, setVerifiedSet] = useState(new Set()); // Successfully scanned IDs
+  const [verifyQueue, setVerifyQueue] = useState([]); 
+  const [verifiedSet, setVerifiedSet] = useState(new Set()); 
   const [queueShipmentsData, setQueueShipmentsData] = useState([]);
 
   const inputRef = useRef(null);
@@ -64,10 +66,40 @@ export default function DriverVerifyScan() {
     }
   };
 
+  // Helper to extract the tracking number from scanned QR code URLs (e.g. https://www.jblogisticservices.com/scan/JB245262633)
+  const extractTrackingNumber = (rawInput) => {
+    if (!rawInput) return '';
+    const trimmed = rawInput.trim();
+    
+    // If it contains a URL path structure like /scan/
+    if (trimmed.includes('/scan/')) {
+      const parts = trimmed.split('/scan/');
+      if (parts.length > 1) {
+        return parts[1].split('/')[0].trim();
+      }
+    }
+    
+    // Fallback URL pathname check
+    try {
+      const url = new URL(trimmed);
+      const segments = url.pathname.split('/').filter(Boolean);
+      if (segments.length > 0) {
+        return segments[segments.length - 1];
+      }
+    } catch (e) {
+      // Not a URL, use raw string
+    }
+    
+    return trimmed;
+  };
+
   const handleScanSubmit = async (e) => {
     e.preventDefault();
-    const code = inputCode.trim();
-    if (!code) return;
+    const rawCode = inputCode.trim();
+    if (!rawCode) return;
+
+    // Clean URL-encoded QR codes down to the core tracking number or ID
+    const code = extractTrackingNumber(rawCode);
 
     setLoading(true);
     try {
@@ -80,7 +112,7 @@ export default function DriverVerifyScan() {
       if (error) throw error;
 
       if (!shipments || shipments.length === 0) {
-        toast.error(`Shipment not found: ${code}`);
+        toast.error(`Shipment not found for code: ${code}`);
         setInputCode('');
         setLoading(false);
         return;
@@ -93,7 +125,7 @@ export default function DriverVerifyScan() {
         toast.error(`Wrong shipment! ${scannedShipment.tracking_number} is not in your selected batch.`);
         setInputCode('');
         setLoading(false);
-        return; // Count remains strictly untouched
+        return; 
       }
 
       // 2. Check if already verified in this session
@@ -109,12 +141,6 @@ export default function DriverVerifyScan() {
       updatedVerified.add(scannedShipment.id);
       setVerifiedSet(updatedVerified);
       toast.success(`Verified: ${scannedShipment.tracking_number} (${updatedVerified.size}/${verifyQueue.length})`);
-
-      // 4. Check completion condition
-      if (updatedVerified.size === verifyQueue.length) {
-        toast.success('All boxes in the batch successfully verified!');
-        // Optional: Perform automated batch status update in DB here if desired
-      }
 
       setInputCode('');
     } catch (err) {
@@ -133,10 +159,9 @@ export default function DriverVerifyScan() {
 
     try {
       setLoading(true);
-      // Example: Bulk update status in Supabase
       const { error } = await supabase
         .from('shipments')
-        .update({ status: 'Out for Delivery' }) // or whatever target status
+        .update({ status: 'Out for Delivery' })
         .in('id', verifyQueue);
 
       if (error) throw error;
@@ -202,7 +227,7 @@ export default function DriverVerifyScan() {
                 Scan Box QR Label
               </h2>
               <p className="text-xs font-semibold text-slate-500">
-                Scan barcodes sequentially. Unmatched boxes will trigger a warning and will not change your target count.
+                Scanning the package QR code automatically extracts the tracking code to verify items against your active batch.
               </p>
             </div>
 
@@ -226,44 +251,59 @@ export default function DriverVerifyScan() {
             </form>
           </div>
 
-          {/* Checklist of Selected Boxes */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider">Queue Checklist</h3>
-              <span className="text-xs font-bold text-slate-500">{verifyQueue.length} items targeted</span>
-            </div>
+          {/* Collapsible Dropdown of Chosen Shipments Queue */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-full p-5 flex items-center justify-between bg-slate-50 hover:bg-slate-100/80 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-slate-700" />
+                <span className="font-black text-xs text-slate-900 uppercase tracking-wider">
+                  Chosen Shipments Queue ({verifyQueue.length})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">
+                  {dropdownOpen ? 'Hide Dropdown' : 'Show Dropdown'}
+                </span>
+                {dropdownOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+              </div>
+            </button>
 
-            <div className="divide-y divide-slate-100">
-              {queueShipmentsData.map((s) => {
-                const isVerified = verifiedSet.has(s.id);
-                return (
-                  <div key={s.id} className="py-3 flex items-center justify-between text-xs">
-                    <div className="space-y-0.5">
-                      <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {s.tracking_number}
-                      </span>
-                      <div className="text-slate-500 font-semibold pt-1">
-                        {s.recipient_name || s.client_name || 'Client'} &bull; {s.destination || 'Destination'}
+            {dropdownOpen && (
+              <div className="p-6 space-y-4 divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                {queueShipmentsData.map((s) => {
+                  const isVerified = verifiedSet.has(s.id);
+                  return (
+                    <div key={s.id} className="pt-3 first:pt-0 flex items-center justify-between text-xs">
+                      <div className="space-y-0.5">
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          {s.tracking_number}
+                        </span>
+                        <div className="text-slate-500 font-semibold pt-1">
+                          {s.recipient_name || s.client_name || 'Client'} &bull; {s.destination || 'Destination'}
+                        </div>
+                      </div>
+                      <div>
+                        {isVerified ? (
+                          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-black inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-bold">
+                            Pending Scan
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      {isVerified ? (
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-black inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full font-bold">
-                          Pending Scan
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {verifiedSet.size === verifyQueue.length && verifyQueue.length > 0 && (
-              <div className="pt-4 border-t border-slate-100">
+              <div className="p-6 border-t border-slate-100 bg-slate-50">
                 <button
                   onClick={handleCompleteBatch}
                   disabled={loading}
