@@ -177,7 +177,12 @@ export default function DriverScanShipments() {
       // Check if all items in queue are verified
       if (newVerified.size === verifyQueue.length) {
         toast.success('All shipments in batch successfully verified!');
+        
+        // Save the IDs to selected_shipments so they stay ticked when returning to shipments page
+        const allIds = verifyQueue.map(s => s.id);
+        localStorage.setItem('selected_shipments', JSON.stringify(allIds));
         localStorage.removeItem('verify_queue');
+
         setTimeout(() => {
           navigate('/driver-portal/shipments');
         }, 1500);
