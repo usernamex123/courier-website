@@ -65,28 +65,44 @@ export default function DriverScanShipments() {
   // Cooldown tracking state to prevent continuous toast spamming from video frame detection
   const [lastScanned, setLastScanned] = useState({ code: '', timestamp: 0 });
 
-  // Audio Feedback Helper using Web Audio API
+  // Audio Feedback Helper with iOS-style professional dual-tone chime
   const playAudioFeedback = (type = 'success') => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
 
       if (type === 'success') {
-        // High-pitch crisp beep
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.12);
+        // iOS-style crisp dual-tone chime (ascending professional pop)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.frequency.setValueAtTime(587.33, now); // D5 note
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc1.start(now);
+        osc1.stop(now + 0.08);
+
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.frequency.setValueAtTime(880, now + 0.07); // A5 note (double "tut-tut")
+        gain2.gain.setValueAtTime(0.15, now + 0.07);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc2.start(now + 0.07);
+        osc2.stop(now + 0.22);
       } else {
         // Low-pitch double buzz for error / already verified / not found
-        oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.2);
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.frequency.setValueAtTime(300, now);
+        gainNode.gain.setValueAtTime(0.25, now);
+        oscillator.start(now);
+        oscillator.stop(now + 0.2);
       }
     } catch (err) {
       console.warn('AudioContext blocked or unsupported:', err);
