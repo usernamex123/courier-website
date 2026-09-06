@@ -62,6 +62,48 @@ export default function DriverScanShipments() {
   const [verifiedIds, setVerifiedIds] = useState(new Set());
   const [showQueueDropdown, setShowQueueDropdown] = useState(true);
 
+  // Cooldown tracking state to prevent continuous toast spamming from video frame detection
+  const [lastScanned, setLastScanned] = useState({ code: '', timestamp: 0 });
+
+  // Audio Feedback Helper using Web Audio API
+  const playAudioFeedback = (type = 'success') => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        // High-pitch crisp beep
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.12);
+      } else {
+        // Low-pitch double buzz for error / already verified / not found
+        oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.2);
+      }
+    } catch (err) {
+      console.warn('AudioContext blocked or unsupported:', err);
+    }
+  };
+
+  // Haptic Vibration Helper
+  const triggerHaptic = (type = 'success') => {
+    if ('vibrate' in navigator) {
+      if (type === 'success') {
+        navigator.vibrate(100); // Short single tap
+      } else {
+        navigator.vibrate([120, 60, 120]); // Warning double-buzz
+      }
+    }
+  };
+
   // Load verification queue from localStorage on mount
   useEffect(() => {
     const loadVerifyQueue = async () => {
@@ -135,6 +177,13 @@ export default function DriverScanShipments() {
       return;
     }
 
+    // Enforce cooldown (3 seconds) for camera scans to prevent continuous triggering
+    const now = Date.now();
+    if (query === lastScanned.code && now - lastScanned.timestamp < 3000) {
+      return;
+    }
+    setLastScanned({ code: query, timestamp: now });
+
     if (isVerifyMode) {
       // Find matching shipment in the verification queue
       const matchedShipment = verifyQueue.find(
@@ -144,12 +193,16 @@ export default function DriverScanShipments() {
       );
 
       if (!matchedShipment) {
+        playAudioFeedback('error');
+        triggerHaptic('error');
         toast.error(`Shipment (${query}) is not in your active verification batch!`);
         return;
       }
 
       const identifier = matchedShipment.id || matchedShipment.tracking_number;
       if (verifiedIds.has(identifier)) {
+        playAudioFeedback('error');
+        triggerHaptic('error');
         toast.info(`Shipment ${matchedShipment.tracking_number} is already verified.`);
         return;
       }
@@ -172,6 +225,8 @@ export default function DriverScanShipments() {
         console.error('Failed to update status in Supabase:', err);
       }
 
+      playAudioFeedback('success');
+      triggerHaptic('success');
       toast.success(`Verified: ${matchedShipment.tracking_number} (${newVerified.size}/${verifyQueue.length})`);
 
       // Check if all items in queue are verified
@@ -204,11 +259,15 @@ export default function DriverScanShipments() {
 
         setShowManualModal(false);
         setManualInput('');
+        playAudioFeedback('success');
+        triggerHaptic('success');
         toast.success(`Opening shipment: ${trackingToOpen}`);
         
         navigate(`/driver-portal/shipments?openUpdate=${encodeURIComponent(trackingToOpen)}`);
       } catch (err) {
         console.error(err);
+        playAudioFeedback('error');
+        triggerHaptic('error');
         toast.error('Error searching shipment');
       } finally {
         setLoadingSearch(false);
@@ -275,7 +334,7 @@ export default function DriverScanShipments() {
 
     intervalId = setInterval(scanFrame, 300);
     return () => clearInterval(intervalId);
-  }, [cameraActive, isVerifyMode, verifyQueue, verifiedIds]);
+  }, [cameraActive, isVerifyMode, verifyQueue, verifiedIds, lastScanned]);
 
   const startCamera = async () => {
     try {

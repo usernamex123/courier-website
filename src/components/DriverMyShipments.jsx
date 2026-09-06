@@ -184,7 +184,24 @@ export default function DriverMyShipments() {
 
       if (error) throw error;
       setShipments(data || []);
-      setSelectedShipments([]);
+
+      // Retain pre-selected shipments from localStorage if present (e.g. after batch verification)
+      const savedSelected = localStorage.getItem('selected_shipments');
+      if (savedSelected) {
+        try {
+          const parsed = JSON.parse(savedSelected);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSelectedShipments(parsed);
+            localStorage.removeItem('selected_shipments');
+          } else {
+            setSelectedShipments([]);
+          }
+        } catch (e) {
+          setSelectedShipments([]);
+        }
+      } else {
+        setSelectedShipments([]);
+      }
     } catch (err) {
       console.error('Error fetching shipments:', err);
       toast.error('Failed to load shipments');
