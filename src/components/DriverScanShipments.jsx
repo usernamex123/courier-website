@@ -211,7 +211,7 @@ export default function DriverScanShipments() {
       if (!matchedShipment) {
         playAudioFeedback('error');
         triggerHaptic('error');
-        toast.error(`Shipment (${query}) is not in your active verification batch!`);
+        toast.error(`Shipment (${query}) is not in your selected verification batch!`);
         return;
       }
 

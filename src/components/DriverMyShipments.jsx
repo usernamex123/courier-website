@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import DriverSidebar from './DriverSidebar';
 
-const STATUS_FLOW = ['assigned', 'in_transit', 'out_for_delivery', 'delivered'];
+const STATUS_FLOW = ['picked_up', 'at_jb_facility', 'in_transit', 'out_for_delivery', 'delivered'];
 
 const getClevelandTimestamp = () => {
   const now = new Date();
@@ -185,7 +185,6 @@ export default function DriverMyShipments() {
       if (error) throw error;
       setShipments(data || []);
 
-      // Retain pre-selected shipments from localStorage if present (e.g. after batch verification)
       const savedSelected = localStorage.getItem('selected_shipments');
       if (savedSelected) {
         try {
@@ -883,7 +882,8 @@ export default function DriverMyShipments() {
               <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
               
               {[
-                { label: 'Assigned', dbKey: 'assigned' },
+                { label: 'Picked Up', dbKey: 'picked_up' },
+                { label: 'At JB Facility', dbKey: 'at_jb_facility' },
                 { label: 'In Transit', dbKey: 'in_transit' },
                 { label: 'Out for Delivery', dbKey: 'out_for_delivery' },
                 { label: 'Delivered', dbKey: 'delivered' },
@@ -962,7 +962,8 @@ export default function DriverMyShipments() {
               <label className="text-xs font-black uppercase text-slate-500 tracking-wider block">Select New Event Status</label>
               
               {[
-                { label: 'Assigned', dbKey: 'assigned' },
+                { label: 'Picked Up', dbKey: 'picked_up' },
+                { label: 'At JB Facility', dbKey: 'at_jb_facility' },
                 { label: 'In Transit', dbKey: 'in_transit' },
                 { label: 'Out for Delivery', dbKey: 'out_for_delivery' },
                 { label: 'Delivered', dbKey: 'delivered' },
