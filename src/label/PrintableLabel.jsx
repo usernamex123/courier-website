@@ -16,47 +16,19 @@ function generateQRCodeSVG(text, size = 120) {
   );
 }
 
-// Robust SVG Linear Barcode Generator
+// Standard Code 128 Linear Barcode Generator for traditional laser/CCD scanners
 function generateBarcodeSVG(text, width = 240, height = 36) {
   const safeText = text || "JBL-DEFAULT";
-  const bars = [2, 1, 2]; // Start guard
-
-  for (let i = 0; i < safeText.length; i++) {
-    const code = safeText.charCodeAt(i);
-    bars.push((code % 3) + 1);
-    bars.push(((code * 7) % 2) + 1);
-    bars.push(((code * 3) % 3) + 1);
-    bars.push(1);
-  }
-
-  bars.push(1, 2, 1); // Stop guard
-
-  const totalUnits = bars.reduce((acc, val) => acc + val, 0);
-  const unitWidth = width / totalUnits;
-
-  let currentX = 0;
-  const rects = bars.map((barWidth, index) => {
-    const w = barWidth * unitWidth;
-    const isBlack = index % 2 === 0;
-    const rect = isBlack ? (
-      <rect
-        key={`bar-${index}`}
-        x={currentX}
-        y={0}
-        width={w}
-        height={height}
-        fill="black"
-      />
-    ) : null;
-    currentX += w;
-    return rect;
-  });
-
+  const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(safeText)}&scale=2&height=12&includetext`;
+  
   return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="block">
-      <rect width={width} height={height} fill="white" />
-      {rects}
-    </svg>
+    <img 
+      src={barcodeUrl} 
+      alt="Tracking Barcode" 
+      width={width} 
+      height={height} 
+      style={{ width: '100%', height: `${height}px`, display: 'block', objectFit: 'contain' }} 
+    />
   );
 }
 
@@ -133,7 +105,7 @@ const PrintableLabel = forwardRef(({ shipment }, ref) => {
           <div className="text-base font-black tracking-tight">{shipment.tracking_number}</div>
           
           <div className="w-full px-2 my-1">
-            {generateBarcodeSVG(shipment.tracking_number, 220, 32)}
+            {generateBarcodeSVG(shipment.tracking_number, 220, 36)}
           </div>
           
           <div className="text-[8px] text-gray-500 uppercase tracking-wider">Scan to track your shipment</div>
