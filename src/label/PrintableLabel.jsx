@@ -16,10 +16,10 @@ function generateQRCodeSVG(text, size = 120) {
   );
 }
 
-// Standard Code 128 Linear Barcode Generator for traditional laser/CCD scanners
-function generateBarcodeSVG(text, width = 240, height = 36) {
+// Reliable Code 128 Linear Barcode Generator
+function generateBarcodeSVG(text, width = 240, height = 45) {
   const safeText = text || "JBL-DEFAULT";
-  const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(safeText)}&scale=2&height=12&includetext`;
+  const barcodeUrl = `https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(safeText)}&code=Code128&dpi=96`;
   
   return (
     <img 

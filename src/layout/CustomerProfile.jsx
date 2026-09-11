@@ -94,12 +94,12 @@ export default function CustomerProfile() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          postal_code: formData.postal_code,
+          full_name: formData.full_name.trim() || null,
+          phone: formData.phone.trim() || null,
+          address: formData.address.trim() || null,
+          city: formData.city.trim() || null,
+          state: formData.state.trim() || null,
+          postal_code: formData.postal_code.trim() || null,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id);

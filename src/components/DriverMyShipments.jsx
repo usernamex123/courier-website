@@ -136,6 +136,36 @@ export default function DriverMyShipments() {
   const [activePrintShipment, setActivePrintShipment] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+ // Scanner input listener
+ useEffect(() => {
+  let barcodeBuffer = '';
+  let timeoutId;
+
+  const handleKeyDown = (e) => {
+    clearTimeout(timeoutId);
+
+    if (e.key === 'Enter') {
+      const scannedCode = barcodeBuffer.trim();
+      if (scannedCode) {
+        const matchedShipment = shipments.find(s => s.tracking_number === scannedCode);
+        if (matchedShipment) {
+          setActiveModalShipment(matchedShipment);
+        } else {
+          console.warn("Scanned tracking number not found in current view:", scannedCode);
+        }
+      }
+      barcodeBuffer = '';
+    } else if (e.key.length === 1) {
+      // ONLY capture single printable characters, ignoring Shift, Ctrl, Alt, etc.
+      barcodeBuffer += e.key;
+      timeoutId = setTimeout(() => { barcodeBuffer = ''; }, 100);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [shipments]);
+
   useEffect(() => {
     const shipmentTrackingToUpdate = searchParams.get('openUpdate');
     if (shipmentTrackingToUpdate && shipments.length > 0) {

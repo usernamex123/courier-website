@@ -83,61 +83,38 @@ export default function Login() {
 
       const cleanEmail = email.trim();
 
-      // 1. Try Admin Login First
-      try {
-        const adminRes = await fetch(`${API_URL}/api/admin/login`, {
+      // Run Admin and Driver checks in parallel to eliminate sequential network latency
+      const [adminRes, driverRes] = await Promise.allSettled([
+        fetch(`${API_URL}/api/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: cleanEmail, password }),
           credentials: 'include'
-        });
+        }).then(res => res.json().catch(() => ({}))),
 
-        const adminData = await adminRes.json().catch(() => ({}));
+        fetch(`${API_URL}/api/driver/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+          credentials: 'include'
+        }).then(res => res.json().catch(() => ({})))
+      ]);
 
-        if (adminRes.ok && adminData.success) {
-          toast.success('Admin authenticated successfully!');
-          toggleModal(false);
-          navigate('/admin/dashboard');
-          return;
-        }
-
-        if (adminRes.status >= 500) {
-          throw new Error(adminData.error || 'Server error during admin authentication.');
-        }
-      } catch (adminErr) {
-        if (adminErr.message && adminErr.message.includes('Server error')) {
-          throw adminErr;
-        }
-        // Silent fallback for non-admin accounts
+      // 1. Verify Admin Success
+      if (adminRes.status === 'fulfilled' && adminRes.value.success) {
+        toast.success('Admin authenticated successfully!');
+        toggleModal(false);
+        navigate('/admin/dashboard');
+        return;
       }
 
-      // 2. Try Driver Login via Express Backend Route (Removed 2-second timeout restriction to prevent premature aborts)
-      try {
-        const driverRes = await fetch(`${API_URL}/api/driver/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password }),
-          credentials: 'include'
-        });
-
-        const driverData = await driverRes.json().catch(() => ({}));
-
-        if (driverRes.ok && driverData.success) {
-          localStorage.setItem('driver_data', JSON.stringify(driverData.driver));
-          toast.success('Welcome back, driver!');
-          toggleModal(false);
-          navigate('/driver-portal');
-          return;
-        }
-
-        if (driverRes.status >= 500) {
-          throw new Error(driverData.error || 'Server error during driver authentication.');
-        }
-      } catch (driverErr) {
-        if (driverErr.message && driverErr.message.includes('Server error')) {
-          throw driverErr;
-        }
-        // Silent fallback for regular client accounts
+      // 2. Verify Driver Success
+      if (driverRes.status === 'fulfilled' && driverRes.value.success) {
+        localStorage.setItem('driver_data', JSON.stringify(driverRes.value.driver));
+        toast.success('Welcome back, driver!');
+        toggleModal(false);
+        navigate('/driver-portal');
+        return;
       }
 
       // 3. Fallback to Standard Client Portal (Supabase Auth directly)
