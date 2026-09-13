@@ -301,16 +301,29 @@ export default function ClientQuotes() {
                   {/* Divider */}
                   <div className="border-t border-gray-100"></div>
 
-                  {/* Middle Section: Subject / Source, Route & Message Preview */}
+                  {/* Middle Section: Subject / Source, Route, Weight, Package Type & Message Preview */}
                   <div className="space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
                         <div className="font-bold text-gray-900 text-base">{subjectText}</div>
                         <div className="text-gray-600 text-xs font-medium">{sourceText}</div>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-fit">
-                        <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
-                        <span className="truncate">Route: {routeOrState}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-fit">
+                          <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                          <span className="truncate">Route: {routeOrState}</span>
+                        </div>
+                        {quote.weight && (
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-fit">
+                            <span className="truncate">Weight: {quote.weight} lbs</span>
+                          </div>
+                        )}
+                        {quote.package_type && (
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-fit">
+                            <Package className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                            <span className="truncate">Package: {quote.package_type}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -418,6 +431,22 @@ export default function ClientQuotes() {
                       : (selectedQuote.from_state || selectedQuote.to_state || selectedQuote.state || 'N/A')}
                   </span>
                 </div>
+                {selectedQuote.weight && (
+                  <div>
+                    <span className="text-xs uppercase font-extrabold text-gray-500 block mb-1">Weight</span>
+                    <span className="text-sm font-bold text-gray-900 block truncate">
+                      {selectedQuote.weight} lbs
+                    </span>
+                  </div>
+                )}
+                {selectedQuote.package_type && (
+                  <div>
+                    <span className="text-xs uppercase font-extrabold text-gray-500 block mb-1">Package Type</span>
+                    <span className="text-sm font-bold text-gray-900 block truncate">
+                      {selectedQuote.package_type}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="bg-gray-50 p-5 border border-gray-200 rounded-xl space-y-2">

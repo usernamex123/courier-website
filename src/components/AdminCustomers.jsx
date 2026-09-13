@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Plus, Search, Mail, Phone, Building2, Pencil, Trash2, X, Loader2, Download } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { Plus, Search, Mail, Phone, Building2, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return `http://${window.location.hostname || 'localhost'}:5000`;
-};
-const API_URL = getApiUrl();
+const API_URL = import.meta.env.VITE_API_URL || 'https://courier-backend-5f6r.onrender.com';
 
-const INDUSTRIES = ["E-commerce", "Manufacturing", "Healthcare", "Pharmaceuticals", "Agriculture", "Automotive", "Retail", "FMCG", "Electronics", "Construction", "Government", "Oil & Gas", "Mining", "Textile", "Food & Beverage"];
+const INDUSTRIES = [
+  "E-commerce", "Manufacturing", "Healthcare", "Pharmaceuticals", "Agriculture",
+  "Automotive", "Retail", "FMCG", "Electronics", "Construction", "Government",
+  "Oil & Gas", "Mining", "Textile", "Food & Beverage"
+];
 
 const FIELDS = [
   { name: "company_name", label: "Company Name", required: true },
@@ -26,271 +26,328 @@ const FIELDS = [
   { name: "total_shipments", label: "Total Shipments", type: "number" },
 ];
 
-const tierColors = { 
-  Bronze: "bg-amber-50 text-amber-800 border-amber-200", 
-  Silver: "bg-gray-100 text-gray-800 border-gray-200", 
-  Gold: "bg-yellow-50 text-yellow-800 border-yellow-200", 
-  Platinum: "bg-purple-50 text-purple-800 border-purple-200" 
+const tierColors = {
+  Bronze: "bg-amber-100 text-amber-700",
+  Silver: "bg-gray-200 text-gray-700",
+  Gold: "bg-yellow-100 text-yellow-700",
+  Platinum: "bg-purple-100 text-purple-700"
 };
 
-// --- Inline UI Components ---
-
-const StatusBadge = ({ status }) => {
-  const s = (status || "").toLowerCase();
-  let colors = "bg-gray-100 text-gray-700 border-gray-200";
-  if (s === "active") colors = "bg-green-50 text-green-700 border-green-200";
-  if (s === "pending") colors = "bg-yellow-50 text-yellow-800 border-yellow-200";
-  if (s === "inactive") colors = "bg-red-50 text-red-700 border-red-200";
-
+function SimpleStatusBadge({ status }) {
+  const styles = {
+    active: "bg-green-100 text-green-700 border-green-200",
+    inactive: "bg-slate-100 text-slate-700 border-slate-200",
+    pending: "bg-amber-100 text-amber-700 border-amber-200",
+  };
   return (
-    <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider border ${colors}`}>
-      {status || 'ACTIVE'}
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border capitalize ${styles[status] || styles.inactive}`}>
+      {status}
     </span>
   );
-};
+}
 
-const ConfirmDialog = ({ message, onConfirm, onClose }) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Action</h3>
-      <p className="text-sm text-gray-600 mb-6">{message}</p>
-      <div className="flex gap-3 justify-end">
-        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">Delete</button>
-      </div>
-    </div>
-  </div>
-);
-
-const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
-  const [formData, setFormData] = useState(initial || { status: "active", tier: "Silver" });
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const method = initial ? 'PUT' : 'POST';
-      const idStr = initial ? `/${initial._id || initial.id}` : '';
-      
-      const res = await fetch(`${API_URL}/api/admin/customers${idStr}`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      });
-
-      if (res.ok) {
-        toast.success(`${title} ${initial ? 'updated' : 'created'} successfully`);
-        onSaved();
-      } else {
-        toast.error(`Failed to save ${title.toLowerCase()}`);
-      }
-    } catch (err) {
-      toast.error("Network error while saving customer");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-xl w-full shadow-2xl my-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">{initial ? 'Edit' : 'New'} {title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {fields.map(f => (
-              <div key={f.name} className={f.name === 'address' ? 'sm:col-span-2' : 'sm:col-span-1'}>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{f.label}</label>
-                {f.type === 'select' ? (
-                  <select
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                    value={formData[f.name] || ''}
-                    onChange={e => setFormData({ ...formData, [f.name]: e.target.value })}
-                    required={f.required}
-                  >
-                    <option value="">Select {f.label}</option>
-                    {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input
-                    type={f.type || 'text'}
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                    value={formData[f.name] || ''}
-                    onChange={e => setFormData({ ...formData, [f.name]: e.target.value })}
-                    placeholder={f.placeholder || ''}
-                    required={f.required}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="pt-4 flex justify-end gap-3 border-t border-gray-200 mt-6">
-            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-50 flex items-center gap-2 shadow-sm">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Save Customer
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// --- Main Component ---
-
-export default function AdminCustomers() {
+export default function Customers() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [tierFilter, setTierFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [formData, setFormData] = useState({});
   const [deleting, setDeleting] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/customers`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/customers`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : data.customers || []);
-    } catch (err) {
-      toast.error("Failed to load customers");
+      setItems(Array.isArray(data) ? data : data.customers || data.items || []);
+    } catch {
+      setItems([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  const filtered = items.filter((c) => {
-    const q = query.toLowerCase();
-    return !q || (c.company_name || "").toLowerCase().includes(q) || (c.contact_name || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q);
-  });
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return items.filter((c) => {
+      const matchesQuery =
+        !q ||
+        (c.company_name || "").toLowerCase().includes(q) ||
+        (c.contact_name || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q);
+      const matchesStatus =
+        statusFilter === "all" || (c.status || "").toLowerCase() === statusFilter.toLowerCase();
+      const matchesTier = tierFilter === "all" || c.tier === tierFilter;
+      return matchesQuery && matchesStatus && matchesTier;
+    });
+  }, [items, query, statusFilter, tierFilter]);
 
-  const getId = (c) => c._id || c.id;
+  const openAddModal = () => {
+    setEditing(null);
+    setFormData({
+      status: "active",
+      tier: "Silver",
+      industry: INDUSTRIES[0],
+      credit_limit: 0,
+      total_revenue: 0,
+      total_shipments: 0,
+    });
+    setShowForm(true);
+  };
+
+  const openEditModal = (c) => {
+    setEditing(c);
+    setFormData({ ...c });
+    setShowForm(true);
+  };
+
+  const handleSaveForm = async (e) => {
+    e.preventDefault();
+    try {
+      const isEdit = Boolean(editing && (editing.id || editing._id));
+      const id = editing?.id || editing?._id;
+      const endpoint = isEdit ? `/api/customers/${id}` : "/api/customers";
+      const url = `${API_URL}${endpoint}`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Save failed");
+      toast.success(isEdit ? "Customer updated" : "Customer created");
+      setShowForm(false);
+      load();
+    } catch {
+      toast.error("Failed to save customer");
+    }
+  };
 
   const handleDelete = async () => {
+    if (!deleting) return;
     try {
-      const id = getId(deleting);
-      await fetch(`${API_URL}/api/admin/customers/${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success("Customer deleted successfully");
+      const id = deleting.id || deleting._id;
+      const res = await fetch(`${API_URL}/api/customers/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success("Customer deleted");
       setDeleting(null);
       load();
-    } catch (err) {
-      toast.error("Failed to delete customer");
+    } catch {
+      toast.error("Delete failed");
     }
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Top Filter & Action Bar */}
-      <div className="bg-white border border-gray-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-300 px-4 py-2.5 flex-1 sm:w-80 shadow-sm">
-          <Search className="w-4 h-4 text-gray-400" />
-          <input 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)} 
-            placeholder="Search customers..." 
-            className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400" 
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => toast.success("Customers exported successfully")} 
-            className="bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-sm"
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 bg-slate-50 rounded-xl border border-slate-200 px-3">
+            <Search className="w-4 h-4 text-slate-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search customers..."
+              className="py-2 text-sm outline-none bg-transparent w-56"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white text-slate-700 outline-none cursor-pointer"
           >
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <button 
-            className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-5 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2" 
-            onClick={() => { setEditing(null); setShowForm(true); }}
+            <option value="all">Status: All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="pending">Pending</option>
+          </select>
+          <select
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white text-slate-700 outline-none cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Add Customer
-          </button>
+            <option value="all">Tier: All</option>
+            <option value="Bronze">Bronze</option>
+            <option value="Silver">Silver</option>
+            <option value="Gold">Gold</option>
+            <option value="Platinum">Platinum</option>
+          </select>
         </div>
+        <button
+          onClick={openAddModal}
+          className="bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2 rounded-xl inline-flex items-center text-sm cursor-pointer transition-colors shadow-sm"
+        >
+          <Plus className="w-4 h-4 mr-1" /> Add Customer
+        </button>
       </div>
 
-      {/* Customers Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          <div className="col-span-full text-center py-16 text-gray-500 font-sans">
-            <Loader2 className="w-6 h-6 text-yellow-600 animate-spin mx-auto mb-2" />
-            Loading customers...
-          </div>
+          <div className="col-span-full text-center py-12 text-slate-500">Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center py-16 text-gray-500 font-sans">
-            No customers registered in the database.
+          <div className="col-span-full bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
+            No customers found.
           </div>
         ) : (
-          filtered.map((c) => {
-            const cId = getId(c);
-            return (
-              <div key={cId} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center font-bold text-yellow-700">
-                      {(c.company_name || "C")[0]}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-sm">{c.company_name}</h3>
-                      <p className="text-xs text-gray-500">{c.contact_name}</p>
-                    </div>
+          filtered.map((c) => (
+            <div key={c.id || c._id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center font-bold text-sm">
+                    {(c.company_name || c.contact_name || "C")[0].toUpperCase()}
                   </div>
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${tierColors[c.tier] || tierColors.Silver}`}>
-                    {c.tier || "Silver"}
-                  </span>
-                </div>
-                <div className="space-y-1.5 text-xs text-gray-600">
-                  <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-gray-400" /> {c.email}</div>
-                  <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-gray-400" /> {c.phone || "—"}</div>
-                  <div className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-gray-400" /> {c.industry || "General"} · {c.city || "—"}</div>
-                </div>
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
                   <div>
-                    <div className="text-base font-bold text-gray-900">{c.total_shipments || 0}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Shipments</div>
+                    <h3 className="font-semibold text-slate-900 text-sm">{c.company_name || c.contact_name}</h3>
+                    <p className="text-xs text-slate-500">{c.email}</p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-base font-bold text-gray-900">${(c.total_revenue || 0).toLocaleString()}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Revenue</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={c.status} />
-                    <div className="flex gap-1">
-                      <button onClick={() => { setEditing(c); setShowForm(true); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 transition-colors">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setDeleting(c)} className="p-1.5 rounded-lg bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                </div>
+                <SimpleStatusBadge status={c.status} />
+              </div>
+
+              <div className="space-y-1 text-xs text-slate-500 mb-4">
+                <div className="font-medium text-slate-700">{c.company_name ? c.contact_name : c.industry}</div>
+                <div>{[c.city, c.country].filter(Boolean).join(", ") || c.address || "—"}</div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <div>
+                  <div className="text-slate-400">Shipments</div>
+                  <div className="text-sm font-bold text-slate-900">{c.total_shipments || 0}</div>
+                </div>
+                <div>
+                  <div className="text-slate-400">Total Spent</div>
+                  <div className="text-sm font-bold text-slate-900">${Number(c.total_revenue || 0).toLocaleString()}</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEditModal(c)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleting(c)}
+                    className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
 
       {showForm && (
-        <EntityFormModal 
-          title="Customer" 
-          fields={FIELDS} 
-          initial={editing} 
-          onClose={() => setShowForm(false)} 
-          onSaved={() => { setShowForm(false); load(); }} 
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 transition-all">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+              <h2 className="text-xl font-bold text-slate-900">
+                {editing ? "Edit Customer" : "Add Customer"}
+              </h2>
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveForm} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FIELDS.map((field) => (
+                  <div key={field.name} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">
+                      {field.label} {field.required && <span className="text-rose-500">*</span>}
+                    </label>
+                    {field.type === "select" ? (
+                      <select
+                        value={formData[field.name] || ""}
+                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 bg-white outline-none focus:border-yellow-400 transition-all cursor-pointer"
+                      >
+                        <option value="" disabled>Select...</option>
+                        {field.options.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type || "text"}
+                        required={field.required}
+                        placeholder={field.label}
+                        value={formData[field.name] ?? ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            [field.name]: field.type === "number" ? Number(e.target.value) : e.target.value,
+                          })
+                        }
+                        className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-5 border-t border-slate-100 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-sm font-semibold text-black transition-colors shadow-sm cursor-pointer"
+                >
+                  {editing ? "Save Changes" : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {deleting && (
-        <ConfirmDialog 
-          message={`Are you sure you want to delete customer ${deleting.company_name}? This operation is permanent.`} 
-          onConfirm={handleDelete} 
-          onClose={() => setDeleting(null)} 
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+            <h3 className="text-base font-bold text-slate-900">Delete Customer</h3>
+            <p className="text-sm text-slate-500">
+              Are you sure you want to delete <span className="font-semibold text-slate-800">{deleting.company_name}</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleting(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm font-semibold text-white cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

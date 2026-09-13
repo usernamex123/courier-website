@@ -14,6 +14,15 @@ const usStates = [
   "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
 ];
 
+const packageTypes = [
+  "Document / Envelope",
+  "Small Box",
+  "Medium Box",
+  "Large Box",
+  "Pallet",
+  "Freight / LTL"
+];
+
 const InputField = ({ placeholder, type, value, onChange, error, onBlur, autoComplete, isNumeric }) => {
   const [isFocused, setIsFocused] = useState(false);
   
@@ -55,6 +64,8 @@ export default function GetStarted() {
     phone: '', 
     fromState: '', 
     toState: '', 
+    weight: '',
+    packageType: '',
     message: '',
     agreed: false 
   });
@@ -63,9 +74,11 @@ export default function GetStarted() {
   
   const [isFromOpen, setIsFromOpen] = useState(false);
   const [isToOpen, setIsToOpen] = useState(false);
+  const [isPackageTypeOpen, setIsPackageTypeOpen] = useState(false);
   
   const fromDropdownRef = useRef(null);
   const toDropdownRef = useRef(null);
+  const packageTypeRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -74,6 +87,9 @@ export default function GetStarted() {
       }
       if (toDropdownRef.current && !toDropdownRef.current.contains(event.target)) {
         setIsToOpen(false);
+      }
+      if (packageTypeRef.current && !packageTypeRef.current.contains(event.target)) {
+        setIsPackageTypeOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -127,10 +143,10 @@ export default function GetStarted() {
         const { data: { user } } = await supabase.auth.getUser();
 
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-        const fullMessage = `From State: ${formData.fromState}\nTo State: ${formData.toState}\n\nMessage: ${formData.message || 'No additional message provided.'}`;
+        const fullMessage = `From State: ${formData.fromState}\nTo State: ${formData.toState}\nPackage Type: ${formData.packageType || 'Not specified'}\nWeight: ${formData.weight ? formData.weight + ' lbs' : 'Not specified'}\n\nMessage: ${formData.message || 'No additional message provided.'}`;
         const recipientEmail = "customer_care@jblogisticsservices.com";
 
-        // Database Payload perfectly matching your messages table columns
+        // Database Payload mapping weight and package_type to the messages table
         const dbPayload = { 
           name: fullName,
           first_name: formData.firstName.trim(),
@@ -139,6 +155,8 @@ export default function GetStarted() {
           phone: formData.phone,
           from_state: formData.fromState,
           to_state: formData.toState,
+          weight: formData.weight || null,
+          package_type: formData.packageType || null,
           message: fullMessage,
           source: 'Get Started Form',
           user_id: user ? user.id : null
@@ -159,6 +177,8 @@ export default function GetStarted() {
             phone: formData.phone,
             from_state: formData.fromState,
             to_state: formData.toState,
+            weight: formData.weight || null,
+            package_type: formData.packageType || null,
             message: fullMessage,
             source: 'Get Started Form',
             sender: formData.email,
@@ -171,7 +191,7 @@ export default function GetStarted() {
         }
 
         toast.success("Message sent successfully!");
-        setFormData({ firstName: '', lastName: '', email: '', phone: '', fromState: '', toState: '', message: '', agreed: false });
+        setFormData({ firstName: '', lastName: '', email: '', phone: '', fromState: '', toState: '', weight: '', packageType: '', message: '', agreed: false });
         setErrors({});
       } catch (err) {
         toast.error("Failed to send message: " + (err.message || err));
@@ -216,7 +236,7 @@ export default function GetStarted() {
               {/* From State Dropdown */}
               <div className="relative w-full" ref={fromDropdownRef}>
                 <div 
-                  onClick={() => { setIsFromOpen(!isFromOpen); setIsToOpen(false); }}
+                  onClick={() => { setIsFromOpen(!isFromOpen); setIsToOpen(false); setIsPackageTypeOpen(false); }}
                   className={`w-full py-3.5 px-4 bg-white/5 border ${errors.fromState ? 'border-red-500' : 'border-white/20 hover:border-white/40'} text-white cursor-pointer flex justify-between items-center shadow-inner transition-all duration-300`}
                 >
                   <span className={formData.fromState ? "text-white font-medium text-sm md:text-base truncate pr-2" : "text-white/50 text-sm md:text-base font-medium truncate pr-2"}>
@@ -248,7 +268,7 @@ export default function GetStarted() {
               {/* To State Dropdown */}
               <div className="relative w-full" ref={toDropdownRef}>
                 <div 
-                  onClick={() => { setIsToOpen(!isToOpen); setIsFromOpen(false); }}
+                  onClick={() => { setIsToOpen(!isToOpen); setIsFromOpen(false); setIsPackageTypeOpen(false); }}
                   className={`w-full py-3.5 px-4 bg-white/5 border ${errors.toState ? 'border-red-500' : 'border-white/20 hover:border-white/40'} text-white cursor-pointer flex justify-between items-center shadow-inner transition-all duration-300`}
                 >
                   <span className={formData.toState ? "text-white font-medium text-sm md:text-base truncate pr-2" : "text-white/50 text-sm md:text-base font-medium truncate pr-2"}>
@@ -275,6 +295,49 @@ export default function GetStarted() {
                   </div>
                 )}
                 {errors.toState && <span className="text-red-400 text-xs font-semibold pl-1 text-left block mt-1">{errors.toState}</span>}
+              </div>
+            </div>
+
+            {/* Weight & Package Type Side-by-Side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Weight Input (Digits Only) */}
+              <InputField 
+                placeholder="Weight (lbs)" 
+                type="text" 
+                value={formData.weight} 
+                onChange={(val) => setFormData({...formData, weight: val})} 
+                autoComplete="off" 
+                isNumeric 
+              />
+
+              {/* Package Type Dropdown */}
+              <div className="relative w-full" ref={packageTypeRef}>
+                <div 
+                  onClick={() => { setIsPackageTypeOpen(!isPackageTypeOpen); setIsFromOpen(false); setIsToOpen(false); }}
+                  className="w-full py-3.5 px-4 bg-white/5 border border-white/20 hover:border-white/40 text-white cursor-pointer flex justify-between items-center shadow-inner transition-all duration-300"
+                >
+                  <span className={formData.packageType ? "text-white font-medium text-sm md:text-base truncate pr-2" : "text-white/50 text-sm md:text-base font-medium truncate pr-2"}>
+                    {formData.packageType || "Package Type"}
+                  </span>
+                  <ChevronDown size={18} className={`transition-transform duration-300 text-yellow-500 shrink-0 ${isPackageTypeOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </div>
+
+                {isPackageTypeOpen && (
+                  <div className="absolute top-full left-0 w-full max-h-48 overflow-y-auto z-[60] bg-black/95 backdrop-blur-md border border-white/20 mt-1 shadow-2xl [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-black [&::-webkit-scrollbar-thumb]:bg-yellow-500 [&::-webkit-scrollbar-thumb]:rounded-none">
+                    {packageTypes.map((type) => (
+                      <div 
+                        key={type} 
+                        onClick={() => { 
+                          setFormData({...formData, packageType: type}); 
+                          setIsPackageTypeOpen(false); 
+                        }} 
+                        className="px-4 py-2.5 hover:bg-yellow-500 hover:text-black cursor-pointer text-left transition-colors text-sm md:text-base text-white font-medium border-b border-white/5 last:border-b-0"
+                      >
+                        {type}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

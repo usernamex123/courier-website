@@ -8,10 +8,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 
-// Trust proxy is required when deployed behind reverse proxies (Render, Heroku, Vercel, etc.)[cite: 6]
+// Trust proxy is required when deployed behind reverse proxies (Render, Heroku, Vercel, etc.) [cite: 6]
 app.set('trust proxy', 1);
 
-// Configure CORS to allow credentials (cookies) and cross-site requests[cite: 6]
+// Configure CORS to allow credentials (cookies) and cross-site requests [cite: 6]
 app.use(cors({
     origin: true,
     credentials: true
@@ -20,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Express Session Middleware - Configured for Admin & Driver Auth[cite: 6]
+// Express Session Middleware - Configured for Admin & Driver Auth [cite: 6]
 app.use(session({
     secret: process.env.SESSION_SECRET || 'jb-logistics-admin-secret-key-2026',
     resave: false,
@@ -33,7 +33,7 @@ app.use(session({
     }
 }));
 
-// ==================== SUPABASE INITIALIZATION ====================[cite: 6]
+// ==================== SUPABASE INITIALIZATION =================== [cite: 6]
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -42,13 +42,13 @@ if (!supabaseUrl || !supabaseServiceKey) {
     console.error("CRITICAL ERROR: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing from environment variables.");
 }
 
-// 1. Public client used for authentication sign-in[cite: 6]
+// 1. Public client used for authentication sign-in [cite: 6]
 const supabase = createClient(supabaseUrl || '', supabaseAnonKey || supabaseServiceKey || '');
 
-// 2. Admin client using the Service Role Key to completely bypass RLS for all backend queries[cite: 6]
+// 2. Admin client using the Service Role Key to completely bypass RLS for all backend queries [cite: 6]
 const supabaseAdmin = createClient(supabaseUrl || '', supabaseServiceKey || supabaseAnonKey || '');
 
-// Admin Credentials read strictly from environment variables[cite: 6]
+// Admin Credentials read strictly from environment variables [cite: 6]
 const ADMIN_CREDENTIALS = {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD
@@ -58,7 +58,7 @@ if (!ADMIN_CREDENTIALS.email || !ADMIN_CREDENTIALS.password) {
     console.error("CRITICAL ERROR: ADMIN_EMAIL or ADMIN_PASSWORD missing in environment variables.");
 }
 
-// Middleware to protect internal Admin API endpoints[cite: 6]
+// Middleware to protect internal Admin API endpoints [cite: 6]
 function requireAdminAuth(req, res, next) {
     if (req.session && req.session.isAdmin) {
         return next();
@@ -66,7 +66,7 @@ function requireAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Admin session required.' });
 }
 
-// Middleware to protect internal Driver API endpoints[cite: 6]
+// Middleware to protect internal Driver API endpoints [cite: 6]
 function requireDriverAuth(req, res, next) {
     if (req.session && req.session.isDriver) {
         return next();
@@ -74,7 +74,7 @@ function requireDriverAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized access. Driver session required.' });
 }
 
-// ==================== ADMIN AUTH ENDPOINTS ====================[cite: 6]
+// ==================== ADMIN AUTH ENDPOINTS =================== [cite: 6]
 
 app.post('/api/admin/login', (req, res) => {
     const { email, password } = req.body;
@@ -124,7 +124,7 @@ app.post('/api/admin/logout', (req, res) => {
     });
 });
 
-// ==================== DRIVER AUTH & PROFILE ENDPOINTS ====================[cite: 6]
+// ==================== DRIVER AUTH & PROFILE ENDPOINTS =================== [cite: 6]
 
 app.post('/api/driver/login', async (req, res) => {
     try {
@@ -136,7 +136,7 @@ app.post('/api/driver/login', async (req, res) => {
 
         const cleanEmail = email.trim();
 
-        // Authenticate user via Supabase Auth[cite: 6]
+        // Authenticate user via Supabase Auth [cite: 6]
         const { data, error } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password
@@ -144,7 +144,7 @@ app.post('/api/driver/login', async (req, res) => {
 
         if (error) throw error;
 
-        // Verify driver profile exists using supabaseAdmin (bypasses RLS successfully)[cite: 6]
+        // Verify driver profile exists using supabaseAdmin (bypasses RLS successfully) [cite: 6]
         const { data: driverProfile, error: profileError } = await supabaseAdmin
             .from('driver_profiles')
             .select('*')
@@ -155,7 +155,7 @@ app.post('/api/driver/login', async (req, res) => {
             return res.status(403).json({ error: 'Access denied. No active driver profile found for this account.' });
         }
 
-        // Establish Express Driver Session[cite: 6]
+        // Establish Express Driver Session [cite: 6]
         req.session.isDriver = true;
         req.session.driverId = driverProfile.id;
         req.session.driverEmail = driverProfile.email;
@@ -313,7 +313,7 @@ app.post('/api/driver/change-password', requireDriverAuth, async (req, res) => {
     }
 });
 
-// ==================== PROTECTED ADMIN API DATA ENDPOINTS ====================[cite: 6]
+// ==================== PROTECTED ADMIN API DATA ENDPOINTS =================== [cite: 6]
 
 app.get('/api/admin/messages', requireAdminAuth, async (req, res) => {
     try {
@@ -458,6 +458,104 @@ app.delete('/api/admin/drivers/:id', requireAdminAuth, async (req, res) => {
     }
 });
 
+// ==================== ADMIN VEHICLES ENDPOINTS ====================
+app.get('/api/admin/vehicles', requireAdminAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin.from('vehicles').select('*').order('created_at', { ascending: false });
+        if (error) {
+            const { data: fallbackData, error: fallbackError } = await supabaseAdmin.from('vehicles').select('*');
+            if (fallbackError) throw fallbackError;
+            return res.json(fallbackData || []);
+        }
+        return res.json(data || []);
+    } catch (err) {
+        console.error('Error fetching vehicles:', err);
+        return res.status(500).json({ error: 'Failed to fetch vehicles.' });
+    }
+});
+
+app.post('/api/admin/vehicles', requireAdminAuth, async (req, res) => {
+    try {
+        const { registration, type, capacity_kg, fuel_type, status, current_location, mileage_km, insurance_expiry, last_service, model, year } = req.body;
+        
+        const insertPayload = {
+            registration,
+            type,
+            capacity_kg,
+            fuel_type,
+            status: status || 'active',
+            current_location,
+            mileage_km,
+            insurance_expiry,
+            last_service,
+            model,
+            year
+        };
+
+        const { data, error } = await supabaseAdmin
+            .from('vehicles')
+            .insert([insertPayload])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.status(201).json(data);
+    } catch (err) {
+        console.error('Error creating vehicle:', err);
+        return res.status(500).json({ error: err.message || 'Failed to create vehicle.' });
+    }
+});
+
+app.put('/api/admin/vehicles/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { registration, type, capacity_kg, fuel_type, status, current_location, mileage_km, insurance_expiry, last_service, model, year } = req.body;
+
+        const { data, error } = await supabaseAdmin
+            .from('vehicles')
+            .update({
+                registration,
+                type,
+                capacity_kg,
+                fuel_type,
+                status,
+                current_location,
+                mileage_km,
+                insurance_expiry,
+                last_service,
+                model,
+                year
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.json(data);
+    } catch (err) {
+        console.error('Error updating vehicle:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update vehicle.' });
+    }
+});
+
+app.delete('/api/admin/vehicles/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabaseAdmin
+            .from('vehicles')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        return res.json({ success: true, message: 'Vehicle deleted successfully.' });
+    } catch (err) {
+        console.error('Error deleting vehicle:', err);
+        return res.status(500).json({ error: err.message || 'Failed to delete vehicle.' });
+    }
+});
+
 app.post('/api/admin/reply', requireAdminAuth, async (req, res) => {
     try {
         const { messageId, subject, message, recipient } = req.body;
@@ -508,16 +606,16 @@ app.get('/api/admin/shipments', requireAdminAuth, async (req, res) => {
     }
 });
 
-// Added Backend Admin Delete Endpoint for Shipments (bypasses RLS using supabaseAdmin)[cite: 6]
+// Added Backend Admin Delete Endpoint for Shipments (bypasses RLS using supabaseAdmin) [cite: 6]
 app.delete('/api/admin/shipments/:id', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // 1. Delete dependent records first to prevent foreign key violations[cite: 6]
+        // 1. Delete dependent records first to prevent foreign key violations [cite: 6]
         await supabaseAdmin.from('tracking_events').delete().eq('shipment_id', id);
         await supabaseAdmin.from('invoices').delete().eq('shipment_id', id);
 
-        // 2. Delete the shipment record using supabaseAdmin[cite: 6]
+        // 2. Delete the shipment record using supabaseAdmin [cite: 6]
         const { data, error } = await supabaseAdmin
             .from('shipments')
             .delete()
@@ -536,7 +634,7 @@ app.delete('/api/admin/shipments/:id', requireAdminAuth, async (req, res) => {
     }
 });
 
-// ==================== ASSIGN DRIVER TO SHIPMENT ====================[cite: 6]
+// ==================== ASSIGN DRIVER TO SHIPMENT =================== [cite: 6]
 app.put('/api/admin/shipments/:id/assign-driver', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -577,6 +675,200 @@ app.put('/api/admin/shipments/:id/assign-driver', requireAdminAuth, async (req, 
     } catch (err) {
         console.error('Error assigning driver:', err.message);
         return res.status(500).json({ error: err.message || 'Failed to assign driver.' });
+    }
+});
+
+// ==================== WAREHOUSES ENDPOINTS ====================
+app.get('/api/warehouses', requireAdminAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin.from('warehouses').select('*').order('created_at', { ascending: false });
+        if (error) {
+            const { data: fallbackData, error: fallbackError } = await supabaseAdmin.from('warehouses').select('*');
+            if (fallbackError) throw fallbackError;
+            return res.json(fallbackData || []);
+        }
+        return res.json(data || []);
+    } catch (err) {
+        console.error('Error fetching warehouses:', err);
+        return res.status(500).json({ error: 'Failed to fetch warehouses.' });
+    }
+});
+
+app.post('/api/warehouses', requireAdminAuth, async (req, res) => {
+    try {
+        const { name, code, location, city, country, capacity_sqm, used_sqm, manager, status, type } = req.body;
+        const insertPayload = {
+            name,
+            code,
+            location,
+            city,
+            country,
+            capacity_sqm: Number(capacity_sqm) || 0,
+            used_sqm: Number(used_sqm) || 0,
+            manager,
+            status: status || 'operational',
+            type: type || 'Dry'
+        };
+
+        const { data, error } = await supabaseAdmin
+            .from('warehouses')
+            .insert([insertPayload])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.status(201).json(data);
+    } catch (err) {
+        console.error('Error creating warehouse:', err);
+        return res.status(500).json({ error: err.message || 'Failed to create warehouse.' });
+    }
+});
+
+app.put('/api/warehouses/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, code, location, city, country, capacity_sqm, used_sqm, manager, status, type } = req.body;
+        const updatePayload = {
+            name,
+            code,
+            location,
+            city,
+            country,
+            capacity_sqm: Number(capacity_sqm) || 0,
+            used_sqm: Number(used_sqm) || 0,
+            manager,
+            status,
+            type
+        };
+
+        const { data, error } = await supabaseAdmin
+            .from('warehouses')
+            .update(updatePayload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.json(data);
+    } catch (err) {
+        console.error('Error updating warehouse:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update warehouse.' });
+    }
+});
+
+app.delete('/api/warehouses/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabaseAdmin
+            .from('warehouses')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return res.json({ success: true, message: 'Warehouse deleted successfully.' });
+    } catch (err) {
+        console.error('Error deleting warehouse:', err);
+        return res.status(500).json({ error: err.message || 'Failed to delete warehouse.' });
+    }
+});
+
+app.get('/api/customers', requireAdminAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin.from('customers').select('*').order('created_at', { ascending: false });
+        if (error) {
+            const { data: fallbackData, error: fallbackError } = await supabaseAdmin.from('customers').select('*');
+            if (fallbackError) throw fallbackError;
+            return res.json(fallbackData || []);
+        }
+        return res.json(data || []);
+    } catch (err) {
+        console.error('Error fetching customers:', err);
+        return res.status(500).json({ error: 'Failed to fetch customers.' });
+    }
+});
+
+app.post('/api/customers', requireAdminAuth, async (req, res) => {
+    try {
+        const { company_name, contact_name, email, phone, address, city, country, industry, tier, status, credit_limit, total_revenue, total_shipments } = req.body;
+        const insertPayload = {
+            company_name,
+            contact_name,
+            email,
+            phone,
+            address,
+            city,
+            country,
+            industry,
+            tier: tier || 'Silver',
+            status: status || 'active',
+            credit_limit: Number(credit_limit) || 0,
+            total_revenue: Number(total_revenue) || 0,
+            total_shipments: Number(total_shipments) || 0
+        };
+
+        const { data, error } = await supabaseAdmin
+            .from('customers')
+            .insert([insertPayload])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.status(201).json(data);
+    } catch (err) {
+        console.error('Error creating customer:', err);
+        return res.status(500).json({ error: err.message || 'Failed to create customer.' });
+    }
+});
+
+app.put('/api/customers/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { company_name, contact_name, email, phone, address, city, country, industry, tier, status, credit_limit, total_revenue, total_shipments } = req.body;
+        const updatePayload = {
+            company_name,
+            contact_name,
+            email,
+            phone,
+            address,
+            city,
+            country,
+            industry,
+            tier,
+            status,
+            credit_limit: Number(credit_limit) || 0,
+            total_revenue: Number(total_revenue) || 0,
+            total_shipments: Number(total_shipments) || 0,
+            updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabaseAdmin
+            .from('customers')
+            .update(updatePayload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return res.json(data);
+    } catch (err) {
+        console.error('Error updating customer:', err);
+        return res.status(500).json({ error: err.message || 'Failed to update customer.' });
+    }
+});
+
+app.delete('/api/customers/:id', requireAdminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabaseAdmin
+            .from('customers')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        return res.json({ success: true, message: 'Customer deleted successfully.' });
+    } catch (err) {
+        console.error('Error deleting customer:', err);
+        return res.status(500).json({ error: err.message || 'Failed to delete customer.' });
     }
 });
 

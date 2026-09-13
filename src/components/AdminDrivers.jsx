@@ -11,7 +11,7 @@ export default function AdminDrivers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [licenseFilter, setLicenseFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("name-asc");
+  const [sortBy] = useState("name-asc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -155,99 +155,89 @@ export default function AdminDrivers() {
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return <div className="flex flex-col items-center justify-center py-24 text-amber-600 gap-3 font-bold uppercase text-xs w-full"><Loader2 className="w-8 h-8 animate-spin" />Loading Drivers...</div>;
+  if (loading) return <div className="flex flex-col items-center justify-center py-24 text-amber-600 gap-3 font-semibold text-xs w-full"><Loader2 className="w-8 h-8 animate-spin" />Loading Drivers...</div>;
 
   return (
-    <div className="w-full space-y-6 pb-12 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-        <div>
-          <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2"><Users className="w-5 h-5 text-amber-600" />Drivers Management</h2>
-          <p className="text-xs text-gray-500 mt-0.5"></p>
-        </div>
-        <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-950 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
-          <Plus className="w-4 h-4 stroke-[3]" /><span>Add Driver</span>
-        </button>
-      </div>
-
+    <div className="w-full space-y-4 font-sans">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { title: "Total Drivers", count: totalDrivers, icon: Users, bg: "bg-amber-100", text: "text-amber-600" },
-          { title: "Active Drivers", count: activeCount, icon: UserCheck, bg: "bg-green-100", text: "text-green-600" },
-          { title: "On Trip", count: onTripCount, icon: Truck, bg: "bg-blue-100", text: "text-blue-600" },
-          { title: "Inactive Drivers", count: inactiveCount, icon: UserX, bg: "bg-purple-100", text: "text-purple-600" }
+          { title: "Total Drivers", count: totalDrivers, icon: Users, bg: "bg-amber-100", text: "text-amber-700" },
+          { title: "Active Drivers", count: activeCount, icon: UserCheck, bg: "bg-green-100", text: "text-green-700" },
+          { title: "On Trip", count: onTripCount, icon: Truck, bg: "bg-blue-100", text: "text-blue-700" },
+          { title: "Inactive Drivers", count: inactiveCount, icon: UserX, bg: "bg-purple-100", text: "text-purple-700" }
         ].map((c, i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{c.title}</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-0.5">{c.count}</h3>
+              <p className="text-xs font-semibold text-slate-500">{c.title}</p>
+              <h3 className="text-2xl font-bold text-slate-900 mt-0.5">{c.count}</h3>
             </div>
             <div className={`w-10 h-10 rounded-xl ${c.bg} ${c.text} flex items-center justify-center`}><c.icon className="w-5 h-5" /></div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-3">
-        <div className="relative flex-1 min-w-[280px]">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="text" placeholder="Search drivers..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex-1 min-w-[280px] flex items-center gap-2 border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus-within:border-yellow-400 transition-all">
+          <Search className="w-4 h-4 text-slate-400" />
+          <input type="text" placeholder="Search drivers..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full text-sm outline-none bg-transparent text-slate-800" />
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider flex-1 sm:flex-none">
+          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 bg-white outline-none focus:border-yellow-400 transition-all cursor-pointer flex-1 sm:flex-none">
             <option value="all">Status: All</option><option value="active">Active</option><option value="inactive">Inactive</option>
           </select>
-          <select value={licenseFilter} onChange={e => { setLicenseFilter(e.target.value); setCurrentPage(1); }} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider flex-1 sm:flex-none">
+          <select value={licenseFilter} onChange={e => { setLicenseFilter(e.target.value); setCurrentPage(1); }} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 bg-white outline-none focus:border-yellow-400 transition-all cursor-pointer flex-1 sm:flex-none">
             <option value="all">License Type</option><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option>
           </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider flex-1 sm:flex-none">
-            <option value="name-asc">Name A-Z</option><option value="name-desc">Name Z-A</option>
-          </select>
+          <button onClick={openAddModal} className="flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4.5 py-2.5 rounded-xl text-sm cursor-pointer transition-colors">
+            <Plus className="w-4 h-4" /><span>Add Driver</span>
+          </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* MOBILE CARD VIEW */}
         <div className="lg:hidden space-y-3 p-4">
           {paginated.length === 0 ? (
-            <div className="text-center py-16 text-gray-400 font-bold"><Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />No drivers found</div>
+            <div className="text-center py-16 text-slate-400 font-semibold"><Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />No drivers found</div>
           ) : (
             paginated.map(d => {
               const active = String(d.status).toLowerCase() === 'active';
               const trip = d.current_trip || 'Available';
               const onTrip = String(trip).toLowerCase().includes('trip');
               return (
-                <div key={d.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 space-y-2.5">
+                <div key={d.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-gray-900 cursor-pointer hover:text-amber-600" onClick={() => openEditModal(d)}>{d.name}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>{active ? 'Active' : 'Inactive'}</span>
+                    <span className="font-semibold text-xs text-slate-900 cursor-pointer hover:text-amber-600" onClick={() => openEditModal(d)}>{d.name}</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${active ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>{active ? 'Active' : 'Inactive'}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 border-t border-gray-200/60 pt-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 border-t border-slate-200/60 pt-2">
                     <div>
-                      <span className="text-gray-400 block uppercase font-bold text-[9px]">Contact</span>
-                      <span className="font-medium text-gray-800">{d.phone}</span>
-                      <div className="text-gray-500 text-[10px] truncate">{d.email || '—'}</div>
+                      <span className="text-slate-400 block font-semibold text-[11px]">Contact</span>
+                      <span className="font-medium text-slate-800">{d.phone}</span>
+                      <div className="text-slate-500 text-xs truncate">{d.email || '—'}</div>
                     </div>
                     <div>
-                      <span className="text-gray-400 block uppercase font-bold text-[9px]">License</span>
-                      <span className="font-medium text-gray-800">{d.license_number}</span>
-                      <div className="text-gray-500 text-[10px]">{d.license_type}</div>
+                      <span className="text-slate-400 block font-semibold text-[11px]">License</span>
+                      <span className="font-medium text-slate-800">{d.license_number}</span>
+                      <div className="text-slate-500 text-xs">{d.license_type}</div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 border-t border-gray-200/60 pt-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 border-t border-slate-200/60 pt-2">
                     <div>
-                      <span className="text-gray-400 block uppercase font-bold text-[9px]">Vehicle</span>
-                      <span className="font-medium text-gray-800">{d.vehicle_assigned || 'Unassigned'}</span>
-                      <div className="text-gray-500 text-[10px]">{d.vehicle_model || '—'}</div>
+                      <span className="text-slate-400 block font-semibold text-[11px]">Vehicle</span>
+                      <span className="font-medium text-slate-800">{d.vehicle_assigned || 'Unassigned'}</span>
+                      <div className="text-slate-500 text-xs">{d.vehicle_model || '—'}</div>
                     </div>
                     <div>
-                      <span className="text-gray-400 block uppercase font-bold text-[9px]">Trip Status</span>
-                      <span className="flex items-center gap-1.5 font-bold text-gray-800 mt-0.5">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${onTrip ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>{trip}
+                      <span className="text-slate-400 block font-semibold text-[11px]">Trip Status</span>
+                      <span className="flex items-center gap-1.5 font-semibold text-slate-800 mt-0.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${onTrip ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>{trip}
                       </span>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2 pt-2 border-t border-gray-200/60">
-                    <button onClick={() => openEditModal(d)} className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[11px] font-bold uppercase">Edit</button>
-                    <button onClick={() => setDriverToDelete(d)} className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold uppercase flex items-center gap-1">
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-200/60">
+                    <button onClick={() => openEditModal(d)} className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold">Edit</button>
+                    <button onClick={() => setDriverToDelete(d)} className="px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold flex items-center gap-1">
                       <Trash2 className="w-3.5 h-3.5" /> Delete
                     </button>
                   </div>
@@ -261,29 +251,29 @@ export default function AdminDrivers() {
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50">
+              <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 bg-slate-50/50">
                 <th className="py-3.5 px-6">Driver</th><th className="py-3.5 px-6">Contact</th><th className="py-3.5 px-6">License</th><th className="py-3.5 px-6">Vehicle</th><th className="py-3.5 px-6">Status</th><th className="py-3.5 px-6">Trip</th><th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-xs text-gray-900 font-semibold">
+            <tbody className="divide-y divide-slate-100 text-xs text-slate-900 font-normal">
               {paginated.length === 0 ? (
-                <tr><td colSpan="7" className="text-center py-16 text-gray-400 font-bold"><Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />No drivers found</td></tr>
+                <tr><td colSpan="7" className="text-center py-16 text-slate-400 font-semibold"><Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />No drivers found</td></tr>
               ) : (
                 paginated.map(d => {
                   const active = String(d.status).toLowerCase() === 'active';
                   const trip = d.current_trip || 'Available';
                   const onTrip = String(trip).toLowerCase().includes('trip');
                   return (
-                    <tr key={d.id} className="hover:bg-gray-50/60">
-                      <td className="py-4 px-6 font-bold text-gray-900 cursor-pointer hover:text-amber-600 transition-colors" onClick={() => openEditModal(d)}>{d.name}</td>
-                      <td className="py-4 px-6 text-gray-900"><div>{d.phone}</div><div className="text-gray-600 text-[11px] font-medium">{d.email || '—'}</div></td>
-                      <td className="py-4 px-6 text-gray-900"><div>{d.license_number}</div><div className="text-gray-600 text-[11px] font-medium">{d.license_type}</div></td>
-                      <td className="py-4 px-6 text-gray-900"><div>{d.vehicle_assigned || 'Unassigned'}</div><div className="text-gray-600 text-[11px] font-medium">{d.vehicle_model || '—'}</div></td>
-                      <td className="py-4 px-6"><span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>{active ? 'Active' : 'Inactive'}</span></td>
-                      <td className="py-4 px-6"><div className="flex items-center gap-1.5 font-bold"><span className={`w-2 h-2 rounded-full ${onTrip ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>{trip}</div></td>
+                    <tr key={d.id} className="hover:bg-slate-50/60">
+                      <td className="py-4 px-6 font-semibold text-slate-900 cursor-pointer hover:text-amber-600 transition-colors" onClick={() => openEditModal(d)}>{d.name}</td>
+                      <td className="py-4 px-6 text-slate-900"><div>{d.phone}</div><div className="text-slate-500 text-xs font-medium">{d.email || '—'}</div></td>
+                      <td className="py-4 px-6 text-slate-900"><div>{d.license_number}</div><div className="text-slate-500 text-xs font-medium">{d.license_type}</div></td>
+                      <td className="py-4 px-6 text-slate-900"><div>{d.vehicle_assigned || 'Unassigned'}</div><div className="text-slate-500 text-xs font-medium">{d.vehicle_model || '—'}</div></td>
+                      <td className="py-4 px-6"><span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${active ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>{active ? 'Active' : 'Inactive'}</span></td>
+                      <td className="py-4 px-6"><div className="flex items-center gap-1.5 font-semibold"><span className={`w-2 h-2 rounded-full ${onTrip ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>{trip}</div></td>
                       <td className="py-4 px-6 text-right">
-                        <button onClick={() => setDriverToDelete(d)} className="w-8 h-8 rounded-xl border border-rose-200 bg-rose-50 flex items-center justify-center text-rose-600 hover:bg-rose-100 ml-auto cursor-pointer" title="Delete Driver">
-                          <Trash2 className="w-4 h-4" />
+                        <button onClick={() => setDriverToDelete(d)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer ml-auto" title="Delete Driver">
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -294,58 +284,58 @@ export default function AdminDrivers() {
           </table>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 px-6 border-t border-gray-100">
-          <p className="text-xs text-gray-700 font-bold uppercase tracking-wider">Showing {filtered.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}</p>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 px-6 border-t border-slate-200">
+          <p className="text-xs text-slate-600 font-semibold">Showing {filtered.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}</p>
           <div className="flex items-center gap-1">
-            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center disabled:opacity-40 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-bold cursor-pointer ${currentPage === p ? 'bg-amber-500 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>{p}</button>
+              <button key={p} onClick={() => setCurrentPage(p)} className={`w-8 h-8 rounded-lg text-xs font-semibold cursor-pointer ${currentPage === p ? 'bg-yellow-400 text-black' : 'border border-slate-200 hover:bg-slate-50'}`}>{p}</button>
             ))}
-            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center disabled:opacity-40 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center disabled:opacity-40 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-gray-100 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">{editingId ? "Edit Driver" : "Add Driver & Login"}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 cursor-pointer"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 transition-all">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+              <h2 className="text-xl font-bold text-slate-900">{editingId ? "Edit Driver" : "Add Driver & Login"}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleSaveDriver} className="p-6 space-y-4">
+            <form onSubmit={handleSaveDriver} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Name *</label><input required placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone *</label><input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold text-slate-700">Name <span className="text-rose-500">*</span></label><input required placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold text-slate-700">Phone <span className="text-rose-500">*</span></label><input required placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" /></div>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email {editingId ? "" : "*"}</label>
-                  <input type="email" required={!editingId} placeholder="driver@jblogistics.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Email {editingId ? "" : <span className="text-rose-500">*</span>}</label>
+                  <input type="email" required={!editingId} placeholder="driver@jblogistics.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" />
                 </div>
                 {!editingId && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Password * (Min 6 chars)</label>
-                    <input type="password" required placeholder="At least 6 characters" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Password <span className="text-rose-500">*</span> (Min 6 chars)</label>
+                    <input type="password" required placeholder="At least 6 characters" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" />
                   </div>
                 )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License # *</label><input required placeholder="License" value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">License Type</label><select value={formData.license_type} onChange={e => setFormData({ ...formData, license_type: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 uppercase"><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option></select></div>
+                <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold text-slate-700">License # <span className="text-rose-500">*</span></label><input required placeholder="License" value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold text-slate-700">License Type</label><select value={formData.license_type} onChange={e => setFormData({ ...formData, license_type: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 bg-white outline-none focus:border-yellow-400 transition-all cursor-pointer"><option value="CDL Class A">CDL Class A</option><option value="CDL Class B">CDL Class B</option></select></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Assigned</label><input placeholder="Truck #14" value={formData.vehicle_assigned} onChange={e => setFormData({ ...formData, vehicle_assigned: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
-                <div><label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Model</label><input placeholder="Model" value={formData.vehicle_model} onChange={e => setFormData({ ...formData, vehicle_model: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-amber-500" /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold text-slate-700">Vehicle Assigned</label><input placeholder="Truck #14" value={formData.vehicle_assigned} onChange={e => setFormData({ ...formData, vehicle_assigned: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" /></div>
+                <div className="flex flex-col gap-1.5"><label className="text-xs font-semibold text-slate-700">Vehicle Model</label><input placeholder="Model" value={formData.vehicle_model} onChange={e => setFormData({ ...formData, vehicle_model: e.target.value })} className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 transition-all" /></div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl text-xs font-bold uppercase cursor-pointer">Cancel</Button>
-                <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold uppercase cursor-pointer">
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
-                  {editingId ? "Update Driver" : "Create Account & Save"}
-                </Button>
+              <div className="flex justify-end gap-3 pt-5 border-t border-slate-100 mt-6">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">Cancel</button>
+                <button type="submit" disabled={submitting} className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-sm font-semibold text-black transition-colors shadow-sm cursor-pointer flex items-center">
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+                  {editingId ? "Save Changes" : "Create"}
+                </button>
               </div>
             </form>
           </div>
@@ -353,18 +343,15 @@ export default function AdminDrivers() {
       )}
 
       {driverToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-gray-100 overflow-hidden p-6 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <div className="text-center space-y-1">
-              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Delete Driver</h3>
-              <p className="text-xs text-gray-500 font-medium">Are you sure you want to delete <strong className="text-gray-900">{driverToDelete.name}</strong>? This action cannot be undone.</p>
-            </div>
-            <div className="flex items-center gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => setDriverToDelete(null)} className="w-full rounded-xl text-xs font-bold uppercase cursor-pointer">Cancel</Button>
-              <Button type="button" onClick={confirmDeleteDriver} className="w-full bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer">Delete</Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 overflow-hidden p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900 text-center">Delete Driver</h3>
+            <p className="text-sm text-slate-500 text-center">
+              Are you sure you want to delete <span className="font-semibold text-slate-800">{driverToDelete.name}</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button type="button" onClick={() => setDriverToDelete(null)} className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">Cancel</button>
+              <button type="button" onClick={confirmDeleteDriver} className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm font-semibold text-white cursor-pointer">Delete</button>
             </div>
           </div>
         </div>

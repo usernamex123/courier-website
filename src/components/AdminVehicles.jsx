@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from "react";
-import { Plus, Search, Fuel, Gauge, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  Plus, Search, Fuel, Gauge, MapPin, Pencil, Trash2, Truck, Bike, Package,
+  Snowflake, Container, Truck as TruckIcon, Wrench, Calendar, TrendingUp, Layers, X,
+} from "lucide-react";
 import { toast } from "sonner";
 
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return `http://${window.location.hostname || 'localhost'}:5000`;
-};
-const API_URL = getApiUrl();
+const API_URL = import.meta.env.VITE_API_URL || 'https://courier-backend-5f6r.onrender.com';
 
 const FIELDS = [
   { name: "registration", label: "Registration Number", required: true },
   { name: "type", label: "Type", type: "select", options: ["Truck", "Van", "Container Truck", "Refrigerated Truck", "Flatbed", "Box Truck", "Motorbike", "Semi-Trailer"], required: true },
+  { name: "model", label: "Vehicle Model" },
+  { name: "year", label: "Manufacturing Year", type: "number" },
   { name: "capacity_kg", label: "Capacity (kg)", type: "number" },
   { name: "fuel_type", label: "Fuel Type", type: "select", options: ["Diesel", "Petrol", "Electric", "Hybrid"] },
   { name: "status", label: "Status", type: "select", options: ["active", "maintenance", "idle", "retired"] },
@@ -20,261 +21,380 @@ const FIELDS = [
   { name: "last_service", label: "Last Service Date", type: "date" },
 ];
 
-// --- Inline UI Components ---
+const TYPE_ICONS = {
+  Truck: Truck,
+  Van: TruckIcon,
+  "Container Truck": Container,
+  "Refrigerated Truck": Snowflake,
+  Flatbed: Truck,
+  "Box Truck": Package,
+  Motorbike: Bike,
+  "Semi-Trailer": Truck,
+};
 
-const StatusBadge = ({ status }) => {
-  const s = (status || "").toLowerCase();
-  let colors = "bg-gray-100 text-gray-700 border-gray-200";
-  if (s === "active") colors = "bg-green-50 text-green-700 border-green-200";
-  if (s === "maintenance" || s === "retired") colors = "bg-amber-50 text-amber-800 border-amber-200";
-  if (s === "idle") colors = "bg-yellow-50 text-yellow-800 border-yellow-200";
-  
+const TYPE_COLORS = {
+  Truck: "bg-slate-100 text-slate-600",
+  Van: "bg-blue-100 text-blue-600",
+  "Container Truck": "bg-violet-100 text-violet-600",
+  "Refrigerated Truck": "bg-sky-100 text-sky-600",
+  Flatbed: "bg-amber-100 text-amber-600",
+  "Box Truck": "bg-indigo-100 text-indigo-600",
+  Motorbike: "bg-rose-100 text-rose-600",
+  "Semi-Trailer": "bg-teal-100 text-teal-600",
+};
+
+const FUEL_COLORS = {
+  Diesel: "bg-slate-100 text-slate-600",
+  Petrol: "bg-amber-100 text-amber-600",
+  Electric: "bg-green-100 text-green-600",
+  Hybrid: "bg-blue-100 text-blue-600",
+};
+
+const STATUS_FILTERS = ["all", "active", "maintenance", "idle", "retired"];
+const TYPE_FILTERS = ["all", "Truck", "Van", "Container Truck", "Refrigerated Truck", "Flatbed", "Box Truck", "Motorbike", "Semi-Trailer"];
+
+function StatCard({ icon: Icon, label, value, sub, accent }) {
+  const accents = {
+    navy: "bg-slate-900 text-white",
+    yellow: "bg-yellow-400 text-black",
+    green: "bg-green-500 text-white",
+    rose: "bg-rose-500 text-white",
+  };
   return (
-    <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider border ${colors}`}>
-      {status?.replace('_', ' ') || 'UNKNOWN'}
+    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4 shadow-sm">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${accents[accent]}`}>
+        <Icon className="w-6 h-6" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-2xl font-bold text-slate-900 leading-tight">{value}</div>
+        <div className="text-xs text-slate-500 font-medium">{label}</div>
+        {sub && <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+function SimpleStatusBadge({ status }) {
+  const styles = {
+    active: "bg-green-100 text-green-700 border-green-200",
+    maintenance: "bg-amber-100 text-amber-700 border-amber-200",
+    idle: "bg-slate-100 text-slate-700 border-slate-200",
+    retired: "bg-rose-100 text-rose-700 border-rose-200",
+  };
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border capitalize ${styles[status] || styles.idle}`}>
+      {status}
     </span>
   );
-};
+}
 
-const ConfirmDialog = ({ message, onConfirm, onClose }) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm Action</h3>
-      <p className="text-sm text-gray-600 mb-6">{message}</p>
-      <div className="flex gap-3 justify-end">
-        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">Cancel</button>
-        <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">Delete Vehicle</button>
-      </div>
-    </div>
-  </div>
-);
-
-const EntityFormModal = ({ title, fields, initial, onClose, onSaved }) => {
-  const [formData, setFormData] = useState(initial || {});
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const method = initial ? 'PUT' : 'POST';
-      const id = initial ? (initial._id || initial.id) : '';
-      const idStr = id ? `/${id}` : '';
-      
-      const res = await fetch(`${API_URL}/api/admin/vehicles${idStr}`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      });
-
-      if (res.ok) {
-        toast.success(`${title} ${initial ? 'updated' : 'added'} successfully`);
-        onSaved();
-      } else {
-        toast.error(`Failed to save ${title.toLowerCase()}`);
-      }
-    } catch (err) {
-      toast.error("Network error while saving");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl my-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">{initial ? 'Edit' : 'Add'} {title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {fields.map(f => (
-              <div key={f.name} className={f.name === 'registration' || f.name === 'current_location' ? 'col-span-2' : 'col-span-1'}>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">{f.label}</label>
-                {f.type === 'select' ? (
-                  <select
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                    value={formData[f.name] || ''}
-                    onChange={e => setFormData({ ...formData, [f.name]: e.target.value })}
-                    required={f.required}
-                  >
-                    <option value="">Select {f.label}</option>
-                    {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input
-                    type={f.type || 'text'}
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:border-yellow-500 outline-none shadow-sm"
-                    value={formData[f.name] || ''}
-                    onChange={e => setFormData({ ...formData, [f.name]: e.target.value })}
-                    required={f.required}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="pt-4 flex justify-end gap-3 border-t border-gray-200 mt-6">
-            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-50 flex items-center gap-2 shadow-sm">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Save {title}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// --- Main Component ---
-
-export default function AdminVehicles() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Vehicles() {
+  const [items, setItems] = useState(null);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [deleting, setDeleting] = useState(null);
+  const [formData, setFormData] = useState({});
 
   const load = async () => {
-    setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/vehicles`, { credentials: 'include' });
+      const res = await fetch(`${API_URL}/api/admin/vehicles`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : data.vehicles || []);
-    } catch (err) {
-      toast.error("Failed to fetch fleet data");
-    } finally {
-      setLoading(false);
+      setItems(Array.isArray(data) ? data : data.vehicles || data.items || []);
+    } catch {
+      setItems([]);
     }
   };
-
   useEffect(() => { load(); }, []);
 
-  const filtered = items.filter((v) => { 
-    const q = query.toLowerCase(); 
-    return !q || (v.registration || "").toLowerCase().includes(q) || (v.type || "").toLowerCase().includes(q); 
-  });
+  const filtered = useMemo(() => {
+    if (!items) return [];
+    const q = query.toLowerCase().trim();
+    return items.filter((v) => {
+      const matchesSearch = !q || 
+        (v.registration || "").toLowerCase().includes(q) || 
+        (v.type || "").toLowerCase().includes(q) || 
+        (v.model || "").toLowerCase().includes(q) || 
+        (v.current_location || "").toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || v.status === statusFilter;
+      const matchesType = typeFilter === "all" || v.type === typeFilter;
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [items, query, statusFilter, typeFilter]);
 
-  const stats = { 
-    total: items.length, 
-    active: items.filter((v) => v.status === "active").length, 
-    maintenance: items.filter((v) => v.status === "maintenance").length 
+  const stats = useMemo(() => {
+    if (!items) return { total: 0, active: 0, maintenance: 0, capacity: 0 };
+    const total = items.length;
+    const active = items.filter((v) => v.status === "active").length;
+    const maintenance = items.filter((v) => v.status === "maintenance").length;
+    const capacity = items.reduce((sum, v) => sum + (Number(v.capacity_kg) || 0), 0);
+    return { total, active, maintenance, capacity };
+  }, [items]);
+
+  const openAddModal = () => {
+    setEditing(null);
+    setFormData({
+      status: "active",
+      type: "Truck",
+      fuel_type: "Diesel",
+      capacity_kg: 0,
+      mileage_km: 0,
+    });
+    setShowForm(true);
   };
 
-  const handleDelete = async () => {
+  const openEditModal = (v) => {
+    setEditing(v);
+    setFormData({ ...v });
+    setShowForm(true);
+  };
+
+  const handleSaveForm = async (e) => {
+    e.preventDefault();
     try {
-      const id = deleting._id || deleting.id;
-      await fetch(`${API_URL}/api/admin/vehicles/${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success("Vehicle deleted successfully");
-      setDeleting(null);
+      const isEdit = Boolean(editing && editing.id);
+      const endpoint = isEdit ? `/api/admin/vehicles/${editing.id}` : "/api/admin/vehicles";
+      const url = `${API_URL}${endpoint}`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error("Save failed");
+      toast.success(isEdit ? "Vehicle updated successfully" : "Vehicle registered successfully");
+      setShowForm(false);
       load();
-    } catch (err) {
-      toast.error("Failed to delete vehicle");
+    } catch {
+      toast.error("Failed to save vehicle.");
     }
   };
 
+  const handleDelete = async (v) => {
+    if (!window.confirm(`Delete vehicle ${v.registration}? This action cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/vehicles/${v.id}`, {
+        method: "DELETE",
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      toast.success("Vehicle deleted successfully");
+      load();
+    } catch {
+      toast.error("Delete failed");
+    }
+  };
+
+  if (!items) {
+    return <div className="p-8 text-center text-slate-500 font-medium">Loading vehicles...</div>;
+  }
+
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Fleet</div>
-          <div className="text-3xl font-black font-mono text-gray-900 mt-2">{stats.total}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Active</div>
-          <div className="text-3xl font-black font-mono text-green-600 mt-2">{stats.active}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">In Maintenance</div>
-          <div className="text-3xl font-black font-mono text-amber-600 mt-2">{stats.maintenance}</div>
-        </div>
+    <div className="space-y-5">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={Truck} label="Total Fleet" value={stats.total} accent="navy" />
+        <StatCard icon={TrendingUp} label="Active" value={stats.active} sub={`${stats.total ? Math.round((stats.active / stats.total) * 100) : 0}% of fleet`} accent="green" />
+        <StatCard icon={Wrench} label="In Maintenance" value={stats.maintenance} accent="yellow" />
+        <StatCard icon={Layers} label="Total Capacity" value={`${(stats.capacity / 1000).toFixed(1)}t`} sub="kg payload" accent="rose" />
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-        <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-300 px-4 py-2.5 w-full sm:w-80 shadow-sm">
-          <Search className="w-4 h-4 text-gray-400" />
-          <input 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)} 
-            placeholder="Search by registration or type..." 
-            className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400" 
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by registration, model, type, or location…"
+            className="py-2.5 text-sm outline-none bg-transparent w-full"
           />
         </div>
-        <button 
-          className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-5 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2" 
-          onClick={() => { setEditing(null); setShowForm(true); }}
-        >
-          <Plus className="w-4 h-4" /> Register Vehicle
-        </button>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 outline-none focus:border-yellow-400 cursor-pointer"
+          >
+            {STATUS_FILTERS.map((s) => <option key={s} value={s}>{s === "all" ? "All Statuses" : s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 outline-none focus:border-yellow-400 cursor-pointer"
+          >
+            {TYPE_FILTERS.map((t) => <option key={t} value={t}>{t === "all" ? "All Types" : t}</option>)}
+          </select>
+          <button
+            onClick={openAddModal}
+            className="bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2.5 rounded-lg flex items-center shrink-0 text-sm transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4 mr-1" /> Register Vehicle
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto shadow-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 border-b border-gray-200 bg-gray-50/50 text-[10px] uppercase font-bold tracking-wider">
-              <th className="px-4 py-3">Registration</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Capacity</th>
-              <th className="px-4 py-3">Fuel</th>
-              <th className="px-4 py-3">Mileage</th>
-              <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} className="text-center py-16 text-gray-500">Loading fleet data...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-16 text-gray-500">No vehicles found matching criteria.</td></tr>
-            ) : (
-              filtered.map((v) => (
-                <tr key={v._id || v.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/80 transition-colors">
-                  <td className="px-4 py-3.5 font-bold text-gray-900">{v.registration}</td>
-                  <td className="px-4 py-3.5 text-gray-600 font-medium">{v.type}</td>
-                  <td className="px-4 py-3.5 text-gray-600 font-mono text-xs">{(v.capacity_kg || 0).toLocaleString()} kg</td>
-                  <td className="px-4 py-3.5 text-gray-600"><span className="flex items-center gap-1.5"><Fuel className="w-3.5 h-3.5 text-yellow-600" /> {v.fuel_type || "—"}</span></td>
-                  <td className="px-4 py-3.5 text-gray-600"><span className="flex items-center gap-1.5 font-mono text-xs"><Gauge className="w-3.5 h-3.5 text-yellow-600" /> {((v.mileage_km || 0) / 1000).toFixed(0)}k km</span></td>
-                  <td className="px-4 py-3.5 text-gray-600 text-xs">{v.current_location || "—"}</td>
-                  <td className="px-4 py-3.5"><StatusBadge status={v.status} /></td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex gap-1 justify-end">
-                      <button onClick={() => { setEditing(v); setShowForm(true); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-yellow-100 text-gray-600 hover:text-yellow-800 transition-colors">
+      {/* Results count */}
+      <div className="text-sm text-slate-500">{filtered.length} {filtered.length === 1 ? "vehicle" : "vehicles"}</div>
+
+      {/* Vehicle cards */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+          <Truck className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-slate-800">No vehicles found</h3>
+          <p className="text-sm text-slate-500 mt-1 mb-4">Try adjusting your filters or register a new vehicle.</p>
+          <button
+            onClick={openAddModal}
+            className="bg-yellow-400 hover:bg-yellow-300 text-black font-semibold px-4 py-2 rounded-lg inline-flex items-center text-sm"
+          >
+            <Plus className="w-4 h-4 mr-1" /> Register Vehicle
+          </button>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((v) => {
+            const TypeIcon = TYPE_ICONS[v.type] || Truck;
+            const typeColor = TYPE_COLORS[v.type] || "bg-slate-100 text-slate-600";
+            const fuelColor = FUEL_COLORS[v.fuel_type] || "bg-slate-100 text-slate-600";
+            const mileageK = ((v.mileage_km || 0) / 1000).toFixed(1);
+            return (
+              <div key={v.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-slate-300 transition-all group">
+                <div className={`h-1.5 ${v.status === "active" ? "bg-green-500" : v.status === "maintenance" ? "bg-amber-500" : v.status === "idle" ? "bg-slate-400" : "bg-slate-300"}`} />
+
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${typeColor}`}>
+                        <TypeIcon className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 text-sm truncate">{v.type} {v.model ? `(${v.model})` : ""}</h3>
+                        <div className="text-xs text-yellow-600 font-mono font-semibold mt-0.5 tracking-wide">{v.registration}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => openEditModal(v)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => setDeleting(v)} className="p-1.5 rounded-lg bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors">
+                      <button onClick={() => handleDelete(v)} className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+
+                  <div className="space-y-2 text-xs text-slate-500 mb-4">
+                    {v.year && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Year: {v.year}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{Number(v.capacity_kg || 0).toLocaleString()} kg capacity</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Gauge className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{mileageK}k km mileage</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{v.current_location || "Location not set"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${fuelColor}`}>
+                        <Fuel className="w-3 h-3" /> {v.fuel_type}
+                      </span>
+                    </div>
+                    <SimpleStatusBadge status={v.status} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showForm && (
-        <EntityFormModal 
-          title="Vehicle" 
-          fields={FIELDS} 
-          initial={editing} 
-          onClose={() => setShowForm(false)} 
-          onSaved={() => { setShowForm(false); load(); }} 
-        />
-      )}
-      
-      {deleting && (
-        <ConfirmDialog 
-          message={`Are you sure you want to delete vehicle ${deleting.registration}? This action cannot be undone.`} 
-          onConfirm={handleDelete} 
-          onClose={() => setDeleting(null)} 
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 transition-all">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+              <h2 className="text-xl font-bold text-slate-900">
+                {editing ? "Edit Vehicle" : "Register Vehicle"}
+              </h2>
+              <button 
+                onClick={() => setShowForm(false)} 
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveForm} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FIELDS.map((field) => (
+                  <div key={field.name} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">
+                      {field.label} {field.required && <span className="text-rose-500">*</span>}
+                    </label>
+                    {field.type === "select" ? (
+                      <select
+                        value={formData[field.name] || ""}
+                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 bg-white outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/25 transition-all cursor-pointer"
+                      >
+                        <option value="" disabled>Select...</option>
+                        {field.options.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type || "text"}
+                        required={field.required}
+                        placeholder={field.label}
+                        value={formData[field.name] ?? ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            [field.name]: field.type === "number" ? Number(e.target.value) : e.target.value,
+                          })
+                        }
+                        className="border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/25 transition-all"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-5 border-t border-slate-100 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-sm font-semibold text-black transition-colors shadow-sm cursor-pointer"
+                >
+                  {editing ? "Save Changes" : "Register"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

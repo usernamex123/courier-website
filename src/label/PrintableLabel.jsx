@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { fmtDate } from "../lib/shipmentStatus";
 
 // 100% Scannable QR Code generator function using a reliable API endpoint
-function generateQRCodeSVG(text, size = 120) {
+function generateQRCodeSVG(text, size = 115) {
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`;
   return (
     <img 
@@ -11,7 +11,15 @@ function generateQRCodeSVG(text, size = 120) {
       alt="Scan Tracker QR" 
       width={size} 
       height={size} 
-      style={{ width: `${size}px`, height: `${size}px`, display: 'block' }} 
+      style={{ 
+        width: `${size}px`, 
+        height: `${size}px`, 
+        minWidth: `${size}px`, 
+        minHeight: `${size}px`, 
+        aspectRatio: '1 / 1', 
+        display: 'block', 
+        objectFit: 'contain' 
+      }} 
     />
   );
 }
@@ -90,14 +98,18 @@ const PrintableLabel = forwardRef(({ shipment }, ref) => {
   return (
     <div 
       ref={ref} 
-      className="bg-white text-black p-4 font-sans border-2 border-black box-border"
-      style={{ width: '450px', margin: '0 auto' }}
+      className="bg-white text-black p-3 font-sans border-2 border-black box-border mx-auto flex flex-col"
+      style={{ 
+        width: '4in', 
+        margin: '0 auto', 
+        boxSizing: 'border-box' 
+      }}
     >
       {/* TOP ROW: Branding & Tracking Number */}
       <div className="grid grid-cols-12 border-b-2 border-black">
         <div className="col-span-5 p-3 flex flex-col justify-center border-r-2 border-black">
           <div className="text-xl font-black tracking-tighter leading-none">JB LOGISTICS</div>
-          <div className="text-[9px] text-gray-600 uppercase tracking-widest mt-1">Global Freight & Delivery</div>
+          <div className="text-[9px] text-gray-600 uppercase tracking-widest mt-1">Freight & Delivery</div>
         </div>
 
         <div className="col-span-7 p-2 flex flex-col items-center justify-center text-center">
@@ -107,17 +119,15 @@ const PrintableLabel = forwardRef(({ shipment }, ref) => {
           <div className="w-full px-2 my-1">
             {generateBarcodeSVG(shipment.tracking_number, 220, 36)}
           </div>
-          
-          <div className="text-[8px] text-gray-500 uppercase tracking-wider">Scan to track your shipment</div>
         </div>
       </div>
 
-      {/* MIDDLE ROW: From, QR Code, and Shipment Specs */}
+      {/* MIDDLE ROW: From (col-span-3), QR Code (col-span-5), and Shipment Specs (col-span-4) */}
       <div className="grid grid-cols-12 border-b-2 border-black">
-        <div className="col-span-5 p-2.5 border-r-2 border-black flex flex-col justify-between text-[10px]">
+        <div className="col-span-3 p-2 border-r-2 border-black flex flex-col justify-between text-[9px]">
           <div>
             <div className="font-extrabold text-gray-500 uppercase tracking-wider mb-1">From:</div>
-            <div className="font-bold text-xs">{shipment.sender_name}</div>
+            <div className="font-bold text-[10px]">{shipment.sender_name}</div>
             {shipment.sender_company && <div className="text-gray-700">{shipment.sender_company}</div>}
             <div className="text-gray-700 mt-0.5">{shipment.sender_address}</div>
             <div className="text-gray-700">
@@ -126,15 +136,14 @@ const PrintableLabel = forwardRef(({ shipment }, ref) => {
             <div className="text-gray-700">{shipment.sender_country}</div>
           </div>
           {shipment.sender_phone && (
-            <div className="text-[9px] text-gray-600 mt-2 font-mono">Phone: {shipment.sender_phone}</div>
+            <div className="text-[8px] text-gray-600 mt-2 font-mono">Phone: {shipment.sender_phone}</div>
           )}
         </div>
 
-        <div className="col-span-3 p-2 border-r-2 border-black flex flex-col items-center justify-center bg-gray-50">
-          <div className="p-1 bg-white border border-black shadow-xs">
-            {generateQRCodeSVG(smartScanUrl, 84)}
+        <div className="col-span-5 p-2 border-r-2 border-black flex flex-col items-center justify-center bg-gray-50">
+          <div className="p-1 bg-white border border-black shadow-xs flex items-center justify-center">
+            {generateQRCodeSVG(smartScanUrl, 115)}
           </div>
-          <div className="text-[7px] font-bold text-center text-gray-600 mt-1 uppercase">Scan Tracker</div>
         </div>
 
         <div className="col-span-4 p-2 text-[10px] flex flex-col justify-between space-y-1">
@@ -157,9 +166,9 @@ const PrintableLabel = forwardRef(({ shipment }, ref) => {
         </div>
       </div>
 
-      {/* TO ADDRESS SECTION */}
-      <div className="grid grid-cols-12 border-b-2 border-black">
-        <div className="col-span-12 p-2.5 text-[10px]">
+      {/* TO (RECIPIENT) + INVOICE & ROUTE SECTION */}
+      <div className="grid grid-cols-12 items-stretch">
+        <div className="col-span-7 p-2.5 text-[10px] border-r-2 border-black flex flex-col justify-center">
           <div className="font-extrabold text-gray-500 uppercase tracking-wider mb-0.5">To (Recipient):</div>
           <div className="font-bold text-xs">{shipment.recipient_name}</div>
           {shipment.recipient_company && <div className="text-gray-700">{shipment.recipient_company}</div>}
@@ -172,23 +181,22 @@ const PrintableLabel = forwardRef(({ shipment }, ref) => {
             <div className="text-[9px] text-gray-600 mt-1 font-mono">Phone: {shipment.recipient_phone}</div>
           )}
         </div>
-      </div>
 
-      {/* BOTTOM ROW: Invoice Number & Route */}
-      <div className="grid grid-cols-12 text-[10px]">
-        <div className="col-span-6 p-2 border-r-2 border-black flex flex-col justify-center">
-          <div className="text-[8px] font-bold text-gray-500 uppercase">Invoice Number</div>
-          <div className="font-bold font-mono text-xs mt-0.5">
-            {fetchedInvoiceNumber || 'Loading...'}
+        <div className="col-span-5 flex flex-col justify-between text-[10px]">
+          <div className="p-2 border-b-2 border-black flex flex-col justify-center">
+            <div className="text-[8px] font-bold text-gray-500 uppercase">Invoice Number</div>
+            <div className="font-bold font-mono text-xs mt-0.5">
+              {fetchedInvoiceNumber || 'Loading...'}
+            </div>
           </div>
-        </div>
-        <div className="col-span-6 p-2 flex flex-col justify-center">
-          <div className="text-[8px] font-bold text-gray-500 uppercase">Route:</div>
-          <div className="font-black text-xs mt-0.5 tracking-wider">
-            {originCode} → {destCode}
-          </div>
-          <div className="text-[8px] text-gray-600 truncate">
-            {originCity} → {destCity}
+          <div className="p-2 flex flex-col justify-center">
+            <div className="text-[8px] font-bold text-gray-500 uppercase">Route:</div>
+            <div className="font-black text-xs mt-0.5 tracking-wider">
+              {originCode} → {destCode}
+            </div>
+            <div className="text-[8px] text-gray-600 truncate">
+              {originCity} → {destCity}
+            </div>
           </div>
         </div>
       </div>

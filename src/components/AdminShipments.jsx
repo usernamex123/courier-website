@@ -527,13 +527,13 @@ export default function AdminShipments() {
       </div>
 
       {/* ========================================= */}
-      {/* 2. DESKTOP TABLE VIEW */}
+      {/* 2. DESKTOP TABLE VIEW (TIGHTER GAP) */}
       {/* ========================================= */}
       <div className="hidden md:block w-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
         <table className="w-full text-sm table-fixed">
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-200 bg-gray-50">
-              <th className="px-3.5 py-4 w-10">
+              <th className="px-2 py-3 w-10">
                 <input 
                   type="checkbox" 
                   checked={allSelected} 
@@ -541,29 +541,28 @@ export default function AdminShipments() {
                   className="w-4 h-4 rounded accent-yellow-500 cursor-pointer" 
                 />
               </th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[13%]">Tracking / Invoice</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[11%]">Customer</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[15%]">Route</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Service</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[11%]">Driver</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[10%]">Status</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[9%]">Payment</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs text-right w-[8%]">Price</th>
-              <th className="px-3.5 py-4 font-bold uppercase tracking-wider text-xs w-[9%]">Created</th>
-              <th className="px-3.5 py-4 w-16 text-right"></th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[15%]">Tracking / Invoice</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[12%]">Customer</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[16%]">Route</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[10%]">Service</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[12%]">Driver</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[10%]">Status</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[10%]">Payment / Price</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-xs w-[9%]">Created</th>
+              <th className="px-2 py-3 w-16 text-right"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={11} className="text-center py-20 text-gray-500">
+                <td colSpan={10} className="text-center py-20 text-gray-500">
                   <Loader2 className="w-6 h-6 text-yellow-600 animate-spin mx-auto mb-2" />
                   Loading system shipments...
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={11} className="text-center py-20 text-gray-500">
+                <td colSpan={10} className="text-center py-20 text-gray-500">
                   No active shipments registered in the database.
                 </td>
               </tr>
@@ -583,7 +582,7 @@ export default function AdminShipments() {
                     key={sId} 
                     className={`hover:bg-gray-50/80 transition-colors group ${isSel ? "bg-yellow-50/50" : ""}`}
                   >
-                    <td className="px-3.5 py-4.5" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="checkbox" 
                         checked={isSel} 
@@ -592,49 +591,49 @@ export default function AdminShipments() {
                       />
                     </td>
                     <td 
-                      className="px-3.5 py-4.5 truncate cursor-pointer" 
+                      className="px-2 py-2.5 truncate cursor-pointer" 
                       onClick={() => { setEditing(s); setShowForm(true); }}
                       title="Click to edit"
                     >
                       <div className="font-semibold text-gray-900 hover:underline">
                         {s.tracking_number || "—"}
                       </div>
-                      {invoiceNum && (
-                        <div className="text-[11px] font-mono text-gray-500 font-medium mt-0.5">
-                          {invoiceNum}
-                        </div>
-                      )}
+                      <div className="text-[11px] font-mono text-gray-500 font-medium">
+                        {invoiceNum || "—"}
+                      </div>
                     </td>
-                    <td className="px-3.5 py-4.5 text-gray-700 font-medium truncate" title={s.recipient_name || s.client_name || "Customer"}>
+                    <td className="px-2 py-2.5 text-gray-700 font-medium truncate" title={s.recipient_name || s.client_name || "Customer"}>
                       {s.recipient_name || s.client_name || "Customer"}
                     </td>
-                    <td className="px-3.5 py-4.5 text-gray-600 truncate" title={routeText}>
+                    <td className="px-2 py-2.5 text-gray-600 truncate" title={routeText}>
                       {routeText}
                     </td>
-                    <td className="px-3.5 py-4.5 text-gray-700 font-medium truncate" title={s.service_type || "Standard"}>
+                    <td className="px-2 py-2.5 text-gray-700 font-medium truncate" title={s.service_type || "Standard"}>
                       {s.service_type || "Standard"}
                     </td>
-                    <td className="px-3.5 py-4.5 truncate" title={driverName}>
+                    <td className="px-2 py-2.5 truncate" title={driverName}>
                       <span className={`text-xs font-semibold px-2 py-1 rounded-lg inline-flex items-center gap-1 ${s.driver_id ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-500'}`}>
                         <UserCheck className="w-3 h-3 shrink-0" />
                         <span className="truncate">{driverName}</span>
                       </span>
                     </td>
-                    <td className="px-3.5 py-4.5 truncate">
+                    <td className="px-2 py-2.5 truncate">
                       <StatusBadge status={s.current_status} />
                     </td>
-                    <td className="px-3.5 py-4.5 truncate">
-                      <span className={`text-[11px] uppercase font-bold px-2 py-0.5 rounded ${s.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100/60 text-amber-800'}`}>
-                        {s.payment_status || 'unpaid'}
-                      </span>
+                    <td className="px-2 py-2.5 truncate">
+                      <div className="font-semibold text-gray-900">
+                        ${Number(s.price || 0).toFixed(2)}
+                      </div>
+                      <div className="mt-0.5">
+                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${s.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100/60 text-amber-800'}`}>
+                          {s.payment_status || 'unpaid'}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-3.5 py-4.5 text-right font-semibold text-gray-900 truncate">
-                      ${Number(s.price || 0).toFixed(2)}
-                    </td>
-                    <td className="px-3.5 py-4.5 text-gray-500 text-xs truncate" title={formattedDate}>
+                    <td className="px-2 py-2.5 text-gray-500 text-xs truncate" title={formattedDate}>
                       {formattedDate}
                     </td>
-                    <td className="px-3.5 py-4.5 text-right">
+                    <td className="px-2 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button 
                           onClick={(e) => { e.stopPropagation(); setDeleting(s); }}

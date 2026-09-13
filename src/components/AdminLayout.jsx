@@ -36,7 +36,7 @@ export default function AdminLayout() {
   const topNavItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { label: 'Shipments', icon: Package, path: '/admin/shipments' },
-    { label: 'Customers', icon: Users, path: '/admin/customers' },
+    { label: 'Customers management', icon: Users, path: '/admin/customers' },
     { label: 'Drivers', icon: Truck, path: '/admin/drivers' },
     { label: 'Fleet', icon: Navigation, path: '/admin/fleet' },
     { label: 'Warehouses', icon: Building2, path: '/admin/warehouses' },
