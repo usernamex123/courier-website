@@ -118,13 +118,28 @@ export default function Login() {
       }
 
       // 3. Fallback to Standard Client Portal (Supabase Auth directly)
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password
       });
 
-      if (authError) {
-        throw new Error(authError.message || 'Invalid email or password.');
+      if (authError || !authData?.user) {
+        throw new Error(authError?.message || 'Invalid email or password.');
+      }
+
+      // SAFETY CHECK: Prevent drivers from ever slipping through into the regular user portal
+      const { data: driverProfile } = await supabase
+        .from('driver_profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
+
+      if (driverProfile) {
+        localStorage.setItem('driver_data', JSON.stringify(driverProfile));
+        toast.success('Welcome back, driver!');
+        toggleModal(false);
+        navigate('/driver-portal');
+        return;
       }
 
       toast.success('Welcome back!');

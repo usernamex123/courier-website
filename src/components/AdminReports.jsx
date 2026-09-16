@@ -31,7 +31,6 @@ const reportCards = [
 const getDefaultMonthsData = (yr) => {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   if (yr === 2026) {
-    // Exception: 5 remaining months of 2026 starting from August
     return ["Aug", "Sep", "Oct", "Nov", "Dec"].map(m => ({
       month: m,
       shipments: 0,
@@ -39,7 +38,6 @@ const getDefaultMonthsData = (yr) => {
       deliveries: 0
     }));
   }
-  // Full 12 months for previous or other years
   return monthNames.map(m => ({
     month: m,
     shipments: 0,
@@ -63,7 +61,6 @@ export default function AdminReports() {
       let shipmentsList = [];
       const token = localStorage.getItem('admin_token');
 
-      // 1. Try fetching from backend API
       try {
         const res = await fetch(`${API_URL}/api/admin/shipments`, {
           headers: {
@@ -79,7 +76,6 @@ export default function AdminReports() {
         console.warn("API fetch shipments failed, trying Supabase...", e);
       }
 
-      // 2. Fallback to Supabase if API returned nothing
       if (shipmentsList.length === 0 && supabaseUrl && supabaseAnonKey) {
         const { data, error } = await supabase.from('shipments').select('*');
         if (!error && data) {
@@ -87,17 +83,8 @@ export default function AdminReports() {
         }
       }
 
-      // 3. Fallback to localStorage if still empty
-      if (shipmentsList.length === 0) {
-        const local = localStorage.getItem('shipments') || localStorage.getItem('admin_shipments');
-        if (local) {
-          try { shipmentsList = JSON.parse(local); } catch (err) { /* ignore */ }
-        }
-      }
-
       setShipmentsCount(shipmentsList.length);
 
-      // Initialize month map with 0s for the selected year structure
       const monthMap = {};
       getDefaultMonthsData(selectedYear).forEach(m => {
         monthMap[m.month] = { ...m };
@@ -105,7 +92,6 @@ export default function AdminReports() {
 
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-      // Aggregate shipments filtered by selected year
       shipmentsList.forEach(s => {
         const dateStr = s.created_at || s.date || s.shipping_date || s.createdAt || new Date();
         const date = new Date(dateStr);
@@ -116,7 +102,6 @@ export default function AdminReports() {
         if (isNaN(monthIdx)) monthIdx = 7;
 
         if (year === selectedYear) {
-          // If viewing 2026 (Aug-Dec), clamp any earlier months into August so test shipments show up
           if (selectedYear === 2026 && monthIdx < 7) {
             monthIdx = 7;
           }
@@ -126,7 +111,6 @@ export default function AdminReports() {
           if (monthMap[monthName]) {
             monthMap[monthName].shipments += 1;
 
-            // Prioritize current_status for accurate successful delivery matching
             const status = String(
               s.current_status || 
               s.status || 
@@ -183,9 +167,407 @@ export default function AdminReports() {
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const margin = 40;
-      let y = 0;
 
-      // Branded header band
+      // ==========================================
+      // REVENUE REPORT
+      // ==========================================
+      if (report.title.toLowerCase().includes("revenue")) {
+        let invoicesList = [];
+        const token = localStorage.getItem('admin_token');
+        try {
+          const res = await fetch(`${API_URL}/api/admin/invoices`, {
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const data = await res.json();
+            invoicesList = Array.isArray(data) ? data : (data.invoices || data.data || []);
+          }
+        } catch (e) {
+          console.warn("API fetch invoices failed, trying Supabase...", e);
+        }
+
+        if (invoicesList.length === 0 && supabaseUrl && supabaseAnonKey) {
+          const { data, error } = await supabase.from('invoices').select('*');
+          if (!error && data) {
+            invoicesList = data;
+          }
+        }
+
+        let totalBilled = 0;
+        let collected = 0;
+        let outstanding = 0;
+
+        invoicesList.forEach(inv => {
+          const amt = parseFloat(inv.amount || inv.total || inv.cost || 0);
+          totalBilled += amt;
+          const status = String(inv.status || inv.payment_status || '').toLowerCase().trim();
+          const isPaid = status === 'paid' || status === 'completed' || (status.includes('paid') && !status.includes('un'));
+
+          if (isPaid) {
+            collected += amt;
+          } else {
+            outstanding += amt;
+          }
+        });
+
+        const avgInvoice = invoicesList.length > 0 ? Math.round(totalBilled / invoicesList.length) : 0;
+
+        doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 90, "F");
+        doc.setFillColor(245, 158, 11); doc.rect(0, 90, pageW, 4, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("JB Logistics", margin, 36);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(203, 213, 225);
+        doc.text("GLOBAL SHIPPING SOLUTIONS", margin, 50);
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(245, 158, 11);
+        doc.text("REVENUE REPORT", margin, 72);
+
+        const currentDateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+        doc.text(currentDateStr, pageW - margin, 50, { align: "right" });
+
+        let y = 114;
+
+        doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.text("Executive Summary", margin, y);
+        y += 12;
+
+        const kpis = [
+          { label: "TOTAL BILLED", value: `$${totalBilled.toLocaleString()}` },
+          { label: "COLLECTED", value: `$${collected.toLocaleString()}` },
+          { label: "OUTSTANDING", value: `$${outstanding.toLocaleString()}` },
+          { label: "AVG INVOICE", value: `$${avgInvoice.toLocaleString()}` }
+        ];
+
+        const cardW = (pageW - margin * 2 - 18) / 4;
+        kpis.forEach((k, i) => {
+          const cx = margin + i * (cardW + 6);
+          doc.setFillColor(248, 250, 252); doc.roundedRect(cx, y, cardW, 46, 6, 6, "F");
+          doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "bold"); doc.setFontSize(7);
+          doc.text(k.label, cx + 10, y + 16);
+          doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+          doc.text(k.value, cx + 10, y + 34);
+        });
+
+        y += 60;
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(17, 24, 39);
+        doc.text("Detailed Breakdown", margin, y);
+        y += 12;
+
+        const cols = ["Invoice #", "Customer", "Status", "Amount"];
+        const colX = [margin, margin + 120, margin + 290, margin + 390];
+
+        doc.setFillColor(17, 24, 39); doc.roundedRect(margin, y - 9, pageW - margin * 2, 20, 4, 4, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+        cols.forEach((c, i) => doc.text(c, colX[i], y + 4));
+        y += 18;
+
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        if (invoicesList.length === 0) {
+          doc.setTextColor(100, 116, 139);
+          doc.text("No invoice records found in database.", margin, y + 4);
+          y += 17;
+        } else {
+          invoicesList.slice(0, 15).forEach((inv, i) => {
+            if (i % 2 === 0) {
+              doc.setFillColor(248, 250, 252);
+              doc.rect(margin, y - 7, pageW - margin * 2, 17, "F");
+            }
+            doc.setTextColor(17, 24, 39);
+            const invId = String(inv.invoice_number || inv.id || `INV-${i+1}`);
+            const customer = String(inv.sender_name || inv.customer_name || inv.customer || "N/A");
+            const status = String(inv.status || inv.payment_status || "unpaid");
+            const amount = parseFloat(inv.amount || inv.total || 0);
+
+            doc.text(invId, colX[0], y + 4);
+            doc.text(customer, colX[1], y + 4);
+            doc.text(status, colX[2], y + 4);
+            doc.text(`$${amount.toLocaleString()}`, colX[3], y + 4);
+            y += 17;
+          });
+        }
+
+        doc.setDrawColor(228, 231, 235); doc.line(margin, pageH - 26, pageW - margin, pageH - 26);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+        doc.text("JB Logistics · Finance Report", margin, pageH - 14);
+        doc.text(`Generated ${new Date().toLocaleString()}`, pageW - margin, pageH - 14, { align: "right" });
+
+        doc.save(`Revenue_Report_${selectedYear}.pdf`);
+        toast.success(`Revenue Report downloaded successfully`);
+        return;
+      }
+
+      // ==========================================
+      // SHIPMENT REPORT
+      // ==========================================
+      if (report.title.toLowerCase().includes("shipment")) {
+        let shipmentsList = [];
+        const token = localStorage.getItem('admin_token');
+        try {
+          const res = await fetch(`${API_URL}/api/admin/shipments`, {
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const data = await res.json();
+            shipmentsList = Array.isArray(data) ? data : (data.shipments || data.data || []);
+          }
+        } catch (e) {
+          console.warn("API fetch shipments failed, trying Supabase...", e);
+        }
+
+        if (shipmentsList.length === 0 && supabaseUrl && supabaseAnonKey) {
+          const { data, error } = await supabase.from('shipments').select('*');
+          if (!error && data) {
+            shipmentsList = data;
+          }
+        }
+
+        let totalShipments = shipmentsList.length;
+        let inTransitCount = 0;
+        let deliveredCount = 0;
+        let delayedCount = 0;
+
+        shipmentsList.forEach(s => {
+          const status = String(s.status || s.current_status || '').toLowerCase().trim();
+          if (status.includes('transit') || status.includes('out for delivery') || status.includes('picked up')) {
+            inTransitCount += 1;
+          }
+          if (status.includes('deliver') || status.includes('complete') || status.includes('success') || status === 'delivered') {
+            deliveredCount += 1;
+          }
+          if (status.includes('delay')) {
+            delayedCount += 1;
+          }
+        });
+
+        doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 90, "F");
+        doc.setFillColor(245, 158, 11); doc.rect(0, 90, pageW, 4, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("JB Logistics", margin, 36);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(203, 213, 225);
+        doc.text("GLOBAL SHIPPING SOLUTIONS", margin, 50);
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(245, 158, 11);
+        doc.text("SHIPMENT REPORT", margin, 72);
+
+        const currentDateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+        doc.text(currentDateStr, pageW - margin, 50, { align: "right" });
+
+        let y = 114;
+
+        doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.text("Executive Summary", margin, y);
+        y += 12;
+
+        const kpis = [
+          { label: "TOTAL SHIPMENTS", value: totalShipments.toLocaleString() },
+          { label: "IN TRANSIT", value: inTransitCount.toLocaleString() },
+          { label: "DELIVERED", value: deliveredCount.toLocaleString() },
+          { label: "DELAYED", value: delayedCount.toLocaleString() }
+        ];
+
+        const cardW = (pageW - margin * 2 - 18) / 4;
+        kpis.forEach((k, i) => {
+          const cx = margin + i * (cardW + 6);
+          doc.setFillColor(248, 250, 252); doc.roundedRect(cx, y, cardW, 46, 6, 6, "F");
+          doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "bold"); doc.setFontSize(7);
+          doc.text(k.label, cx + 10, y + 16);
+          doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+          doc.text(k.value, cx + 10, y + 34);
+        });
+
+        y += 60;
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(17, 24, 39);
+        doc.text("Detailed Breakdown", margin, y);
+        y += 12;
+
+        const cols = ["Tracking #", "Customer", "Status", "Service"];
+        const colX = [margin, margin + 120, margin + 270, margin + 390];
+
+        doc.setFillColor(17, 24, 39); doc.roundedRect(margin, y - 9, pageW - margin * 2, 20, 4, 4, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+        cols.forEach((c, i) => doc.text(c, colX[i], y + 4));
+        y += 18;
+
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        if (shipmentsList.length === 0) {
+          doc.setTextColor(100, 116, 139);
+          doc.text("No shipment records found in database.", margin, y + 4);
+          y += 17;
+        } else {
+          shipmentsList.slice(0, 15).forEach((s, i) => {
+            if (i % 2 === 0) {
+              doc.setFillColor(248, 250, 252);
+              doc.rect(margin, y - 7, pageW - margin * 2, 17, "F");
+            }
+            doc.setTextColor(17, 24, 39);
+            const trackingNum = String(s.tracking_number || `TRK-${i+1}`);
+            const customer = String(s.sender_name || s.client_name || "N/A");
+            const status = String(s.status || s.current_status || "Pending");
+            const service = String(s.service_type || "Standard");
+
+            doc.text(trackingNum, colX[0], y + 4);
+            doc.text(customer, colX[1], y + 4);
+            doc.text(status, colX[2], y + 4);
+            doc.text(service, colX[3], y + 4);
+            y += 17;
+          });
+        }
+
+        doc.setDrawColor(228, 231, 235); doc.line(margin, pageH - 26, pageW - margin, pageH - 26);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+        doc.text("JB Logistics · Shipment Report", margin, pageH - 14);
+        doc.text(`Generated ${new Date().toLocaleString()}`, pageW - margin, pageH - 14, { align: "right" });
+
+        doc.save(`Shipment_Report_${selectedYear}.pdf`);
+        toast.success(`Shipment Report downloaded successfully`);
+        return;
+      }
+
+      // ==========================================
+      // CUSTOMER REPORT (Strictly Real Data Only)
+      // ==========================================
+      if (report.title.toLowerCase().includes("customer")) {
+        let customersList = [];
+        const token = localStorage.getItem('admin_token');
+        
+        try {
+          const res = await fetch(`${API_URL}/api/admin/customers`, {
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const data = await res.json();
+            customersList = Array.isArray(data) ? data : (data.customers || data.data || []);
+          }
+        } catch (e) {
+          console.warn("API fetch customers failed, trying Supabase...", e);
+        }
+
+        if (customersList.length === 0 && supabaseUrl && supabaseAnonKey) {
+          const { data, error } = await supabase.from('customers').select('*');
+          if (error) {
+            console.error("Supabase error querying 'customers':", error.message);
+          } else if (data) {
+            customersList = data;
+          }
+        }
+
+        let totalCustomers = customersList.length;
+        let activeCount = 0;
+        let totalSpentSum = 0;
+
+        customersList.forEach(c => {
+          const status = String(c.status || 'active').toLowerCase().trim();
+          if (status === 'active' || status.includes('active') || !c.status) {
+            activeCount += 1;
+          }
+          const spent = parseFloat(c.total_revenue || c.total_spent || c.spent || 0);
+          totalSpentSum += spent;
+        });
+
+        const avgCustomerSpent = totalCustomers > 0 ? Math.round(totalSpentSum / totalCustomers) : 0;
+
+        doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 90, "F");
+        doc.setFillColor(245, 158, 11); doc.rect(0, 90, pageW, 4, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("JB Logistics", margin, 36);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(203, 213, 225);
+        doc.text("GLOBAL SHIPPING SOLUTIONS", margin, 50);
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(245, 158, 11);
+        doc.text("CUSTOMER REPORT", margin, 72);
+
+        const currentDateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+        doc.text(currentDateStr, pageW - margin, 50, { align: "right" });
+
+        let y = 114;
+
+        doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+        doc.text("Executive Summary", margin, y);
+        y += 12;
+
+        const kpis = [
+          { label: "TOTAL CUSTOMERS", value: totalCustomers.toLocaleString() },
+          { label: "ACTIVE", value: activeCount.toLocaleString() },
+          { label: "TOTAL SPENT", value: `$${totalSpentSum.toLocaleString()}` },
+          { label: "AVG/CUSTOMER", value: `$${avgCustomerSpent.toLocaleString()}` }
+        ];
+
+        const cardW = (pageW - margin * 2 - 18) / 4;
+        kpis.forEach((k, i) => {
+          const cx = margin + i * (cardW + 6);
+          doc.setFillColor(248, 250, 252); doc.roundedRect(cx, y, cardW, 46, 6, 6, "F");
+          doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "bold"); doc.setFontSize(7);
+          doc.text(k.label, cx + 10, y + 16);
+          doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+          doc.text(k.value, cx + 10, y + 34);
+        });
+
+        y += 60;
+
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(17, 24, 39);
+        doc.text("Detailed Breakdown", margin, y);
+        y += 12;
+
+        const cols = ["Contact", "Company", "Status", "Total Spent"];
+        const colX = [margin, margin + 120, margin + 260, margin + 390];
+
+        doc.setFillColor(17, 24, 39); doc.roundedRect(margin, y - 9, pageW - margin * 2, 20, 4, 4, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+        cols.forEach((c, i) => doc.text(c, colX[i], y + 4));
+        y += 18;
+
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        
+        if (customersList.length === 0) {
+          doc.setTextColor(100, 116, 139);
+          doc.text("No customer records found in database.", margin, y + 4);
+          y += 17;
+        } else {
+          customersList.slice(0, 15).forEach((c, i) => {
+            if (i % 2 === 0) {
+              doc.setFillColor(248, 250, 252);
+              doc.rect(margin, y - 7, pageW - margin * 2, 17, "F");
+            }
+            doc.setTextColor(17, 24, 39);
+            
+            const contact = String(c.contact_name || c.name || "N/A");
+            const company = String(c.company_name || c.company || "N/A");
+            const status = String(c.status || "active");
+            const spent = parseFloat(c.total_revenue || c.total_spent || c.spent || 0);
+
+            doc.text(contact, colX[0], y + 4);
+            doc.text(company, colX[1], y + 4);
+            doc.text(status, colX[2], y + 4);
+            doc.text(`$${spent.toLocaleString()}`, colX[3], y + 4);
+            y += 17;
+          });
+        }
+
+        doc.setDrawColor(228, 231, 235); doc.line(margin, pageH - 26, pageW - margin, pageH - 26);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+        doc.text("JB Logistics · Customer Report", margin, pageH - 14);
+        doc.text(`Generated ${new Date().toLocaleString()}`, pageW - margin, pageH - 14, { align: "right" });
+
+        doc.save(`Customer_Report_${selectedYear}.pdf`);
+        toast.success(`Customer Report downloaded successfully`);
+        return;
+      }
+
+      // ==========================================
+      // KPI DASHBOARD PDF
+      // ==========================================
+      let y = 0;
       doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 96, "F");
       doc.setFillColor(245, 158, 11); doc.rect(0, 96, pageW, 5, "F");
       doc.setTextColor(255, 255, 255);
@@ -197,7 +579,6 @@ export default function AdminReports() {
       doc.text("Confidential · Internal Use", pageW - margin, 60, { align: "right" });
 
       y = 130;
-      // Summary KPI strip
       doc.setTextColor(17, 24, 39); doc.setFont("helvetica", "bold"); doc.setFontSize(13);
       doc.text(`Executive Summary (${selectedYear})`, margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 18;
@@ -218,7 +599,6 @@ export default function AdminReports() {
       });
       y += 84;
 
-      // Monthly data table
       doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(17, 24, 39);
       doc.text("Monthly Performance Breakdown", margin, y); y += 10;
       doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 14;
@@ -241,14 +621,57 @@ export default function AdminReports() {
       });
       y += 14;
 
-      // Charts capture
+      const toRgbColor = (() => {
+        let ctx;
+        return (colorStr) => {
+          if (!colorStr) return colorStr;
+          if (!ctx) ctx = document.createElement("canvas").getContext("2d");
+          try {
+            ctx.fillStyle = "#000000";
+            ctx.fillStyle = colorStr;
+            return ctx.fillStyle;
+          } catch {
+            return colorStr;
+          }
+        };
+      })();
+
+      const sanitizeOklchColors = (root) => {
+        const COLOR_PROPS = [
+          "color", "backgroundColor",
+          "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor",
+          "outlineColor", "textDecorationColor", "fill", "stroke", "stopColor", "caretColor"
+        ];
+        const elements = [root, ...root.querySelectorAll("*")];
+        elements.forEach((el) => {
+          const computed = window.getComputedStyle(el);
+          COLOR_PROPS.forEach((prop) => {
+            const value = computed[prop];
+            if (value && value.includes("oklch")) {
+              el.style[prop] = toRgbColor(value);
+            }
+          });
+          if (computed.boxShadow && computed.boxShadow.includes("oklch")) {
+            el.style.boxShadow = "none";
+          }
+        });
+      };
+
       const addChart = async (ref, title) => {
         if (!ref?.current) return;
         if (y > pageH - 220) { doc.addPage(); y = margin; }
         doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(17, 24, 39);
         doc.text(title, margin, y); y += 8;
         doc.setDrawColor(228, 231, 235); doc.line(margin, y, pageW - margin, y); y += 12;
-        const canvas = await html2canvas(ref.current, { scale: 2, backgroundColor: "#ffffff", logging: false });
+        const canvas = await html2canvas(ref.current, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          logging: false,
+          foreignObjectRendering: true,
+          onclone: (clonedDoc, clonedEl) => {
+            sanitizeOklchColors(clonedEl);
+          }
+        });
         const img = canvas.toDataURL("image/png");
         const imgW = pageW - margin * 2;
         const imgH = (canvas.height / canvas.width) * imgW;
@@ -259,7 +682,6 @@ export default function AdminReports() {
       await addChart(barRef, "Shipments vs Deliveries");
       await addChart(lineRef, "Revenue Trend");
 
-      // Footer on every page
       const pages = doc.internal.getNumberOfPages();
       for (let p = 1; p <= pages; p++) {
         doc.setPage(p);
@@ -287,7 +709,6 @@ export default function AdminReports() {
 
   return (
     <div className="space-y-6 w-full px-2 sm:px-4">
-      {/* Top Toolbar with Year Selector */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
         <div>
           <h2 className="text-base font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -300,7 +721,6 @@ export default function AdminReports() {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          {/* Year Selector */}
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl w-full sm:w-auto justify-between sm:justify-start">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-yellow-600 shrink-0" />
@@ -321,7 +741,6 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Report Cards Grid (Responsive 1-col on mobile, 2-col on sm, 4-col on lg) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {reportCards.map((r) => (
           <div key={r.title} className="bg-white rounded-2xl shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow border border-gray-100 flex flex-col justify-between">
@@ -344,7 +763,6 @@ export default function AdminReports() {
         ))}
       </div>
 
-      {/* Bar Chart Container */}
       <div ref={barRef} className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100 overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -358,7 +776,15 @@ export default function AdminReports() {
               <BarChart data={monthlyData}>
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: "#ffffff", 
+                    color: "#111827", 
+                    borderRadius: "12px", 
+                    border: "1px solid #e2e8f0", 
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" 
+                  }} 
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="shipments" name="Total Shipments" fill="#f59e0b" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="deliveries" name="Successful Deliveries" fill="#3b82f6" radius={[6, 6, 0, 0]} />
@@ -368,7 +794,6 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Line Chart Container */}
       <div ref={lineRef} className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100 overflow-hidden">
         <div className="mb-4">
           <h3 className="font-bold text-gray-900 uppercase tracking-wider text-sm">Revenue Trend ({selectedYear})</h3>
@@ -380,7 +805,15 @@ export default function AdminReports() {
               <LineChart data={monthlyData}>
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: "#ffffff", 
+                    color: "#111827", 
+                    borderRadius: "12px", 
+                    border: "1px solid #e2e8f0", 
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" 
+                  }} 
+                />
                 <Line type="monotone" dataKey="revenue" name="Revenue ($K)" stroke="#f59e0b" strokeWidth={3} dot={{ fill: "#f59e0b", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>

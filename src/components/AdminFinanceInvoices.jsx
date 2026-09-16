@@ -152,11 +152,28 @@ export default function AdminFinanceInvoices() {
 
   if (invoices === null) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center h-96 font-sans">
         <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
       </div>
     );
   }
+
+  // Calculate dynamic metrics for top cards
+  const totalInvoicesCount = invoices.length;
+  let collectedTotal = 0;
+  let outstandingTotal = 0;
+
+  invoices.forEach(inv => {
+    const pay = paymentsMap[inv.id];
+    const statusKey = (pay?.status || inv.status || 'unpaid').toLowerCase();
+    const amount = Number(inv.total || inv.amount || 0);
+
+    if (statusKey === 'paid' || statusKey === 'completed' || statusKey === 'success') {
+      collectedTotal += amount;
+    } else {
+      outstandingTotal += amount;
+    }
+  });
 
   const filteredRecords = invoices.filter((inv) => {
     const pay = paymentsMap[inv.id];
@@ -253,9 +270,24 @@ export default function AdminFinanceInvoices() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Invoices & Payments</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-          </p>
+        </div>
+      </div>
+
+      {/* Top 3 Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-sm flex flex-col justify-between">
+          <span className="text-xs font-medium text-gray-500">Total Invoices</span>
+          <span className="text-2xl font-black text-gray-900 mt-2">{totalInvoicesCount}</span>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-sm flex flex-col justify-between">
+          <span className="text-xs font-medium text-gray-500">Collected</span>
+          <span className="text-2xl font-black text-green-600 mt-2">{fmtMoney(collectedTotal)}</span>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-sm flex flex-col justify-between">
+          <span className="text-xs font-medium text-gray-500">Outstanding</span>
+          <span className="text-2xl font-black text-amber-600 mt-2">{fmtMoney(outstandingTotal)}</span>
         </div>
       </div>
 
@@ -464,7 +496,7 @@ export default function AdminFinanceInvoices() {
                     <th className="py-3.5 px-2 w-[100px]">Method</th>
                     <th className="py-3.5 px-2 w-[90px]">Amount</th>
                     <th className="py-3.5 px-2 w-[85px]">Status</th>
-                    <th className="py-3.5 px-2 w-[130px]">Timestamp</th>
+                    <th className="py-3.5 px-2 w-[130px]">ISSUED</th>
                     <th className="py-3.5 px-2 w-[90px] text-right">Actions</th>
                   </tr>
                 </thead>
@@ -541,7 +573,7 @@ export default function AdminFinanceInvoices() {
 
       {/* Record Details Modal */}
       {selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto font-sans">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden relative my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
               <h3 className="font-bold text-gray-800 text-base flex items-center gap-2">
@@ -622,7 +654,7 @@ export default function AdminFinanceInvoices() {
               </div>
 
               <div className="flex justify-between text-gray-400 pt-2 border-t border-gray-100 text-[11px]">
-                <span>Created at: {fmtDate(selectedRecord.inv.created_at || selectedRecord.inv.issue_date)}</span>
+                <span>Issued at: {fmtDate(selectedRecord.inv.created_at || selectedRecord.inv.issue_date)}</span>
                 <span>ID: {selectedRecord.inv.id}</span>
               </div>
             </div>

@@ -1,11 +1,16 @@
 import React, { useState } from "react";
-import { User, Lock, Save, Edit2, Loader2, ShieldCheck } from "lucide-react";
+import { User, Lock, Save, Edit2, Loader2, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // Password visibility states
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Profile Form State
   const [profileData, setProfileData] = useState({
@@ -35,7 +40,6 @@ export default function AdminSettings() {
 
   const handleSecurityChange = (e) => {
     setSecurityData({ ...securityData, [e.target.name]: e.target.value });
-    // Clear specific error when user starts typing
     if (securityErrors[e.target.name]) {
       setSecurityErrors({ ...securityErrors, [e.target.name]: "" });
     }
@@ -56,40 +60,29 @@ export default function AdminSettings() {
     let errors = { currentPassword: "", newPassword: "", confirmPassword: "" };
     let hasError = false;
 
-    // Check if current password is empty
     if (!securityData.currentPassword) {
       errors.currentPassword = "Current password is required.";
       hasError = true;
-    } 
-    // Check if current password matches database
-    else if (securityData.currentPassword !== currentDbPassword) {
+    } else if (securityData.currentPassword !== currentDbPassword) {
       errors.currentPassword = "Incorrect current password.";
       hasError = true;
     }
 
-    // Check if new password is empty
     if (!securityData.newPassword) {
       errors.newPassword = "New password is required.";
       hasError = true;
-    } 
-    // Check minimum length
-    else if (securityData.newPassword.length < 6) {
+    } else if (securityData.newPassword.length < 6) {
       errors.newPassword = "Password must be at least 6 characters long.";
       hasError = true;
-    } 
-    // Check if new password is the same as current password
-    else if (securityData.newPassword === securityData.currentPassword) {
+    } else if (securityData.newPassword === securityData.currentPassword) {
       errors.newPassword = "New password cannot be the same as your current password.";
       hasError = true;
     }
 
-    // Check if confirm password is empty
     if (!securityData.confirmPassword) {
       errors.confirmPassword = "Confirm password is required.";
       hasError = true;
-    } 
-    // Check if new password and confirm password match
-    else if (securityData.newPassword !== securityData.confirmPassword) {
+    } else if (securityData.newPassword !== securityData.confirmPassword) {
       errors.confirmPassword = "New passwords do not match.";
       hasError = true;
     }
@@ -103,7 +96,7 @@ export default function AdminSettings() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setCurrentDbPassword(securityData.newPassword); // Update simulated database password
+      setCurrentDbPassword(securityData.newPassword);
       toast.success("Password updated successfully!");
       setSecurityData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setSecurityErrors({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -111,65 +104,49 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="w-full px-1 sm:px-2 pt-0 pb-6 text-gray-900 bg-[#f8f9fa] min-h-screen">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        
-        {/* Left Navigation Sidebar */}
-        <div className="lg:col-span-4 space-y-2.5">
-          
-          {/* Profile Nav Item */}
+    <div className="w-full px-1 sm:px-2 pt-0 pb-6 text-gray-900 bg-[#f8f9fa]">
+      <div className="w-full">
+        {/* Horizontal Attached Tabs */}
+        <div className="flex items-end gap-2 px-2">
+          {/* Profile Tab */}
           <button
             onClick={() => setActiveTab("profile")}
-            className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3.5 cursor-pointer relative overflow-hidden ${
+            className={`flex items-center gap-2.5 px-4 py-2 rounded-t-xl border-t border-x transition-all cursor-pointer relative z-20 -mb-px ${
               activeTab === "profile"
-                ? "bg-amber-50/70 border-amber-200 shadow-sm"
-                : "bg-white border-gray-200 hover:border-gray-300 text-gray-700"
+                ? "bg-white border-gray-200 text-gray-900"
+                : "bg-gray-100/90 border-gray-200 text-gray-600 hover:bg-gray-200/60"
             }`}
           >
-            {activeTab === "profile" && (
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-500" />
-            )}
-            <div className={`p-2 rounded-xl border ${activeTab === "profile" ? "bg-yellow-100/60 border-yellow-300 text-yellow-600" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
-              <User size={18} />
+            <div className={`p-1.5 rounded-lg border ${activeTab === "profile" ? "bg-yellow-100/60 border-yellow-300 text-yellow-600" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+              <User size={15} />
             </div>
-            <div>
-              <h3 className={`font-bold text-xs ${activeTab === "profile" ? "text-gray-900" : "text-gray-800"}`}>
-                Profile
-              </h3>
-              <p className="text-[11px] text-gray-500 mt-0.5">Admin profile information</p>
-            </div>
+            <span className="font-bold text-xs text-gray-900">
+              Profile
+            </span>
           </button>
 
-          {/* Security Nav Item */}
+          {/* Security Tab */}
           <button
             onClick={() => setActiveTab("security")}
-            className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3.5 cursor-pointer relative overflow-hidden ${
+            className={`flex items-center gap-2.5 px-4 py-2 rounded-t-xl border-t border-x transition-all cursor-pointer relative z-20 -mb-px ${
               activeTab === "security"
-                ? "bg-amber-50/70 border-amber-200 shadow-sm"
-                : "bg-white border-gray-200 hover:border-gray-300 text-gray-700"
+                ? "bg-white border-gray-200 text-gray-900"
+                : "bg-gray-100/90 border-gray-200 text-gray-600 hover:bg-gray-200/60"
             }`}
           >
-            {activeTab === "security" && (
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-500" />
-            )}
-            <div className={`p-2 rounded-xl border ${activeTab === "security" ? "bg-yellow-100/60 border-yellow-300 text-yellow-600" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
-              <Lock size={18} />
+            <div className={`p-1.5 rounded-lg border ${activeTab === "security" ? "bg-yellow-100/60 border-yellow-300 text-yellow-600" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+              <Lock size={15} />
             </div>
-            <div>
-              <h3 className={`font-bold text-xs ${activeTab === "security" ? "text-gray-900" : "text-gray-800"}`}>
-                Security
-              </h3>
-              <p className="text-[11px] text-gray-500 mt-0.5">Change password</p>
-            </div>
+            <span className="font-bold text-xs text-gray-900">
+              Security
+            </span>
           </button>
-
         </div>
 
-        {/* Right Content Area */}
-        <div className="lg:col-span-8 space-y-4">
-          
+        {/* Main Content Card Attached Below */}
+        <div className="bg-white border border-gray-200 rounded-b-2xl rounded-tr-2xl p-5 sm:p-6 shadow-sm relative z-10">
           {activeTab === "profile" && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+            <div>
               <div className="flex items-start justify-between border-b border-gray-100 pb-4 mb-5">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-yellow-100/60 border border-yellow-300 text-yellow-600 rounded-xl">
@@ -266,7 +243,7 @@ export default function AdminSettings() {
           )}
 
           {activeTab === "security" && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+            <div>
               <div className="flex items-center gap-3 border-b border-gray-100 pb-4 mb-5">
                 <div className="p-2 bg-yellow-100/60 border border-yellow-300 text-yellow-600 rounded-xl">
                   <ShieldCheck size={18} />
@@ -277,53 +254,92 @@ export default function AdminSettings() {
                 </div>
               </div>
 
-              <form onSubmit={handleSecuritySubmit} className="space-y-3.5 max-w-xl">
+              <form onSubmit={handleSecuritySubmit} autoComplete="off" className="space-y-3.5 max-w-xl">
+                {/* Current Password */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Current Password</label>
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    value={securityData.currentPassword}
-                    onChange={handleSecurityChange}
-                    placeholder="••••••••••••"
-                    className={`w-full bg-gray-50 border rounded-xl px-3.5 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
-                      securityErrors.currentPassword ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-yellow-500"
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      name="currentPassword"
+                      autoComplete="new-password"
+                      readOnly
+                      onFocus={(e) => e.target.removeAttribute('readonly')}
+                      value={securityData.currentPassword}
+                      onChange={handleSecurityChange}
+                      placeholder="••••••••••••"
+                      className={`w-full bg-gray-50 border rounded-xl pl-3.5 pr-9 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
+                        securityErrors.currentPassword ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-yellow-500"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                    >
+                      {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                   {securityErrors.currentPassword && (
                     <p className="text-[11px] text-red-500 mt-1 font-medium">{securityErrors.currentPassword}</p>
                   )}
                 </div>
 
+                {/* New Password */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">New Password</label>
-                  <input
-                    type="password"
-                    name="newPassword"
-                    value={securityData.newPassword}
-                    onChange={handleSecurityChange}
-                    placeholder="••••••••••••"
-                    className={`w-full bg-gray-50 border rounded-xl px-3.5 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
-                      securityErrors.newPassword ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-yellow-500"
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      name="newPassword"
+                      autoComplete="new-password"
+                      readOnly
+                      onFocus={(e) => e.target.removeAttribute('readonly')}
+                      value={securityData.newPassword}
+                      onChange={handleSecurityChange}
+                      placeholder="••••••••••••"
+                      className={`w-full bg-gray-50 border rounded-xl pl-3.5 pr-9 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
+                        securityErrors.newPassword ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-yellow-500"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                    >
+                      {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                   {securityErrors.newPassword && (
                     <p className="text-[11px] text-red-500 mt-1 font-medium">{securityErrors.newPassword}</p>
                   )}
                 </div>
 
+                {/* Confirm New Password */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Confirm New Password</label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={securityData.confirmPassword}
-                    onChange={handleSecurityChange}
-                    placeholder="••••••••••••"
-                    className={`w-full bg-gray-50 border rounded-xl px-3.5 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
-                      securityErrors.confirmPassword ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-yellow-500"
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      autoComplete="new-password"
+                      readOnly
+                      onFocus={(e) => e.target.removeAttribute('readonly')}
+                      value={securityData.confirmPassword}
+                      onChange={handleSecurityChange}
+                      placeholder="••••••••••••"
+                      className={`w-full bg-gray-50 border rounded-xl pl-3.5 pr-9 py-2 text-xs text-gray-900 focus:outline-none transition-colors ${
+                        securityErrors.confirmPassword ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-yellow-500"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                   {securityErrors.confirmPassword && (
                     <p className="text-[11px] text-red-500 mt-1 font-medium">{securityErrors.confirmPassword}</p>
                   )}
@@ -342,9 +358,7 @@ export default function AdminSettings() {
               </form>
             </div>
           )}
-
         </div>
-
       </div>
     </div>
   );
