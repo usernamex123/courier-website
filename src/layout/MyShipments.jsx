@@ -130,10 +130,7 @@ export default function MyShipments() {
           <p className="text-xs text-slate-500"></p>
         </div>
         {userCode && (
-          <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-            <ShieldCheck className="w-4 h-4 text-yellow-600" />
-            <span className="text-xs text-slate-600 font-medium">Unique ID:</span>
-            <span className="font-mono text-xs font-bold text-slate-900 tracking-wider">{userCode}</span>
+          <div className="">
           </div>
         )}
       </div>

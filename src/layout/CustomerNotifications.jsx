@@ -267,7 +267,6 @@ export default function CustomerNotifications() {
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-slate-900">Notifications</h1>
-          <p className="text-xs text-slate-500">Real-time alerts regarding your shipment status updates.</p>
         </div>
         <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
           <Bell className="w-4 h-4 text-yellow-600" />

@@ -6,9 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 const STATUS_ORDER = [
   'shipment_created', 
   'picked_up', 
-  'at_origin_facility', 
   'in_transit', 
-  'at_destination_facility', 
   'out_for_delivery', 
   'delivered'
 ];
@@ -16,9 +14,7 @@ const STATUS_ORDER = [
 const MILESTONES = [
   { key: 'shipment_created', title: 'Shipment Created', defaultDesc: 'Your shipment has been created.' },
   { key: 'picked_up', title: 'Picked Up', defaultDesc: 'Your shipment has been picked up.' },
-  { key: 'at_origin_facility', title: 'At Origin Facility', defaultDesc: 'Package arrived at origin facility.' },
   { key: 'in_transit', title: 'In Transit', defaultDesc: 'Your shipment is on the way.' },
-  { key: 'at_destination_facility', title: 'At Destination Facility', defaultDesc: 'Package arrived at destination facility.' },
   { key: 'out_for_delivery', title: 'Out for Delivery', defaultDesc: 'Your shipment is out for delivery.' },
   { key: 'delivered', title: 'Delivered', defaultDesc: 'Your shipment has been delivered.' }
 ];
