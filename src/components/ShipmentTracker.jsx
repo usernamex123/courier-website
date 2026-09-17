@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Package, Truck, Clock, CheckCircle2, Loader2, AlertCircle, MapPin, Copy, Check } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -27,6 +27,7 @@ const normalizeStatus = (str) => {
 
 export default function ShipmentTracker() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [trackingNumber, setTrackingNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [shipment, setShipment] = useState(null);
@@ -35,9 +36,8 @@ export default function ShipmentTracker() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const handleTrackSubmit = async (e) => {
-    e.preventDefault();
-    const trimmed = trackingNumber.trim();
+  const fetchShipmentData = async (num) => {
+    const trimmed = num.trim();
     if (!trimmed) return;
 
     setLoading(true);
@@ -77,6 +77,31 @@ export default function ShipmentTracker() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Automatically track if query parameter or localStorage item is present
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const trackingParam = params.get('tracking') || localStorage.getItem('autoTrackNumber');
+
+    if (trackingParam) {
+      setTrackingNumber(trackingParam);
+      localStorage.removeItem('autoTrackNumber');
+      fetchShipmentData(trackingParam);
+
+      // Smooth scroll down to tracking section
+      setTimeout(() => {
+        const trackElement = document.getElementById('track');
+        if (trackElement) {
+          trackElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [location]);
+
+  const handleTrackSubmit = (e) => {
+    e.preventDefault();
+    fetchShipmentData(trackingNumber);
   };
 
   const handleCopy = (text) => {

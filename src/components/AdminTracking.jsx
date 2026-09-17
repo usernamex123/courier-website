@@ -2,16 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Search, Radar, Car, Navigation, Gauge, Fuel, MapPin, Loader2 } from "lucide-react";
+import { Search, Radar, Navigation, MapPin, Loader2, User, Package, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "../lib/supabaseClient";
 
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  return `http://${window.location.hostname || 'localhost'}:5000`;
-};
-const API_URL = getApiUrl();
-
-const vehicleIcon = L.divIcon({
+const driverIcon = L.divIcon({
   className: "",
   html: `<div style="position:relative;width:34px;height:34px;">
     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-500 opacity-50"></span>
@@ -25,95 +20,151 @@ const vehicleIcon = L.divIcon({
 
 function Recenter({ position, zoom }) {
   const map = useMap();
-  useEffect(() => { if (position) map.flyTo(position, zoom, { duration: 1.2 }); }, [position, zoom, map]);
+  useEffect(() => { 
+    if (position) map.flyTo(position, zoom, { duration: 1.2 }); 
+  }, [position, zoom, map]);
   return null;
 }
 
-// Default center updated to Columbus, Ohio
-const DEFAULT_CENTER = [39.9612, -82.9988];
+// Default center set to Kathmandu, Nepal
+const DEFAULT_CENTER = [27.7172, 85.3240];
 
-// --- Inline UI Components ---
+// Helper to resolve coordinates from either "lat, lng" string or text address via Nominatim geocoding
+const resolveCoordinates = async (locStr) => {
+  if (!locStr) return null;
+  
+  // 1. Try parsing as direct numeric coordinates ("lat, lng")
+  const parts = locStr.split(',').map(p => parseFloat(p.trim()));
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    return [parts[0], parts[1]];
+  }
+
+  // 2. If it's a text address/location name, geocode it using OpenStreetMap Nominatim
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locStr)}&limit=1`, {
+      headers: { 'User-Agent': 'AdminTrackingApp/1.0' }
+    });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    }
+  } catch (err) {
+    console.error("Geocoding lookup error:", err);
+  }
+
+  return null;
+};
 
 const StatusBadge = ({ status }) => {
   const s = (status || "").toLowerCase();
   let colors = "bg-gray-100 text-gray-700 border-gray-200";
-  if (s === "active" || s === "operational" || s === "on_route") colors = "bg-green-50 text-green-700 border-green-200";
-  if (s === "maintenance" || s === "idle") colors = "bg-amber-50 text-amber-800 border-amber-200";
-  if (s === "inactive" || s === "offline") colors = "bg-gray-100 text-gray-600 border-gray-200";
+  if (["delivered", "picked_up", "confirmed"].includes(s)) colors = "bg-green-50 text-green-700 border-green-200";
+  if (["in_transit", "out_for_delivery", "at_origin_facility", "at_destination_facility"].includes(s)) colors = "bg-blue-50 text-blue-700 border-blue-200";
+  if (["delayed", "failed_delivery", "damaged", "lost", "cancelled"].includes(s)) colors = "bg-red-50 text-red-700 border-red-200";
   
   return (
-    <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider border ${colors}`}>
-      {status?.replace('_', ' ') || 'UNKNOWN'}
+    <span className={`px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider border ${colors}`}>
+      {status?.replace(/_/g, ' ') || 'UNKNOWN'}
     </span>
   );
 };
 
 export default function AdminTracking() {
-  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [query, setQuery] = useState("");
-  const [tracked, setTracked] = useState(null);
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [driverEvents, setDriverEvents] = useState([]);
   const [position, setPosition] = useState(null);
   const [searching, setSearching] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [speed, setSpeed] = useState(0);
   const mapRef = useRef(null);
 
-  const loadVehicles = async () => {
+  // Load distinct driver names (created_by) for suggestions
+  const loadDrivers = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/vehicles`, { credentials: 'include' });
-      const data = await res.json();
-      setVehicles(Array.isArray(data) ? data : data.vehicles || []);
+      const { data, error } = await supabase
+        .from('tracking_events')
+        .select('created_by')
+        .not('created_by', 'is', null);
+
+      if (error) throw error;
+      
+      const uniqueDrivers = [...new Set((data || []).map(d => d.created_by))].filter(Boolean);
+      setDrivers(uniqueDrivers);
     } catch (err) {
-      toast.error("Failed to fetch fleet vehicles");
+      console.error(err);
+      toast.error("Failed to fetch drivers list");
     }
   };
 
-  useEffect(() => { loadVehicles(); }, []);
+  useEffect(() => { 
+    loadDrivers(); 
+  }, []);
 
-  const track = (e) => {
+  const handleSearchSubmit = async (e) => {
     e?.preventDefault();
-    const q = query.trim().toLowerCase();
-    if (!q) return;
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
     setSearching(true);
-    setTimeout(() => {
-      const match = vehicles.find((v) => (v.registration || v.plate || "").toLowerCase() === q);
-      setSearching(false);
-      if (!match) {
-        toast.error(`No vehicle registered as "${query}"`);
-        setTracked(null); setPosition(null);
+    try {
+      const { data, error } = await supabase
+        .from('tracking_events')
+        .select(`
+          *,
+          shipments (
+            id,
+            tracking_number,
+            origin,
+            destination,
+            service_type,
+            current_status
+          )
+        `)
+        .ilike('created_by', trimmed)
+        .order('event_time', { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error(`No tracking records found for driver "${trimmed}"`);
+        setSelectedDriver(null);
+        setDriverEvents([]);
+        setPosition(null);
+        setSearching(false);
         return;
       }
-      if (match.latitude == null || match.longitude == null) {
-        // Fallback default mock coordinates near Ohio if missing from record for testing map view
-        const mockLat = 39.9612 + (Math.random() - 0.5) * 0.1;
-        const mockLng = -82.9988 + (Math.random() - 0.5) * 0.1;
-        match.latitude = mockLat;
-        match.longitude = mockLng;
+
+      setSelectedDriver(trimmed);
+      setDriverEvents(data);
+
+      // Resolve coordinates for the latest valid location (supports both lat/lng and text addresses)
+      let foundCoord = null;
+      for (const ev of data) {
+        if (ev.location) {
+          const coords = await resolveCoordinates(ev.location);
+          if (coords) {
+            foundCoord = coords;
+            break;
+          }
+        }
       }
-      setTracked(match);
-      setPosition([match.latitude, match.longitude]);
-      setLastUpdate(new Date());
-      setSpeed(Math.round(40 + Math.random() * 40));
-      toast.success(`Live tracking active for ${match.registration || match.plate}`);
-    }, 450);
+
+      if (foundCoord) {
+        setPosition(foundCoord);
+        toast.success(`Location resolved for driver ${trimmed}`);
+      } else {
+        setPosition(DEFAULT_CENTER);
+        toast.info(`Driver ${trimmed} found, but location could not be mapped.`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred while searching for driver.");
+    } finally {
+      setSearching(false);
+    }
   };
 
-  // Live movement simulation ping
-  useEffect(() => {
-    if (!tracked || !position) return;
-    const id = setInterval(() => {
-      setPosition((p) => {
-        const dLat = (Math.random() - 0.5) * 0.0008;
-        const dLng = (Math.random() - 0.5) * 0.0008;
-        return [p[0] + dLat, p[1] + dLng];
-      });
-      setLastUpdate(new Date());
-      setSpeed(Math.round(38 + Math.random() * 44));
-    }, 3000);
-    return () => clearInterval(id);
-  }, [tracked]);
-
-  const suggestions = useMemo(() => vehicles.map((v) => v.registration || v.plate).filter(Boolean), [vehicles]);
+  const latestEvent = driverEvents[0];
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -125,37 +176,37 @@ export default function AdminTracking() {
               <Radar className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900 text-base">Live Fleet Tracking</h2>
-              <p className="text-xs text-gray-500">Real-time GPS telemetry and asset monitoring</p>
+              <h2 className="font-bold text-gray-900 text-base">Driver GPS Tracking</h2>
+              <p className="text-xs text-gray-500">Track driver locations based on their shipment update logs</p>
             </div>
           </div>
           <span className="text-xs font-bold text-gray-500 font-mono bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">
-            {vehicles.length} Vehicles in Fleet
+            {drivers.length} Active Drivers
           </span>
         </div>
 
-        <form onSubmit={track} className="flex flex-wrap gap-3 mt-4">
+        <form onSubmit={handleSearchSubmit} className="flex flex-wrap gap-3 mt-4">
           <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-300 px-4 py-2.5 flex-1 min-w-65 shadow-sm">
             <Search className="w-4 h-4 text-gray-400" />
             <input
-              list="vehicle-registrations"
+              list="driver-suggestions"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter registration e.g. OH-A-1234..."
+              placeholder="Enter driver name (e.g. driver123)..."
               className="text-sm outline-none bg-transparent w-full text-gray-900 placeholder:text-gray-400"
               autoComplete="off"
             />
-            <datalist id="vehicle-registrations">
-              {suggestions.map((r) => <option key={r} value={r} />)}
+            <datalist id="driver-suggestions">
+              {drivers.map((drv) => <option key={drv} value={drv} />)}
             </datalist>
           </div>
           <button 
             type="submit" 
             disabled={searching} 
-            className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 disabled:opacity-60 transition-all shadow-sm"
+            className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 disabled:opacity-60 transition-all shadow-sm cursor-pointer"
           >
             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />} 
-            {searching ? "Locating..." : "Track Vehicle"}
+            {searching ? "Locating..." : "Track Driver"}
           </button>
         </form>
       </div>
@@ -165,7 +216,7 @@ export default function AdminTracking() {
         {/* Map Container */}
         <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="h-[68vh] min-h-[420px] w-full relative z-0">
-            <MapContainer center={DEFAULT_CENTER} zoom={11} scrollWheelZoom className="h-full w-full" ref={mapRef}>
+            <MapContainer center={DEFAULT_CENTER} zoom={13} scrollWheelZoom className="h-full w-full" ref={mapRef}>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -173,13 +224,22 @@ export default function AdminTracking() {
               {position && (
                 <>
                   <Recenter position={position} zoom={14} />
-                  <Marker position={position} icon={vehicleIcon}>
+                  <Marker position={position} icon={driverIcon}>
                     <Popup>
                       <div className="space-y-1.5 p-1 font-sans">
-                        <strong className="text-gray-900 text-sm font-bold block">{tracked?.registration || tracked?.plate}</strong>
-                        <div className="text-xs text-gray-600">{tracked?.type || "Standard Unit"} · {tracked?.current_location || "On active route"}</div>
-                        <div className="text-xs text-green-600 font-bold flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live · {speed} km/h
+                        <strong className="text-gray-900 text-sm font-bold block flex items-center gap-1.5">
+                          <User size={14} className="text-yellow-600" /> {selectedDriver}
+                        </strong>
+                        <div className="text-xs text-gray-600">
+                          Latest Shipment: <span className="font-mono font-semibold">{latestEvent?.shipments?.tracking_number || '—'}</span>
+                        </div>
+                        {latestEvent?.location && (
+                          <div className="text-xs text-gray-500">
+                            Location: <span className="font-medium text-gray-800">{latestEvent.location}</span>
+                          </div>
+                        )}
+                        <div className="text-xs text-green-600 font-bold flex items-center gap-1 pt-1">
+                          <span className="w-2 h-2 rounded-full bg-green-500"></span> Last Recorded Location
                         </div>
                       </div>
                     </Popup>
@@ -190,54 +250,73 @@ export default function AdminTracking() {
           </div>
         </div>
 
-        {/* Sidebar Status Info */}
+        {/* Sidebar Status Info & History */}
         <div className="space-y-4">
-          {tracked ? (
+          {selectedDriver ? (
             <>
               <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
                 <div className="flex items-center gap-3.5 mb-5 pb-4 border-b border-gray-100">
                   <div className="w-12 h-12 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center shrink-0">
-                    <Car className="w-6 h-6 text-yellow-600" />
+                    <User className="w-6 h-6 text-yellow-600" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-base">{tracked.registration || tracked.plate}</h3>
-                    <p className="text-xs text-gray-500">{tracked.type || "Fleet Vehicle"}</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-gray-900 text-base truncate">{selectedDriver}</h3>
+                    <p className="text-xs text-gray-500">{driverEvents.length} total shipment updates</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current Status</span>
-                  <StatusBadge status={tracked.status} />
+                <div className="space-y-3 text-sm bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 text-xs">Latest Location</span>
+                    <span className="text-xs text-gray-900 font-bold truncate max-w-[140px]" title={latestEvent?.location}>{latestEvent?.location || "None recorded"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 text-xs">Latest Update Time</span>
+                    <span className="text-xs text-gray-900 font-medium">
+                      {latestEvent?.event_time ? new Date(latestEvent.event_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "—"}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="space-y-3 text-sm bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500 flex items-center gap-2 text-xs"><MapPin className="w-3.5 h-3.5 text-gray-400" /> Location</span>
-                    <span className="font-bold text-gray-900 text-xs text-right truncate max-w-[130px]">{tracked.current_location || "On route"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500 flex items-center gap-2 text-xs"><Gauge className="w-3.5 h-3.5 text-gray-400" /> Speed</span>
-                    <span className="font-black font-mono text-green-600 text-xs">{speed} km/h</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500 flex items-center gap-2 text-xs"><Fuel className="w-3.5 h-3.5 text-gray-400" /> Fuel Type</span>
-                    <span className="font-bold text-gray-900 text-xs">{tracked.fuel_type || "Diesel"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500 flex items-center gap-2 text-xs"><Navigation className="w-3.5 h-3.5 text-gray-400" /> Coordinates</span>
-                    <span className="font-mono text-xs text-gray-900">{position ? `${position[0].toFixed(4)}, ${position[1].toFixed(4)}` : "—"}</span>
+                {/* Driver Update History Stream */}
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Driver Activity Stream</h4>
+                  <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
+                    {driverEvents.length > 0 ? (
+                      driverEvents.map((ev) => (
+                        <div key={ev.id} className="p-3 rounded-xl border border-gray-100 bg-white text-xs space-y-1.5 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-bold text-blue-600">{ev.shipments?.tracking_number || 'Shipment'}</span>
+                            <StatusBadge status={ev.status} />
+                          </div>
+                          {ev.location && (
+                            <div className="text-gray-600 flex items-center gap-1 text-[11px]">
+                              <MapPin size={11} className="text-gray-400 shrink-0" /> 
+                              <span className="truncate">{ev.location}</span>
+                            </div>
+                          )}
+                          {ev.description && (
+                            <p className="text-gray-500 italic text-[11px]">{ev.description}</p>
+                          )}
+                          <div className="text-[10px] text-gray-400 flex items-center justify-between pt-1 border-t border-gray-50">
+                            <span>{ev.event_time ? new Date(ev.event_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-400 text-center py-4">No update events found.</p>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
                 <span className="relative flex h-3.5 w-3.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-500"></span>
                 </span>
                 <div>
-                  <div className="text-xs font-bold text-green-800 uppercase tracking-wide">Telemetry Stream Live</div>
-                  <div className="text-[11px] text-green-600 font-medium">Last ping received {lastUpdate ? lastUpdate.toLocaleTimeString() : "—"}</div>
+                  <div className="text-xs font-bold text-green-800 uppercase tracking-wide">Driver Tracked Successfully</div>
+                  <div className="text-[11px] text-green-600 font-medium">Displaying last position logged by {selectedDriver}</div>
                 </div>
               </div>
             </>
@@ -246,8 +325,8 @@ export default function AdminTracking() {
               <div className="w-14 h-14 rounded-2xl bg-yellow-50 border border-yellow-200 flex items-center justify-center mx-auto mb-3">
                 <Radar className="w-7 h-7 text-yellow-600" />
               </div>
-              <h3 className="font-bold text-gray-900 text-base">No Vehicle Tracked</h3>
-              <p className="text-xs text-gray-500 mt-1 max-w-[220px]">Enter a valid vehicle registration number above to begin real-time GPS telemetry tracking.</p>
+              <h3 className="font-bold text-gray-900 text-base">No Driver Selected</h3>
+              <p className="text-xs text-gray-500 mt-1 max-w-[220px]">Enter or select a driver name above (e.g. driver123) to view their latest GPS telemetry and history.</p>
             </div>
           )}
         </div>

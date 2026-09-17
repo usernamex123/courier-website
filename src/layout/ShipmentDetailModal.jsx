@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   MapPin, 
@@ -7,12 +8,11 @@ import {
   Ruler, 
   Scale, 
   DollarSign, 
-  Printer, 
   CheckCircle2
 } from "lucide-react";
-import PrintableLabel from "../label/PrintableLabel";
 
 export default function ShipmentDetailModal({ shipment, onClose }) {
+  const navigate = useNavigate();
   const labelRef = useRef(null);
 
   if (!shipment) return null;
@@ -22,43 +22,31 @@ export default function ShipmentDetailModal({ shipment, onClose }) {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const handlePrintLabel = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow && labelRef.current) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Shipping Label - ${shipment.tracking_number || ''}</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <style>
-              body { margin: 0; background: white; display: flex; justify-content: center; align-items: center; min-height: 100dvh; }
-            </style>
-          </head>
-          <body>
-            ${labelRef.current.outerHTML}
-            <script>
-              window.onload = () => {
-                setTimeout(() => {
-                  window.print();
-                  window.close();
-                }, 250);
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+  // Map correctly to database columns: weight_lb, length_in, width_in, height_in
+  const weightValue = shipment.weight_lb ?? shipment.weight;
+  const formattedWeight = weightValue != null && weightValue !== '' ? `${weightValue} lb` : '—';
+
+  const length = shipment.length_in ?? shipment.length;
+  const width = shipment.width_in ?? shipment.width;
+  const height = shipment.height_in ?? shipment.height;
+
+  let formattedDimensions = '—';
+  if (length != null && width != null && height != null && length !== '' && width !== '' && height !== '') {
+    formattedDimensions = `${length} × ${width} × ${height} in`;
+  } else if (shipment.dimensions) {
+    formattedDimensions = shipment.dimensions;
+  }
+
+  const handleTrackRedirect = () => {
+    if (shipment?.tracking_number) {
+      localStorage.setItem('autoTrackNumber', shipment.tracking_number);
+      onClose?.();
+      navigate(`/?tracking=${encodeURIComponent(shipment.tracking_number)}`);
     }
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-center p-4 sm:p-6 font-sans overflow-y-auto">
-      {/* Hidden rendered Label for printing */}
-      <div className="hidden">
-        <PrintableLabel ref={labelRef} shipment={shipment} />
-      </div>
-
       <div className="bg-slate-50 w-full max-w-5xl rounded-3xl shadow-2xl border border-gray-200 overflow-hidden my-auto space-y-6 p-6 h-fit">
         
         {/* Navigation / Back */}
@@ -78,7 +66,13 @@ export default function ShipmentDetailModal({ shipment, onClose }) {
             <div className="text-lg font-bold text-gray-900 font-mono">{shipment.tracking_number || "—"}</div>
             <div className="text-xs text-gray-500 mt-0.5">Ref: {shipment.reference_number || shipment.ref || "—"}</div>
           </div>
-          <div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleTrackRedirect}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black text-sm font-extrabold px-5 py-2 rounded-xl transition-colors cursor-pointer shadow-xs"
+            >
+              Track
+            </button>
             <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200">
               {shipment.current_status?.replace('_', ' ') || 'Created'}
             </span>
@@ -194,14 +188,14 @@ export default function ShipmentDetailModal({ shipment, onClose }) {
                 <Scale className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs text-gray-400">Weight</div>
-                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{shipment.weight ? `${shipment.weight} lb` : "—"}</div>
+                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{formattedWeight}</div>
                 </div>
               </div>
               <div className="flex items-start gap-3 pt-3">
                 <Ruler className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs text-gray-400">Dimensions</div>
-                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{shipment.dimensions || "—"}</div>
+                  <div className="font-semibold text-gray-900 text-sm mt-0.5">{formattedDimensions}</div>
                 </div>
               </div>
               <div className="flex items-start gap-3 pt-3">
@@ -239,19 +233,6 @@ export default function ShipmentDetailModal({ shipment, onClose }) {
                 <span>${Number(shipment.price || 0).toFixed(2)}</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Documents Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold tracking-wider text-gray-900 uppercase">Documents</h3>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={handlePrintLabel}
-              className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
-            >
-              <Printer className="w-4 h-4" /> Print Label
-            </button>
           </div>
         </div>
 

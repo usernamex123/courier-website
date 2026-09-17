@@ -58,10 +58,10 @@ const getClevelandTimestamp = () => {
   return `${year}-${month}-${day}T${hour}:${minute}:${second}${offsetSign}${offsetHours}:${offsetMins}`;
 };
 
-const getDriverAreaName = async () => {
+const getDriverLocationData = async () => {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      resolve('Cleveland, OH');
+      resolve({ areaName: 'Cleveland, OH', latitude: null, longitude: null });
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -72,22 +72,24 @@ const getDriverAreaName = async () => {
             headers: { 'User-Agent': 'LogisticsDriverPortal/1.0' }
           });
           const data = await response.json();
+          let areaName = 'Cleveland, OH';
           if (data && data.address) {
             const area = data.address.suburb || data.address.neighbourhood || data.address.city_district || '';
             const city = data.address.city || data.address.town || data.address.village || data.address.state || '';
             const locationString = [area, city].filter(Boolean).join(', ');
-            resolve(locationString || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+            areaName = locationString || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           } else {
-            resolve(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+            areaName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
           }
+          resolve({ areaName, latitude, longitude });
         } catch (err) {
           console.warn('Reverse geocoding lookup failed:', err);
-          resolve(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          resolve({ areaName: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, latitude, longitude });
         }
       },
       (err) => {
         console.warn('GPS location retrieval error:', err);
-        resolve('Cleveland, OH');
+        resolve({ areaName: 'Cleveland, OH', latitude: null, longitude: null });
       },
       { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true }
     );
@@ -246,7 +248,7 @@ export default function DriverMyShipments() {
       const trackingNumber = shipment.tracking_number;
 
       toast.loading('Fetching live GPS location...', { id: 'gps-toast' });
-      const currentAreaName = await getDriverAreaName();
+      const { areaName: currentAreaName, latitude, longitude } = await getDriverLocationData();
       toast.dismiss('gps-toast');
 
       const { data: updatedRows, error: updateError } = await supabase
@@ -272,6 +274,8 @@ export default function DriverMyShipments() {
           customer_user_id: shipment.customer_user_id || null,
           status: dbStatus,
           location: currentAreaName,
+          latitude: latitude,
+          longitude: longitude,
           description: `Status updated to ${newStatus} by driver from ${currentAreaName}`,
           event_time: clevelandTimestamp,
           created_by: driver?.name || activeDriverId
@@ -313,7 +317,7 @@ export default function DriverMyShipments() {
       const dbStatus = newStatus.toLowerCase().replace(/ /g, '_');
       
       toast.loading('Fetching live GPS location for bulk update...', { id: 'gps-toast' });
-      const currentAreaName = await getDriverAreaName();
+      const { areaName: currentAreaName, latitude, longitude } = await getDriverLocationData();
       toast.dismiss('gps-toast');
 
       const clevelandTimestamp = getClevelandTimestamp();
@@ -342,6 +346,8 @@ export default function DriverMyShipments() {
             customer_user_id: shipment.customer_user_id || null,
             status: dbStatus,
             location: currentAreaName,
+            latitude: latitude,
+            longitude: longitude,
             description: `Status updated to ${newStatus} by driver from ${currentAreaName}`,
             event_time: clevelandTimestamp,
             created_by: driver?.name || activeDriverId

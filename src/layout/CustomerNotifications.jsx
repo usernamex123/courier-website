@@ -268,9 +268,8 @@ export default function CustomerNotifications() {
         <div>
           <h1 className="text-lg font-bold text-slate-900">Notifications</h1>
         </div>
-        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-          <Bell className="w-4 h-4 text-yellow-600" />
-          <span className="text-xs font-bold text-slate-900">{notifications.length} Alerts</span>
+        <div className="">
+
         </div>
       </div>
 
